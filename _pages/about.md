@@ -2,23 +2,24 @@
 layout: about
 title: about
 permalink: /
-description: <a href="#">Affiliations</a>. Address. Contacts. Moto. Etc.
+description: <a href="https://www.it.pt/">Instituto de Telecomunicações</a>, Lisbon, Portugal
 
 profile:
   align: right
-  image: prof_pic.jpg
+  image: profile.jpg
   address: >
-    <p>555 your office number</p>
-    <p>123 your address street</p>
-    <p>Your City, State 12345</p>
+    <!-- <p>555 your office number</p> -->
+    <!-- <p>123 your address street</p> -->
+    <!-- <p>Your City, State 12345</p> -->
 
-news: true  # includes a list of news items
-selected_papers: true # includes a list of papers marked as "selected={true}"
+news: false  # includes a list of news items
+selected_papers: false # includes a list of papers marked as "selected={true}"
 social: true  # includes social icons at the bottom of the page
 ---
 
-Write your biography here. Tell the world about yourself. Link to your favorite [subreddit](http://reddit.com){:target="\_blank"}. You can put a picture in, too. The code is already in, just name your picture `prof_pic.jpg` and put it in the `img/` folder.
+I am an ML ∩ NLP Ph.D student in the [DeepSPIN](https://deep-spin.github.io/){:target="\_blank"} project, an ERC-funded research project coordinated by Prof. [André Martins](https://andre-martins.github.io/){:target="\_blank"} at [IST](https://tecnico.ulisboa.pt/en/){:target="\_blank"} / [University of Lisbon](https://www.ulisboa.pt/){:target="\_blank"}. 
+In the past few years, I've been working with explainability to shed light on predictions made by NLP models, with focus on neural-based models for Quality Estimation and Machine Translation.
 
-Put your address / P.O. box / other info right below your picture. You can also disable any these elements by editing `profile` property of the YAML header of your `_pages/about.md`. Edit `_bibliography/papers.bib` and Jekyll will render your [publications page](/al-folio/publications/) automatically.
+I obtained my M.Sc. in Computer Science and Computational Mathematics at the [University of São Paulo (USP)](https://www.icmc.usp.br/en/){:target="\_blank"} under the supervision of Prof. [Sandra M. Aluísio](https://scholar.google.com.br/citations?user=9mDOHngAAAAJ&hl=pt-BR){:target="\_blank"}. As part of my [Master's thesis](https://teses.usp.br/teses/disponiveis/55/55134/tde-05022018-090740/publico/MarcosViniciusTreviso_revisada.pdf){:target="\_blank"}, I developed a [tool](https://github.com/mtreviso/deepbondd/){:target="\_blank"} based on convolutional/recurrent neural networks to detect sentence boundaries and speech disfluences in impaired speech transcripts.
 
-Link to your social media connections, too. This theme is set up to use [Font Awesome icons](http://fortawesome.github.io/Font-Awesome/){:target="\_blank"} and [Academicons](https://jpswalsh.github.io/academicons/){:target="\_blank"}, like the ones below. Add your Facebook, Twitter, LinkedIn, Google Scholar, or just disable all of them.
+

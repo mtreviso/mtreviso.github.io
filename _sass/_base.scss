@@ -202,9 +202,9 @@ blockquote {
 // Social (bottom)
 
 .social {
-  text-align: center;
+  text-align: left;
   .contact-icons {
-    font-size: 4rem;
+    font-size: 2rem;
     a {
       i::before {
         color: var(--global-text-color);
@@ -403,6 +403,8 @@ footer.sticky-bottom {
           background-color: var(--global-theme-color);
           padding-left: 1rem;
           padding-right: 1rem;
+          width: 100%;
+          /*box-shadow: none;*/
           a {
             color: white;
             &:hover {
@@ -413,6 +415,20 @@ footer.sticky-bottom {
         .award {
           color: var(--global-theme-color) !important;
           border: 1px solid var(--global-theme-color);
+        }
+        .highlight{
+          /*width: auto !important;*/
+          background: none;
+          padding-left: 0.7rem;
+          padding-right: 0.7rem;
+          /*font-size: 9px;*/
+          /*text-transform: uppercase;*/
+          border: 1px solid #ddd;
+          /*padding: 0px;*/
+          margin-top: 2px;
+          text-align: center;
+          /*color: #666 !important;*/
+          color: var(--global-theme-color) !important;
         }
       }
       .title {
@@ -431,6 +447,9 @@ footer.sticky-bottom {
           font-style: normal;
         }
       }
+      .periodical{
+        font-size: 14px;
+      }
       .links {
         a.btn {
           color: var(--global-text-color);
@@ -439,9 +458,11 @@ footer.sticky-bottom {
           padding-right: 1rem;
           padding-top: 0.25rem;
           padding-bottom: 0.25rem;
+          margin: 1px 1px 1px 0px;
+          background: #eaeaea;
+          border: 0px solid;
           &:hover {
-            color: var(--global-theme-color);
-            border-color: var(--global-theme-color);
+            background: #ddd;
           }
         }
       }
@@ -517,3 +538,4 @@ html.transition *:after {
   transition: all 750ms !important;
   transition-delay: 0 !important;
 }
+
