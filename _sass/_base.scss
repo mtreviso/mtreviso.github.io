@@ -396,7 +396,7 @@ footer.sticky-bottom {
     li {
       margin-bottom: 1rem;
       .abbr {
-        height: 2rem;
+        /*height: auto;*/
         margin-bottom: 0.5rem;
         abbr {
           display: inline-block;
@@ -419,8 +419,9 @@ footer.sticky-bottom {
         .highlight{
           /*width: auto !important;*/
           background: none;
-          padding-left: 0.7rem;
-          padding-right: 0.7rem;
+          padding: 0.4rem 0.2rem;
+          /*padding-left: 0.7rem;*/
+          /*padding-right: 0.7rem;*/
           /*font-size: 9px;*/
           /*text-transform: uppercase;*/
           border: 1px solid #ddd;
