@@ -18,7 +18,7 @@ social: true  # includes social icons at the bottom of the page
 ---
 
 I am a final year Ph.D student advised by Prof. [André Martins](https://andre-martins.github.io/){:target="\_blank"} at [IST](https://tecnico.ulisboa.pt/en/){:target="\_blank"} / [University of Lisbon](https://www.ulisboa.pt/){:target="\_blank"} and [Instituto de Telecomunicações](https://www.it.pt){:target="\_blank"}. 
-In the last few years, I've been working on the intersection of ML and NLP, focusing on interpretability for Machine Translation Quality Estimation. I've also contributed to works on Efficient Transformers and Continuous Attention Mechanisms. Check my [publications](https://mtreviso.github.io/publications/) for an up-to-date overview of my work.
+In the last few years, I've been working on the intersection of ML and NLP, focusing on interpretability for Machine Translation Quality Estimation. I've also contributed to works on Efficient Transformers and Continuous Attention Mechanisms. See my [publications](https://mtreviso.github.io/publications/) for an up-to-date overview of my work.
 <!-- In the past years, I've been working with explainability to shed light on predictions made by NLP models, with focus on neural-based models for Quality Estimation and Machine Translation. -->
 
 Before my Ph.D, I interned at Unbabel, where I helped to develop [OpenKiwi](https://github.com/Unbabel/OpenKiwi){:target="\_blank"}, a MT Quality Estimation tool that received the best Demo Paper Award at ACL19 and was the backbone of our winning [WMT-QE19 shared task](https://www.statmt.org/wmt19/qe-results.html){:target="\_blank"}. 
