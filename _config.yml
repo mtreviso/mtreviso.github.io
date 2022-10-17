@@ -153,6 +153,7 @@ github: [metadata]
 scholar:
 
   last_name: Treviso
+  last_name_eq_contrib: Treviso*
   first_name: [Marcos]
 
   style: apa

@@ -28,6 +28,11 @@
               {% assign author_is_self = true %}
             {% endif %}
           {% endif %}
+          {% if author.last == site.scholar.last_name_eq_contrib%}
+            {% if site.scholar.first_name contains author.first%}
+              {% assign author_is_self = true %}
+            {% endif %}
+          {% endif %}
           {% assign coauthor_url = nil %}
           {% if site.data.coauthors[author.last] %}
             {% for coauthor in site.data.coauthors[author.last] %}
