@@ -16,10 +16,10 @@ $(document).ready(function () {
     if($('#toc-sidebar').length){
         var navSelector = "#toc-sidebar";
         var $myNav = $(navSelector);
-        Toc.init($myNav);
-        $("body").scrollspy({
-            target: navSelector,
-        });
+        // Toc.init($myNav);
+        // $("body").scrollspy({
+        //     target: navSelector,
+        // });
     }
 });
 

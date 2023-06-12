@@ -45,11 +45,6 @@
 
     <!-- Dark Mode -->
     
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jwarby/jekyll-pygments-themes@master/native.css" media="none" id="highlight_theme_dark">
-
-    <script src="/assets/js/theme.js"></script>
-    <script src="/assets/js/dark_mode.js"></script>
-    
 
   
 
@@ -94,25 +89,11 @@
               <li class="nav-item ">
                 <a class="nav-link" href="/teaching/">teaching</a>
               </li>
-
-              <!-- Toogle theme mode -->
-              <li class="toggle-container">
-                <button id="light-toggle" title="Change theme">
-                  <i class="fas fa-moon"></i>
-                  <i class="fas fa-sun"></i>
-                </button>
-              </li>
             </ul>
           </div>
         </div>
       </nav>
 
-      <!-- Scrolling Progress Bar -->
-      <progress id="progress" value="0">
-        <div class="progress-container">
-          <span class="progress-bar"></span>
-        </div>
-      </progress>
     </header>
 
 
@@ -129,1068 +110,6 @@
 
           <article>
             <!-- _pages/publications.md -->
-
-<!-- 
-<div class="publications">
-  <h2 class="year">2022</h2>
-  <ol class="bibliography"><li><!-- _layouts/bib.html -->
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  &lt;div class="row"&gt;
-    &lt;div class="col-sm-2 abbr"&gt;&lt;abbr class="badge"&gt;WMT&lt;/abbr&gt;&lt;/div&gt;
-
-    &lt;!-- Entry bib key --&gt;
-    &lt;div id="rei-etal-2022-cometkiwi" class="col-sm-8"&gt;
-    &lt;!-- Title --&gt;
-    &lt;div class="title"&gt;CometKiwi: IST-Unbabel 2022 Submission for the Quality Estimation Shared Task&lt;/div&gt;
-    &lt;!-- Author --&gt;
-    &lt;div class="author"&gt;
-    
-
-    Ricardo Rei,&amp;nbsp;&lt;em&gt;Marcos Treviso&lt;/em&gt;,&amp;nbsp;Nuno M. Guerreiro, and
-      &lt;span
-          class="more-authors"
-          title="click to view 9 more authors"
-          onclick="
-            var element = $(this);
-            element.attr('title', '');
-            var more_authors_text = element.text() == '9 more authors' ? 'Chrysoula Zerva, Ana C Farinha, Christine Maroti, José G. Souza, Taisiya Glushkova, Duarte Alves, Luisa Coheur, Alon Lavie, André F. T. Martins' : '9 more authors';
-            var cursorPosition = 0;
-            var textAdder = setInterval(function(){
-              element.text(more_authors_text.substring(0, cursorPosition + 1));
-              if (++cursorPosition == more_authors_text.length){
-                clearInterval(textAdder);
-              }
-          }, '10');
-          "
-      &gt;9 more authors&lt;/span&gt;&lt;/div&gt;
-
-    &lt;!-- Journal/Book title and date --&gt;
-    
-    
-    &lt;div class="periodical"&gt;
-      &lt;em&gt;In Proceedings of the Seventh Conference on Machine Translation (WMT)&lt;/em&gt;, Dec 2022
-    &lt;/div&gt;
-    &lt;div class="periodical"&gt;
-      
-    &lt;/div&gt;
-
-      &lt;!-- Links/Buttons --&gt;
-      &lt;div class="links"&gt;
-        &lt;a href="http://arxiv.org/abs/2209.06243" class="btn btn-sm z-depth-0" role="button"&gt;arXiv&lt;/a&gt;
-        &lt;a class="bibtex btn btn-sm z-depth-0" role="button"&gt;Bib&lt;/a&gt;
-        &lt;a href="https://aclanthology.org/2022.wmt-1.60.pdf" class="btn btn-sm z-depth-0" role="button"&gt;PDF&lt;/a&gt;
-        &lt;a href="https://github.com/ricardorei/COMET" class="btn btn-sm z-depth-0" role="button"&gt;Code&lt;/a&gt;
-      &lt;/div&gt;
-      
-      &lt;div class="badges"&gt;
-        &lt;span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"
-          
-          &gt;&lt;/span&gt;
-          &lt;span class="__dimensions_badge_embed__"
-          
-            data-pmid=""
-          
-          data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"&gt;&lt;/span&gt;
-      &lt;/div&gt;
-
-      &lt;!-- Hidden bibtex block --&gt;
-      &lt;div class="bibtex hidden"&gt;
-        &lt;figure class="highlight"&gt;&lt;pre&gt;&lt;code class="language-bibtex" data-lang="bibtex"&gt;&lt;span class="nc"&gt;@inproceedings&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nl"&gt;rei-etal-2022-cometkiwi&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;title&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{{C}omet{K}iwi: {IST}-Unbabel 2022 Submission for the Quality Estimation Shared Task}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;author&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{Rei, Ricardo and Treviso, Marcos and Guerreiro, Nuno M. and Zerva, Chrysoula and Farinha, Ana C and Maroti, Christine and C. de Souza, Jos{\'e} G. and Glushkova, Taisiya and Alves, Duarte and Coheur, Luisa and Lavie, Alon and Martins, Andr{\'e} F. T.}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;booktitle&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{Proceedings of the Seventh Conference on Machine Translation (WMT)}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;month&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="nv"&gt;dec&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;year&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{2022}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;address&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{Abu Dhabi, United Arab Emirates (Hybrid)}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;publisher&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{Association for Computational Linguistics}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;pages&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{634--645}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;url&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{https://aclanthology.org/2022.wmt-1.60}&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;   &lt;span class="na"&gt;highlight&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s"&gt;{Shared Task &amp;lt;br&amp;gt; Winner Award}&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;
-</code></pre></div></div>
-<p>&lt;/li&gt;</p>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">NeurIPS</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="fernandes2022learning" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Learning to Scaffold: Optimizing Model Explanations for Teaching</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Patrick Fernandes*, <em>Marcos Treviso*</em>, Danish Pruthi, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Andre Martins, Graham Neubig' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Thirty-Sixth Conference on Neural Information Processing Systems</em>, Dec 2022
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/2204.10810" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://openreview.net/pdf?id=V5rlSPsHpkf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/coderpat/learning-scaffold" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">fernandes2022learning</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Learning to Scaffold: Optimizing Model Explanations for Teaching}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Fernandes*, Patrick and Treviso*, Marcos and Pruthi, Danish and Martins, Andre and Neubig, Graham}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Thirty-Sixth Conference on Neural Information Processing Systems}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://openreview.net/forum?id=V5rlSPsHpkf}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">SPNLP</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="treviso-etal-2022-predicting" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Predicting Attention Sparsity in Transformers</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, António Góis, Patrick Fernandes, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Erick Fonseca, Andre Martins' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the Sixth Workshop on Structured Prediction for NLP</em>, May 2022
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/2109.12188" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://arxiv.org/pdf/2109.12188" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/deep-spin/sparsefinder/" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-doi="10.18653/v1/2022.spnlp-1.7"></span>
-              <span class="__dimensions_badge_embed__" data-doi="10.18653/v1/2022.spnlp-1.7" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2022-predicting</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Predicting Attention Sparsity in Transformers}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and G{\'o}is, Ant{\'o}nio and Fernandes, Patrick and Fonseca, Erick and Martins, Andre}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Sixth Workshop on Structured Prediction for NLP}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">may</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Dublin, Ireland}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2022.spnlp-1.7}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/2022.spnlp-1.7}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{67--81}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">JMLR</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="martins2022sparse" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Sparse continuous distributions and Fenchel-Young losses</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        André FT Martins, <em>Marcos Treviso</em>, António Farinhas, and
-          <span class="more-authors" title="click to view 4 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '4 more authors' ? 'Pedro MQ Aguiar, Mário AT Figueiredo, Mathieu Blondel, Vlad Niculae' : '4 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">4 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>Journal of Machine Learning Research</em>, May 2022
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/2108.01988" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://arxiv.org/pdf/2108.01988" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/deep-spin/sparse_continuous_distributions/" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">martins2022sparse</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sparse continuous distributions and Fenchel-Young losses}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Martins, Andr{\'e} FT and Treviso, Marcos and Farinhas, Ant{\'o}nio and Aguiar, Pedro MQ and Figueiredo, M{\'a}rio AT and Blondel, Mathieu and Niculae, Vlad}</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Journal of Machine Learning Research}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{23}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{1--74}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<p>&lt;/ol&gt;</p>
-
-<h2 class="year">2021</h2>
-<ol class="bibliography"><li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">Eval4NLP</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="treviso-et-al-2021-ist" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">IST-Unbabel 2021 Submission for the Explainable Quality Estimation Shared Task</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, Nuno Guerreiro, Ricardo Rei, and
-          <span class="more-authors" title="click to view 1 more author" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '1 more author' ? 'André F. T. Martins' : '1 more author';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">1 more author</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 2nd Workshop on Evaluation and Comparison of NLP Systems</em>, Nov 2021
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/2021.eval4nlp-1.14.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/deep-spin/explainable-qe-shared-task" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-et-al-2021-ist</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{IST-Unbabel 2021 Submission for the Explainable Quality Estimation Shared Task}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Guerreiro, Nuno and Rei, Ricardo and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2021}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">nov</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 2nd Workshop on Evaluation and Comparison of NLP Systems}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Punta Cana, Dominican Republic}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2021.eval4nlp-1.14}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{133--145}</span><span class="p">,</span>
-  <span class="na">conference</span> <span class="p">=</span> <span class="s">{true}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best Explain.&lt;br&gt;Approach Award}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li></ol>
-
-<h2 class="year">2020</h2>
-<ol class="bibliography">
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">BlackboxNLP</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="treviso-martins-2020-explanation" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">The Explanation Game: Towards Prediction Explainability through Sparse Communication</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, and André F. T. Martins</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the Third BlackboxNLP Workshop on Analyzing and Interpreting Neural Networks for NLP</em>, Nov 2020
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/2004.13876" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/2020.blackboxnlp-1.10.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/deep-spin/spec" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-            <a href="https://slides.com/mtreviso/the-explanation-game" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Slides</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-doi="10.18653/v1/2020.blackboxnlp-1.10"></span>
-              <span class="__dimensions_badge_embed__" data-doi="10.18653/v1/2020.blackboxnlp-1.10" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-martins-2020-explanation</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{The Explanation Game: Towards Prediction Explainability through Sparse Communication}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">nov</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Third BlackboxNLP Workshop on Analyzing and Interpreting Neural Networks for NLP}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Online}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{107--118}</span><span class="p">,</span>
-  <span class="na">conference</span> <span class="p">=</span> <span class="s">{true}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/2020.blackboxnlp-1.10}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2020.blackboxnlp-1.10}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">NeurIPS</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="NEURIPS2020_f0b76267" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Sparse and Continuous Attention Mechanisms</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        André Martins, António Farinhas, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Vlad Niculae, Pedro Aguiar, Mario Figueiredo' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Advances in Neural Information Processing Systems</em>, Nov 2020
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/2006.07214" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://proceedings.neurips.cc/paper/2020/file/f0b76267fbe12b936bd65e203dc675c1-Paper.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/deep-spin/quati" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-            <a href="https://slideslive.com/38937923/sparse-and-continuous-attention-mechanisms" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Slides</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">NEURIPS2020_f0b76267</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sparse and Continuous Attention Mechanisms}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Martins, Andr\'{e} and Farinhas, Ant\'{o}nio and Treviso, Marcos and Niculae, Vlad and Aguiar, Pedro and Figueiredo, Mario}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Advances in Neural Information Processing Systems}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Curran Associates, Inc.}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{33}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{20989--21001}</span><span class="p">,</span>
-  <span class="na">editor</span> <span class="p">=</span> <span class="s">{Larochelle, H. and Ranzato, M. and Hadsell, R. and Balcan, M. F. and Lin, H.}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Spotlight &lt;br&gt; Presentation}</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">LREC</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="casanova-etal-2020-evaluating" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Evaluating Sentence Segmentation in Different Datasets of Neuropsychological Language Tests in Brazilian Portuguese</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Edresson Casanova, <em>Marcos Treviso</em>, Lilian Hübner, and
-          <span class="more-authors" title="click to view 1 more author" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '1 more author' ? 'Sandra Aluı́sio' : '1 more author';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">1 more author</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 12th Language Resources and Evaluation Conference</em>, May 2020
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/2020.lrec-1.317.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/mtreviso/deepbond" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-isbn="979-10-95546-34-4"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">casanova-etal-2020-evaluating</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Evaluating Sentence Segmentation in Different Datasets of Neuropsychological Language Tests in {B}razilian {P}ortuguese}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Casanova, Edresson and Treviso, Marcos and H{\"u}bner, Lilian and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">may</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 12th Language Resources and Evaluation Conference}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{European Language Resources Association}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Marseille, France}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{2605--2614}</span><span class="p">,</span>
-  <span class="na">isbn</span> <span class="p">=</span> <span class="s">{979-10-95546-34-4}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2020.lrec-1.317}</span><span class="p">,</span>
-  <span class="na">language</span> <span class="p">=</span> <span class="s">{English}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-</ol>
-
-<h2 class="year">2019</h2>
-<ol class="bibliography">
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">ACL</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="kepler-etal-2019-openkiwi" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">OpenKiwi: An Open Source Framework for Quality Estimation</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Miguel Vera, André F. T. Martins' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics: System Demonstrations</em>, Jul 2019
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1902.08646" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/P19-3020.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/Unbabel/OpenKiwi" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-doi="10.18653/v1/P19-3020"></span>
-              <span class="__dimensions_badge_embed__" data-doi="10.18653/v1/P19-3020" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">kepler-etal-2019-openkiwi</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{{O}pen{K}iwi: An Open Source Framework for Quality Estimation}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Kepler, Fabio and Tr{\'e}nous, Jonay and Treviso, Marcos and Vera, Miguel and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2019}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">jul</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics: System Demonstrations}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Florence, Italy}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{117--122}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/P19-3020}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/P19-3020}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best Demo &lt;br&gt; Paper Award}</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">WMT-QE</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="kepler-etal-2019-unbabels" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Unbabel’s Participation in the WMT19 Translation Quality Estimation Shared Task</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 5 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '5 more authors' ? 'Miguel Vera, António Góis, M. Amin Farajian, António V. Lopes, André F. T. Martins' : '5 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">5 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the Fourth Conference on Machine Translation (Volume 3: Shared Task Papers, Day 2)</em>, Aug 2019
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1907.10352" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/W19-5406.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/Unbabel/OpenKiwi" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-doi="10.18653/v1/W19-5406"></span>
-              <span class="__dimensions_badge_embed__" data-doi="10.18653/v1/W19-5406" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">kepler-etal-2019-unbabels</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Unbabel{'}s Participation in the {WMT}19 Translation Quality Estimation Shared Task}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Kepler, Fabio and Tr{\'e}nous, Jonay and Treviso, Marcos and Vera, Miguel and G{\'o}is, Ant{\'o}nio and Farajian, M. Amin and Lopes, Ant{\'o}nio V. and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2019}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">aug</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Fourth Conference on Machine Translation (Volume 3: Shared Task Papers, Day 2)}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Florence, Italy}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{78--84}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/W19-5406}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W19-5406}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Shared Task &lt;br&gt; Winner Award}</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-</ol>
-
-<h2 class="year">2018</h2>
-<ol class="bibliography">
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">PROPOR</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="10.1007/978-3-319-99722-3_41" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Sentence Segmentation and Disfluency Detection in Narrative Transcripts from Neuropsychological Tests</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, and Sandra Maria Aluísio</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Computational Processing of the Portuguese Language</em>, Aug 2018
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://www.researchgate.net/publication/327223308_Sentence_Segmentation_and_Disfluency_Detection_in_Narrative_Transcripts_from_Neuropsychological_Tests_13th_International_Conference_PROPOR_2018_Canela_Brazil_September_24-26_2018_Proceedings" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-isbn="978-3-319-99722-3"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">10.1007/978-3-319-99722-3_41</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sentence Segmentation and Disfluency Detection in Narrative Transcripts from Neuropsychological Tests}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Alu{\'i}sio, Sandra Maria}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2018}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Computational Processing of the Portuguese Language}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Springer International Publishing}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Cham}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{409--418}</span><span class="p">,</span>
-  <span class="na">isbn</span> <span class="p">=</span> <span class="s">{978-3-319-99722-3}</span><span class="p">,</span>
-  <span class="na">editor</span> <span class="p">=</span> <span class="s">{Villavicencio, Aline and Moreira, Viviane and Abad, Alberto and Caseli, Helena and Gamallo, Pablo and Ramisch, Carlos and Gon{\c{c}}alo Oliveira, Hugo and Paetzold, Gustavo Henrique}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://link.springer.com/chapter/10.1007/978-3-319-99722-3_41}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best MSc &lt;br&gt; Thesis Award}</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"></div>
-
-        <!-- Entry bib key -->
-        <div id="Treviso_dosSantos_Shulby_Hübner_Mansur_Aluísio_2018" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Detecting mild cognitive impairment in narratives in Brazilian Portuguese: first steps towards a fully automated system</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, Leandro Borges Santos, Christopher Shulby, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Lilian Cristine Hübner, Letícia Lessa Mansur, Sandra Maria Aluísio' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>Letras de Hoje</em>, Jun 2018
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://revistaseletronicas.pucrs.br/ojs/index.php/fale/article/view/30955/16915" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right" data-doi="10.15448/1984-7726.2018.1.30955"></span>
-              <span class="__dimensions_badge_embed__" data-doi="10.15448/1984-7726.2018.1.30955" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">Treviso_dosSantos_Shulby_Hübner_Mansur_Aluísio_2018</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Detecting mild cognitive impairment in narratives in Brazilian Portuguese: first steps towards a fully automated system}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and dos Santos, Leandro Borges and Shulby, Christopher and Hübner, Lilian Cristine and Mansur, Letícia Lessa and Aluísio, Sandra Maria}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2018}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">jun</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Letras de Hoje}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{53}</span><span class="p">,</span>
-  <span class="na">number</span> <span class="p">=</span> <span class="s">{1}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{48--58}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.15448/1984-7726.2018.1.30955}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://revistaseletronicas.pucrs.br/ojs/index.php/fale/article/view/30955}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-</ol>
-
-<h2 class="year">2017</h2>
-<ol class="bibliography">
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">EACL</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="treviso-etal-2017-sentence" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Sentence Segmentation in Narrative Transcripts from Neuropsychological Tests using Recurrent Convolutional Neural Networks</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, Christopher Shulby, and Sandra Aluı́sio</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 15th Conference of the European Chapter of the Association for Computational Linguistics: Volume 1, Long Papers</em>, Apr 2017
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1610.00211" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/E17-1030.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/mtreviso/deepbond" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2017-sentence</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sentence Segmentation in Narrative Transcripts from Neuropsychological Tests using Recurrent Convolutional Neural Networks}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Shulby, Christopher and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">apr</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 15th Conference of the {E}uropean Chapter of the Association for Computational Linguistics: Volume 1, Long Papers}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Valencia, Spain}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{315--325}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/E17-1030}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">STIL</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="treviso-etal-2017-evaluating" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Evaluating Word Embeddings for Sentence Boundary Detection in Speech Transcripts</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        <em>Marcos Treviso</em>, Christopher Shulby, and Sandra Aluı́sio</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 11th Brazilian Symposium in Information and Human Language Technology</em>, Oct 2017
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1708.04704" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/W17-6618.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/mtreviso/deepbond" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2017-evaluating</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Evaluating Word Embeddings for Sentence Boundary Detection in Speech Transcripts}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Shulby, Christopher and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">oct</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 11th {B}razilian Symposium in Information and Human Language Technology}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Sociedade Brasileira de Computa{\c{c}}{\~a}o}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Uberl{\^a}ndia, Brazil}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{151--160}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W17-6618}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">STIL</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="hartmann-etal-2017-portuguese" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">Portuguese Word Embeddings: Evaluating on Word Analogies and Natural Language Tasks</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Nathan Hartmann, Erick Fonseca, Christopher Shulby, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Marcos Treviso, Jéssica Silva, Sandra Aluı́sio' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In Proceedings of the 11th Brazilian Symposium in Information and Human Language Technology</em>, Oct 2017
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1708.06025" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://aclanthology.org/W17-6615.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/nathanshartmann/portuguese_word_embeddings" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">hartmann-etal-2017-portuguese</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{{P}ortuguese Word Embeddings: Evaluating on Word Analogies and Natural Language Tasks}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Hartmann, Nathan and Fonseca, Erick and Shulby, Christopher and Treviso, Marcos and Silva, J{\'e}ssica and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">oct</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 11th {B}razilian Symposium in Information and Human Language Technology}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Sociedade Brasileira de Computa{\c{c}}{\~a}o}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Uberl{\^a}ndia, Brazil}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{122--131}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W17-6615}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-<li>
-<!-- _layouts/bib.html -->
-      <div class="row">
-        <div class="col-sm-2 abbr"><abbr class="badge">BRACIS</abbr></div>
-
-        <!-- Entry bib key -->
-        <div id="correa2017pelesent" class="col-sm-8">
-        <!-- Title -->
-        <div class="title">PELESent: Cross-domain polarity classification using distant supervision</div>
-        <!-- Author -->
-        <div class="author">
-        
-
-        Edilson Anselmo Corrêa, Vanessa Queiroz Marinho, Leandro Borges Santos, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Thales F. C. Bertaglia, Marcos Treviso, Henrico Bertini Brum' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
-
-        <!-- Journal/Book title and date -->
-        
-        
-        <div class="periodical">
-          <em>In 2017 Brazilian Conference on Intelligent Systems (BRACIS)</em>, Oct 2017
-        </div>
-        <div class="periodical">
-          
-        </div>
-
-          <!-- Links/Buttons -->
-          <div class="links">
-            <a href="http://arxiv.org/abs/1707.02657" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">arXiv</a>
-            <a class="bibtex btn btn-sm z-depth-0" role="button">Bib</a>
-            <a href="https://arxiv.org/pdf/1707.02657.pdf" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">PDF</a>
-            <a href="https://github.com/edilsonacjr/pelesent" class="btn btn-sm z-depth-0" role="button" rel="external nofollow noopener" target="_blank">Code</a>
-          </div>
-          
-          <div class="badges">
-            <span class="altmetric-embed" data-hide-no-mentions="true" data-hide-less-than="15" data-badge-type="2" data-badge-popover="right"></span>
-              <span class="__dimensions_badge_embed__" data-pmid="" data-hide-zero-citations="true" data-style="small_rectangle" data-legend="hover-right" style="margin-bottom: 3px;"></span>
-          </div>
-
-          <!-- Hidden bibtex block -->
-          <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">correa2017pelesent</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{PELESent: Cross-domain polarity classification using distant supervision}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Corr{\^e}a, Edilson Anselmo and Marinho, Vanessa Queiroz and dos Santos, Leandro Borges and Bertaglia, Thales F. C. and Treviso, Marcos and Brum, Henrico Bertini}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{2017 Brazilian Conference on Intelligent Systems (BRACIS)}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{49--54}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">organization</span> <span class="p">=</span> <span class="s">{IEEE}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://ieeexplore.ieee.org/document/8247028}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
-          </div>
-        </div>
-      </div>
-</li>
-</ol>
-
-<p>&lt;/div&gt;
- –&gt;</p>
 
 <p><span style="color:#2698ba">*</span> denotes equal contribution.</p>
 
@@ -1212,20 +131,7 @@
         <div class="author">
         
 
-        Ricardo Rei, <em>Marcos Treviso</em>, Nuno M. Guerreiro, and
-          <span class="more-authors" title="click to view 9 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '9 more authors' ? 'Chrysoula Zerva, Ana C Farinha, Christine Maroti, José G. Souza, Taisiya Glushkova, Duarte Alves, Luisa Coheur, Alon Lavie, André F. T. Martins' : '9 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">9 more authors</span>
-</div>
+        Ricardo Rei, <em>Marcos Treviso</em>, Nuno M. Guerreiro, Chrysoula Zerva, Ana C Farinha, Christine Maroti, José G. Souza, Taisiya Glushkova, Duarte Alves, Luisa Coheur, Alon Lavie, and André F. T. Martins</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1252,18 +158,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">rei-etal-2022-cometkiwi</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{{C}omet{K}iwi: {IST}-Unbabel 2022 Submission for the Quality Estimation Shared Task}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Rei, Ricardo and Treviso, Marcos and Guerreiro, Nuno M. and Zerva, Chrysoula and Farinha, Ana C and Maroti, Christine and C. de Souza, Jos{\'e} G. and Glushkova, Taisiya and Alves, Duarte and Coheur, Luisa and Lavie, Alon and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Seventh Conference on Machine Translation (WMT)}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">dec</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Abu Dhabi, United Arab Emirates (Hybrid)}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{634--645}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2022.wmt-1.60}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Shared Task &lt;br&gt; Winner Award}</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1281,20 +176,7 @@
         <div class="author">
         
 
-        Patrick Fernandes*, <em>Marcos Treviso*</em>, Danish Pruthi, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Andre Martins, Graham Neubig' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
+        Patrick Fernandes*, <em>Marcos Treviso*</em>, Danish Pruthi, Andre Martins, and Graham Neubig</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1321,13 +203,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">fernandes2022learning</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Learning to Scaffold: Optimizing Model Explanations for Teaching}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Fernandes*, Patrick and Treviso*, Marcos and Pruthi, Danish and Martins, Andre and Neubig, Graham}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Thirty-Sixth Conference on Neural Information Processing Systems}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://openreview.net/forum?id=V5rlSPsHpkf}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1345,20 +221,7 @@
         <div class="author">
         
 
-        <em>Marcos Treviso</em>, António Góis, Patrick Fernandes, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Erick Fonseca, Andre Martins' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
+        <em>Marcos Treviso</em>, António Góis, Patrick Fernandes, Erick Fonseca, and Andre Martins</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1385,18 +248,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2022-predicting</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Predicting Attention Sparsity in Transformers}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and G{\'o}is, Ant{\'o}nio and Fernandes, Patrick and Fonseca, Erick and Martins, Andre}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Sixth Workshop on Structured Prediction for NLP}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">may</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Dublin, Ireland}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2022.spnlp-1.7}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/2022.spnlp-1.7}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{67--81}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1414,20 +266,7 @@
         <div class="author">
         
 
-        André FT Martins, <em>Marcos Treviso</em>, António Farinhas, and
-          <span class="more-authors" title="click to view 4 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '4 more authors' ? 'Pedro MQ Aguiar, Mário AT Figueiredo, Mathieu Blondel, Vlad Niculae' : '4 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">4 more authors</span>
-</div>
+        André FT Martins, <em>Marcos Treviso</em>, António Farinhas, Pedro MQ Aguiar, Mário AT Figueiredo, Mathieu Blondel, and Vlad Niculae</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1454,14 +293,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">martins2022sparse</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sparse continuous distributions and Fenchel-Young losses}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Martins, Andr{\'e} FT and Treviso, Marcos and Farinhas, Ant{\'o}nio and Aguiar, Pedro MQ and Figueiredo, M{\'a}rio AT and Blondel, Mathieu and Niculae, Vlad}</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Journal of Machine Learning Research}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{23}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{1--74}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2022}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1482,20 +314,7 @@
         <div class="author">
         
 
-        <em>Marcos Treviso</em>, Nuno Guerreiro, Ricardo Rei, and
-          <span class="more-authors" title="click to view 1 more author" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '1 more author' ? 'André F. T. Martins' : '1 more author';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">1 more author</span>
-</div>
+        <em>Marcos Treviso</em>, Nuno Guerreiro, Ricardo Rei, and André F. T. Martins</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1521,19 +340,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-et-al-2021-ist</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{IST-Unbabel 2021 Submission for the Explainable Quality Estimation Shared Task}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Guerreiro, Nuno and Rei, Ricardo and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2021}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">nov</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 2nd Workshop on Evaluation and Comparison of NLP Systems}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Punta Cana, Dominican Republic}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2021.eval4nlp-1.14}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{133--145}</span><span class="p">,</span>
-  <span class="na">conference</span> <span class="p">=</span> <span class="s">{true}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best Explain.&lt;br&gt;Approach Award}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1582,19 +389,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-martins-2020-explanation</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{The Explanation Game: Towards Prediction Explainability through Sparse Communication}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">nov</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Third BlackboxNLP Workshop on Analyzing and Interpreting Neural Networks for NLP}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Online}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{107--118}</span><span class="p">,</span>
-  <span class="na">conference</span> <span class="p">=</span> <span class="s">{true}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/2020.blackboxnlp-1.10}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2020.blackboxnlp-1.10}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1612,20 +407,7 @@
         <div class="author">
         
 
-        André Martins, António Farinhas, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Vlad Niculae, Pedro Aguiar, Mario Figueiredo' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
+        André Martins, António Farinhas, <em>Marcos Treviso</em>, Vlad Niculae, Pedro Aguiar, and Mario Figueiredo</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1653,17 +435,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">NEURIPS2020_f0b76267</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sparse and Continuous Attention Mechanisms}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Martins, Andr\'{e} and Farinhas, Ant\'{o}nio and Treviso, Marcos and Niculae, Vlad and Aguiar, Pedro and Figueiredo, Mario}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Advances in Neural Information Processing Systems}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Curran Associates, Inc.}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{33}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{20989--21001}</span><span class="p">,</span>
-  <span class="na">editor</span> <span class="p">=</span> <span class="s">{Larochelle, H. and Ranzato, M. and Hadsell, R. and Balcan, M. F. and Lin, H.}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Spotlight &lt;br&gt; Presentation}</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1681,20 +453,7 @@
         <div class="author">
         
 
-        Edresson Casanova, <em>Marcos Treviso</em>, Lilian Hübner, and
-          <span class="more-authors" title="click to view 1 more author" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '1 more author' ? 'Sandra Aluı́sio' : '1 more author';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">1 more author</span>
-</div>
+        Edresson Casanova, <em>Marcos Treviso</em>, Lilian Hübner, and Sandra Aluı́sio</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1720,19 +479,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">casanova-etal-2020-evaluating</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Evaluating Sentence Segmentation in Different Datasets of Neuropsychological Language Tests in {B}razilian {P}ortuguese}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Casanova, Edresson and Treviso, Marcos and H{\"u}bner, Lilian and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2020}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">may</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 12th Language Resources and Evaluation Conference}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{European Language Resources Association}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Marseille, France}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{2605--2614}</span><span class="p">,</span>
-  <span class="na">isbn</span> <span class="p">=</span> <span class="s">{979-10-95546-34-4}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/2020.lrec-1.317}</span><span class="p">,</span>
-  <span class="na">language</span> <span class="p">=</span> <span class="s">{English}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1754,20 +501,7 @@
         <div class="author">
         
 
-        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 2 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '2 more authors' ? 'Miguel Vera, André F. T. Martins' : '2 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">2 more authors</span>
-</div>
+        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, Miguel Vera, and André F. T. Martins</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1794,19 +528,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">kepler-etal-2019-openkiwi</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{{O}pen{K}iwi: An Open Source Framework for Quality Estimation}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Kepler, Fabio and Tr{\'e}nous, Jonay and Treviso, Marcos and Vera, Miguel and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2019}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">jul</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics: System Demonstrations}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Florence, Italy}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{117--122}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/P19-3020}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/P19-3020}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best Demo &lt;br&gt; Paper Award}</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1824,20 +546,7 @@
         <div class="author">
         
 
-        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, and
-          <span class="more-authors" title="click to view 5 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '5 more authors' ? 'Miguel Vera, António Góis, M. Amin Farajian, António V. Lopes, André F. T. Martins' : '5 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">5 more authors</span>
-</div>
+        Fabio Kepler, Jonay Trénous, <em>Marcos Treviso</em>, Miguel Vera, António Góis, M. Amin Farajian, António V. Lopes, and André F. T. Martins</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1864,19 +573,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">kepler-etal-2019-unbabels</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Unbabel{'}s Participation in the {WMT}19 Translation Quality Estimation Shared Task}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Kepler, Fabio and Tr{\'e}nous, Jonay and Treviso, Marcos and Vera, Miguel and G{\'o}is, Ant{\'o}nio and Farajian, M. Amin and Lopes, Ant{\'o}nio V. and Martins, Andr{\'e} F. T.}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2019}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">aug</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the Fourth Conference on Machine Translation (Volume 3: Shared Task Papers, Day 2)}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Florence, Italy}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{78--84}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.18653/v1/W19-5406}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W19-5406}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Shared Task &lt;br&gt; Winner Award}</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1923,19 +620,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">10.1007/978-3-319-99722-3_41</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sentence Segmentation and Disfluency Detection in Narrative Transcripts from Neuropsychological Tests}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Alu{\'i}sio, Sandra Maria}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2018}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Computational Processing of the Portuguese Language}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Springer International Publishing}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Cham}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{409--418}</span><span class="p">,</span>
-  <span class="na">isbn</span> <span class="p">=</span> <span class="s">{978-3-319-99722-3}</span><span class="p">,</span>
-  <span class="na">editor</span> <span class="p">=</span> <span class="s">{Villavicencio, Aline and Moreira, Viviane and Abad, Alberto and Caseli, Helena and Gamallo, Pablo and Ramisch, Carlos and Gon{\c{c}}alo Oliveira, Hugo and Paetzold, Gustavo Henrique}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://link.springer.com/chapter/10.1007/978-3-319-99722-3_41}</span><span class="p">,</span>
-  <span class="na">highlight</span> <span class="p">=</span> <span class="s">{Best MSc &lt;br&gt; Thesis Award}</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -1953,20 +638,7 @@
         <div class="author">
         
 
-        <em>Marcos Treviso</em>, Leandro Borges Santos, Christopher Shulby, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Lilian Cristine Hübner, Letícia Lessa Mansur, Sandra Maria Aluísio' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
+        <em>Marcos Treviso</em>, Leandro Borges Santos, Christopher Shulby, Lilian Cristine Hübner, Letícia Lessa Mansur, and Sandra Maria Aluísio</div>
 
         <!-- Journal/Book title and date -->
         
@@ -1991,18 +663,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">Treviso_dosSantos_Shulby_Hübner_Mansur_Aluísio_2018</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Detecting mild cognitive impairment in narratives in Brazilian Portuguese: first steps towards a fully automated system}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and dos Santos, Leandro Borges and Shulby, Christopher and Hübner, Lilian Cristine and Mansur, Letícia Lessa and Aluísio, Sandra Maria}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2018}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">jun</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Letras de Hoje}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{53}</span><span class="p">,</span>
-  <span class="na">number</span> <span class="p">=</span> <span class="s">{1}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{48--58}</span><span class="p">,</span>
-  <span class="na">doi</span> <span class="p">=</span> <span class="s">{10.15448/1984-7726.2018.1.30955}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://revistaseletronicas.pucrs.br/ojs/index.php/fale/article/view/30955}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2051,17 +712,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2017-sentence</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Sentence Segmentation in Narrative Transcripts from Neuropsychological Tests using Recurrent Convolutional Neural Networks}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Shulby, Christopher and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">apr</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 15th Conference of the {E}uropean Chapter of the Association for Computational Linguistics: Volume 1, Long Papers}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Association for Computational Linguistics}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Valencia, Spain}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{315--325}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/E17-1030}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2106,17 +757,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">treviso-etal-2017-evaluating</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Evaluating Word Embeddings for Sentence Boundary Detection in Speech Transcripts}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos and Shulby, Christopher and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">oct</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 11th {B}razilian Symposium in Information and Human Language Technology}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Sociedade Brasileira de Computa{\c{c}}{\~a}o}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Uberl{\^a}ndia, Brazil}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{151--160}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W17-6618}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2134,20 +775,7 @@
         <div class="author">
         
 
-        Nathan Hartmann, Erick Fonseca, Christopher Shulby, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Marcos Treviso, Jéssica Silva, Sandra Aluı́sio' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
+        Nathan Hartmann, Erick Fonseca, Christopher Shulby, <em>Marcos Treviso</em>, Jéssica Silva, and Sandra Aluı́sio</div>
 
         <!-- Journal/Book title and date -->
         
@@ -2174,17 +802,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">hartmann-etal-2017-portuguese</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{{P}ortuguese Word Embeddings: Evaluating on Word Analogies and Natural Language Tasks}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Hartmann, Nathan and Fonseca, Erick and Shulby, Christopher and Treviso, Marcos and Silva, J{\'e}ssica and Alu{\'\i}sio, Sandra}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">month</span> <span class="p">=</span> <span class="nv">oct</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{Proceedings of the 11th {B}razilian Symposium in Information and Human Language Technology}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Sociedade Brasileira de Computa{\c{c}}{\~a}o}</span><span class="p">,</span>
-  <span class="na">address</span> <span class="p">=</span> <span class="s">{Uberl{\^a}ndia, Brazil}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{122--131}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://aclanthology.org/W17-6615}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2202,20 +820,7 @@
         <div class="author">
         
 
-        Edilson Anselmo Corrêa, Vanessa Queiroz Marinho, Leandro Borges Santos, and
-          <span class="more-authors" title="click to view 3 more authors" onclick="
-                var element = $(this);
-                element.attr('title', '');
-                var more_authors_text = element.text() == '3 more authors' ? 'Thales F. C. Bertaglia, Marcos Treviso, Henrico Bertini Brum' : '3 more authors';
-                var cursorPosition = 0;
-                var textAdder = setInterval(function(){
-                  element.text(more_authors_text.substring(0, cursorPosition + 1));
-                  if (++cursorPosition == more_authors_text.length){
-                    clearInterval(textAdder);
-                  }
-              }, '10');
-              ">3 more authors</span>
-</div>
+        Edilson Anselmo Corrêa, Vanessa Queiroz Marinho, Leandro Borges Santos, Thales F. C. Bertaglia, <em>Marcos Treviso</em>, and Henrico Bertini Brum</div>
 
         <!-- Journal/Book title and date -->
         
@@ -2242,15 +847,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">correa2017pelesent</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{PELESent: Cross-domain polarity classification using distant supervision}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Corr{\^e}a, Edilson Anselmo and Marinho, Vanessa Queiroz and dos Santos, Leandro Borges and Bertaglia, Thales F. C. and Treviso, Marcos and Brum, Henrico Bertini}</span><span class="p">,</span>
-  <span class="na">booktitle</span> <span class="p">=</span> <span class="s">{2017 Brazilian Conference on Intelligent Systems (BRACIS)}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{49--54}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">organization</span> <span class="p">=</span> <span class="s">{IEEE}</span><span class="p">,</span>
-  <span class="na">url</span> <span class="p">=</span> <span class="s">{https://ieeexplore.ieee.org/document/8247028}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2301,12 +898,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@phdthesis</span><span class="p">{</span><span class="nl">treviso2017segmentaccao</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Segmenta{\c{c}}{\~a}o de senten{\c{c}}as e detec{\c{c}}{\~a}o de disflu{\^e}ncias em narrativas transcritas de testes neuropsicol{\'o}gicos}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos Vinicius}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2017}</span><span class="p">,</span>
-  <span class="na">school</span> <span class="p">=</span> <span class="s">{Universidade de S{\~a}o Paulo}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2350,12 +942,7 @@
 
           <!-- Hidden bibtex block -->
           <div class="bibtex hidden">
-            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="nc">@phdthesis</span><span class="p">{</span><span class="nl">treviso2015dois</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Dois modelos de aprendizagem profunda para análise morfossintática}</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Treviso, Marcos Vinicius}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2015}</span><span class="p">,</span>
-  <span class="na">school</span> <span class="p">=</span> <span class="s">{Universidade Federal do Pampa}</span><span class="p">,</span>
-<span class="p">}</span></code></pre></figure>
+            <figure class="highlight"><pre><code class="language-bibtex" data-lang="bibtex"><span class="c">Liquid error: internal</span></code></pre></figure>
           </div>
         </div>
       </div>
@@ -2385,14 +972,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js" integrity="sha256-fgLAgv7fyCGopR/gBNq2iW3ZKIdqIcyshnUULC4vex8=" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/mdbootstrap@4.20.0/js/mdb.min.js" integrity="sha256-NdbiivsvWt7VYCt6hYNT3h/th9vSTL4EDWeGs5SN3DA=" crossorigin="anonymous"></script>
 
-    <!-- Masonry & imagesLoaded -->
-  <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
-  <script defer src="/assets/js/masonry.js" type="text/javascript"></script>
     
-  <!-- Medium Zoom JS -->
-  <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.8/dist/medium-zoom.min.js" integrity="sha256-7PhEpEWEW0XXQ0k6kQrPKwuoIomz8R8IYyuU1Qew4P8=" crossorigin="anonymous"></script>
-  <script defer src="/assets/js/zoom.js"></script>
+    
 
   <!-- Bootstrap Table -->
   <script defer src="https://unpkg.com/bootstrap-table@1.21.4/dist/bootstrap-table.min.js"></script>
@@ -2419,83 +1000,6 @@
 
     
     
-
-<!-- Scrolling Progress Bar -->
-<script type="text/javascript">
-  /*
-   * This JavaScript code has been adapted from the article 
-   * https://css-tricks.com/reading-position-indicator/ authored by Pankaj Parashar, 
-   * published on the website https://css-tricks.com on the 7th of May, 2014.
-   * Couple of changes were made to the original code to make it compatible 
-   * with the `al-foio` theme.
-   */
-  const progressBar = $("#progress");
-  /*
-   * We set up the bar after all elements are done loading.
-   * In some cases, if the images in the page are larger than the intended
-   * size they'll have on the page, they'll be resized via CSS to accomodate
-   * the desired size. This mistake, however, breaks the computations as the
-   * scroll size is computed as soon as the elements finish loading.
-   * To account for this, a minimal delay was introduced before computing the
-   * values.
-   */
-  window.onload = function () {
-    setTimeout(progressBarSetup, 50);
-  };
-  /*
-   * We set up the bar according to the browser.
-   * If the browser supports the progress element we use that.
-   * Otherwise, we resize the bar thru CSS styling
-   */
-  function progressBarSetup() {
-    if ("max" in document.createElement("progress")) {
-      initializeProgressElement();
-      $(document).on("scroll", function() {
-        progressBar.attr({ value: getCurrentScrollPosition() });
-      });
-      $(window).on("resize", initializeProgressElement);
-    } else {
-      resizeProgressBar();
-      $(document).on("scroll", resizeProgressBar);
-      $(window).on("resize", resizeProgressBar);
-    }
-  }
-  /*
-   * The vertical scroll position is the same as the number of pixels that
-   * are hidden from view above the scrollable area. Thus, a value > 0 is
-   * how much the user has scrolled from the top
-   */
-  function getCurrentScrollPosition() {
-    return $(window).scrollTop();
-  }
-
-  function initializeProgressElement() {
-    let navbarHeight = $("#navbar").outerHeight(true);
-    $("body").css({ "padding-top": navbarHeight });
-    $("progress-container").css({ "padding-top": navbarHeight });
-    progressBar.css({ top: navbarHeight });
-    progressBar.attr({
-      max: getDistanceToScroll(),
-      value: getCurrentScrollPosition(),
-    });
-  }
-  /*
-   * The offset between the html document height and the browser viewport
-   * height will be greater than zero if vertical scroll is possible.
-   * This is the distance the user can scroll
-   */
-  function getDistanceToScroll() {
-    return $(document).height() - $(window).height();
-  }
-
-  function resizeProgressBar() {
-    progressBar.css({ width: getWidthPercentage() + "%" });
-  }
-  // The scroll ratio equals the percentage to resize the bar
-  function getWidthPercentage() {
-    return (getCurrentScrollPosition() / getDistanceToScroll()) * 100;
-  }
-</script>
 
   
 </body>
