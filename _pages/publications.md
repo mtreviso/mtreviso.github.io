@@ -9,6 +9,7 @@ nav_order: 1
 ---
 
 An up-to-date list is available on <a href='https://scholar.google.com/citations?user=puR_FskAAAAJ' target='_blank'><u>Google Scholar</u></a>.
+<br />
 <span style='color:#2698ba'>&#42;</span> denotes equal contribution.
 
 
