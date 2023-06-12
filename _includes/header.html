@@ -94,8 +94,15 @@
               {%- endif -%}
               {%- endif -%}
               {% endfor -%}
-              {%- if site.enable_darkmode %}
 
+              <!-- CV -->
+              <li id="show-cv" class="nav-item">
+                <a class="nav-link" target="_blank" href="{{ '/assets/pdf/CV.pdf' | prepend: site.baseurl | prepend: site.url }}">
+                  CV
+                </a>
+              </li>
+
+              {%- if site.enable_darkmode %}
               <!-- Toogle theme mode -->
               <li class="toggle-container">
                 <button id="light-toggle" title="Change theme">
