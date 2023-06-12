@@ -2,25 +2,26 @@
 layout: about
 title: about
 permalink: /
-subtitle: <a href='#'>Affiliations</a>. Address. Contacts. Moto. Etc.
+subtitle: <a href="https://www.it.pt/">Instituto de Telecomunicações</a>, Lisbon, Portugal
 
 profile:
   align: right
-  image: prof_pic.jpg
+  image: profile.jpeg
   image_circular: false # crops the image to make it circular
   address: >
-    <p>555 your office number</p>
-    <p>123 your address street</p>
-    <p>Your City, State 12345</p>
+    <!-- <p>555 your office number</p> -->
+    <!-- <p>123 your address street</p> -->
+    <!-- <p>Your City, State 12345</p> -->
 
 news: true  # includes a list of news items
-latest_posts: true  # includes a list of the newest posts
-selected_papers: true # includes a list of papers marked as "selected={true}"
+latest_posts: false  # includes a list of the newest posts
+selected_papers: false # includes a list of papers marked as "selected={true}"
 social: true  # includes social icons at the bottom of the page
 ---
 
-Write your biography here. Tell the world about yourself. Link to your favorite [subreddit](http://reddit.com). You can put a picture in, too. The code is already in, just name your picture `prof_pic.jpg` and put it in the `img/` folder.
+I am a final year Ph.D student advised by Prof. [André Martins](https://andre-martins.github.io/){:target="\_blank"} at [IST](https://tecnico.ulisboa.pt/en/){:target="\_blank"} / [University of Lisbon](https://www.ulisboa.pt/){:target="\_blank"} and [Instituto de Telecomunicações](https://www.it.pt){:target="\_blank"}. 
+In the last few years, I've been working on the intersection of ML and NLP, focusing on interpretability for Machine Translation Quality Estimation. I've also contributed to works on Efficient Transformers and Continuous Attention Mechanisms. See my [publications](https://mtreviso.github.io/publications/) for an up-to-date overview of my work.
 
-Put your address / P.O. box / other info right below your picture. You can also disable any of these elements by editing `profile` property of the YAML header of your `_pages/about.md`. Edit `_bibliography/papers.bib` and Jekyll will render your [publications page](/al-folio/publications/) automatically.
+Before my Ph.D, I interned at Unbabel, where I helped to develop [OpenKiwi](https://github.com/Unbabel/OpenKiwi){:target="\_blank"}, a MT Quality Estimation tool that received the best Demo Paper Award at ACL19 and was the backbone of our winning [WMT-QE19 shared task](https://www.statmt.org/wmt19/qe-results.html){:target="\_blank"}. 
 
-Link to your social media connections, too. This theme is set up to use [Font Awesome icons](http://fortawesome.github.io/Font-Awesome/) and [Academicons](https://jpswalsh.github.io/academicons/), like the ones below. Add your Facebook, Twitter, LinkedIn, Google Scholar, or just disable all of them.
+I obtained my M.Sc. in Computer Science and Computational Mathematics at the [University of São Paulo (USP)](https://www.icmc.usp.br/en/){:target="\_blank"} under the supervision of Prof. [Sandra M. Aluísio](https://scholar.google.com.br/citations?user=9mDOHngAAAAJ&hl=pt-BR){:target="\_blank"}. My research focused on detecting sentence boundaries and speech disfluences in impaired speech transcripts using a mix of [convolutional and recurrent neural nets with CRFs](https://github.com/mtreviso/deepbondd/){:target="\_blank"}.
