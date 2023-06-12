@@ -13,6 +13,16 @@ pagination:
     after: 3  # The number of links after the current page
 ---
 
+{% assign blog_name_size = site.blog_name | size %}
+{% assign blog_description_size = site.blog_description | size %}
+
+{% if blog_name_size > 0 or blog_description_size > 0 %}
+<div class="header-bar">
+  <h1>{{ site.blog_name }}</h1>
+  <h2>{{ site.blog_description }}</h2>
+</div>
+{% endif %}
+
 <div class="post">
 
 <p>I'm planning to start blog-posting my studies on ML and NLP, covering Structured Prediciton, Probabilistic Graphical Models, Latent Variable Models, Explainability, some Optimization, and more! Stay tunned!</p>
@@ -22,16 +32,6 @@ pagination:
 
 
 <!-- 
-  {% assign blog_name_size = site.blog_name | size %}
-  {% assign blog_description_size = site.blog_description | size %}
-
-  {% if blog_name_size > 0 or blog_description_size > 0 %}
-  <div class="header-bar">
-    <h1>{{ site.blog_name }}</h1>
-    <h2>{{ site.blog_description }}</h2>
-  </div>
-  {% endif %}
-
   {% if site.display_tags %}
   <div class="tag-list">
     <ul class="p-0 m-0">
