@@ -9,7 +9,7 @@ nav_order: 3
 
 <!-- ### Awards -->
 
-I am very honoured to have received the following awards throughout my career.
+<!-- I am very honoured to have received the following awards throughout my career. -->
 
 ***Outstanding Reviewer:***
 - NeurIPS 2022, ICLR 2022, EMNLP 2020
