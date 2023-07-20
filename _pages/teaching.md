@@ -9,7 +9,7 @@ nav_order: 5
 
 #### PyTorch
 - [PyTorch Challenges](https://github.com/mtreviso/pytorch-lecture/blob/master/challenges-for-true-pytorch-heroes.ipynb): a set of 27 mini-puzzles (extension of the ones proposed by [Sasha Rush](https://github.com/srush/Tensor-Puzzles))
-- [From Puzzles to Real Code](https://github.com/mtreviso/pytorch-lecture/blob/master/broadcasting_real_examples.ipynb): Examples of broadcasting in real word applications: wordpieces aggregation, clustered attention, attention statistics.
+- [From Puzzles to Real Code](https://github.com/mtreviso/pytorch-lecture/blob/master/broadcasting_real_examples.ipynb): examples of broadcasting in real word applications: wordpieces aggregation, clustered attention, attention statistics.
 
 
 #### ML for NLP (work in progress)
