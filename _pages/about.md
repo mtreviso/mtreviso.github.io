@@ -21,6 +21,8 @@ social: true  # includes social icons at the bottom of the page
 
 <!-- Currently, I'm an Invited Professor at [IST](https://tecnico.ulisboa.pt/en/){:target="\_blank"} / [University of Lisbon](https://www.ulisboa.pt/){:target="\_blank"} for the Machine Learning course. -->
 
+I am currently a post-doc researcher within the [UTTER Project](https://he-utter.eu/) in Lisbon. My interests lie in the area of explainability and efficiency of NLP models.
+
 I successfully defended my [Ph.D. thesis](https://mtreviso.github.io/assets/pdf/thesis.pdf){:target="\_blank"} in July 2023, with Distinction and Honour, the highest honours given by my university. I was advised by Prof. [André Martins](https://andre-martins.github.io/){:target="\_blank"} at [IST](https://tecnico.ulisboa.pt/en/){:target="\_blank"} / [University of Lisbon](https://www.ulisboa.pt/){:target="\_blank"}. My PhD was funded by the ERC [DeepSPIN Project](https://deep-spin.github.io/){:target="\_blank"}. 
 
 My thesis focused on the role of sparsity for interpretability in NLP, in particular for the task of Machine Translation Quality Estimation. During my Ph.D., I also contributed to works on Efficient Transformers and Continuous Attention Mechanisms, [co-authoring several papers](https://mtreviso.github.io/publications) in top-tier venues such as NeurIPS and ACL. 
