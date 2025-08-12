@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Marcos Treviso</title>
-  <meta name="description" content="Marcos Treviso — Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in NLP, explainability, and efficiency." />
+  <meta name="description" content="Marcos Treviso — Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in ML & NLP, explainability, and efficiency." />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><text x='50' y='62' font-size='60' text-anchor='middle' fill='%23fff' font-family='Arial'>MT</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,46 +17,59 @@
       theme: {
         extend: {
           fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica", "Arial", "Noto Sans", "sans-serif"] },
-          colors: { 
-            brand: { 
-              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc", 400: "#818cf8", 500: "#6366f1", 600: "#4f46e5", 700: "#4338ca", 800: "#3730a3", 900: "#312e81" 
-            } 
+          colors: {
+            brand: {
+              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc", 400: "#818cf8", 500: "#6366f1",
+              600: "#4f46e5", 700: "#4338ca", 800: "#3730a3", 900: "#312e81"
+            }
           }
         }
       }
     }
   </script>
-  <style>html{scroll-behavior:smooth}</style>
+  <style>
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <!-- Open Graph -->
+  <meta property="og:title" content="Marcos Treviso" />
+  <meta property="og:description" content="Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in NLP, explainability, and efficiency." />
+  <meta property="og:type" content="website" />
 </head>
-<body class="bg-white text-zinc-900">
-  <main id="main" class="max-w-3xl mx-auto px-4 sm:px-6 py-14">
+<body class="bg-white text-zinc-900 antialiased">
+  <main id="main" class="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
     <!-- Hero / Intro -->
     <section aria-labelledby="intro">
-      <div class="flex items-start gap-6">
-        <img src="profile.png" alt="Marcos Treviso" class="w-48 h-48 rounded-2xl object-cover object-center shadow"/>
+      <div class="flex flex-col sm:flex-row items-start gap-5 sm:gap-6">
+        <img src="profile.png" alt="Portrait of Marcos Treviso" class="w-28 h-28 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-2xl object-cover object-center shadow aspect-square select-none" fetchpriority="high" decoding="async" />
         <div>
           <h1 id="intro" class="text-3xl sm:text-4xl font-extrabold tracking-tight">Marcos Treviso</h1>
-          <p class="mt-2 text-md text-zinc-600">Assistant Professor at <a class="text-brand-700 hover:underline" href="https://tecnico.ulisboa.pt">Instituto Superior Técnico</a>, University of Lisbon. </p>
-          <p class="mt-2 text-md text-zinc-600">
-          I work on Machine Learning ∩ Natural Language Processing with interests in efficiency and explainability.</p>
-          
+          <p class="mt-2 text-base sm:text-md text-zinc-600">
+            Assistant Professor at
+            <a class="text-brand-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+               href="https://tecnico.ulisboa.pt" target="_blank" rel="noopener noreferrer">Instituto Superior Técnico</a>, University of Lisbon.
+          </p>
+          <p class="mt-2 text-base sm:text-md text-zinc-600">
+            I work on Machine Learning ∩ Natural Language Processing with interests in efficiency and explainability.
+          </p>
+
           <div class="mt-4 flex items-center gap-4 text-xl text-zinc-700">
-            <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" aria-label="Email" class="hover:text-brand-600" target="_blank">
+            <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" aria-label="Email" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded">
               <i class="fas fa-envelope"></i>
             </a>
-            <a href="https://twitter.com/yourhandle" aria-label="Twitter" class="hover:text-brand-600" target="_blank">
+            <a href="https://twitter.com/yourhandle" aria-label="Twitter" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
               <i class="fab fa-twitter"></i>
             </a>
-            <a href="https://www.linkedin.com/in/yourprofile" aria-label="LinkedIn" class="hover:text-brand-600" target="_blank">
+            <a href="https://www.linkedin.com/in/yourprofile" aria-label="LinkedIn" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
               <i class="fab fa-linkedin"></i>
             </a>
-            <a href="https://github.com/mtreviso" aria-label="GitHub" class="hover:text-brand-600" target="_blank">
+            <a href="https://github.com/mtreviso" aria-label="GitHub" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
               <i class="fab fa-github"></i>
             </a>
-            <a href="https://scholar.google.com/citations?user=puR_FskAAAAJ" aria-label="Google Scholar" class="hover:text-brand-600" target="_blank">
+            <a href="https://scholar.google.com/citations?user=puR_FskAAAAJ" aria-label="Google Scholar" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
               <i class="fas fa-graduation-cap"></i>
             </a>
-            <a href="CV.pdf" aria-label="CV" class="hover:text-brand-600 font-semibold text-sm">
+            <a href="CV.pdf" aria-label="CV" class="hover:text-brand-600 font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
               CV
             </a>
           </div>
@@ -63,43 +77,62 @@
       </div>
     </section>
 
-    <!-- Publications → point to Scholar only -->
+    <!-- Publications -->
     <section id="publications" class="mt-10" aria-labelledby="pubs-heading">
       <h2 id="pubs-heading" class="text-xl font-semibold">Publications</h2>
-      <p class="mt-3 text-zinc-700">For an up-to-date list, please see <a class="text-brand-700 hover:underline" href="https://scholar.google.com/citations?user=puR_FskAAAAJ" target="_blank">my Google Scholar profile</a>.</p>
+      <p class="mt-3 text-zinc-700">
+        For an up-to-date list, please see
+        <a class="text-brand-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+           href="https://scholar.google.com/citations?user=puR_FskAAAAJ" target="_blank" rel="noopener noreferrer">my Google Scholar profile</a>.
+      </p>
     </section>
 
     <!-- Selected Projects -->
     <section id="projects" class="mt-10" aria-labelledby="projects-heading">
       <h2 id="projects-heading" class="text-xl font-semibold">Some Projects</h2>
-      <div class="mt-5 grid sm:grid-cols-2 gap-4">
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/mtreviso/linear-chain-crf" target="_blank">
+      <div class="mt-5 grid gap-4 sm:grid-cols-2">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/mtreviso/linear-chain-crf" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">Linear-chain CRF in PyTorch</div>
           <div class="mt-1 text-sm text-zinc-600">Reference implementation and tutorial.</div>
         </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/mtreviso/entmax-demo" target="_blank">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/mtreviso/entmax-demo" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">entmax-demo</div>
-          <div class="mt-1 text-sm text-zinc-600">Interactive demos of sparse alternatives to softmax.</div>
+          <div class="mt-1 text-sm text-zinc-600">Interactive demos of α-entmax.</div>
         </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/mtreviso/arr-report-generator" target="_blank">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/mtreviso/arr-report-generator" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">arr-report-generator</div>
           <div class="mt-1 text-sm text-zinc-600">Generate reports from ARR data.</div>
         </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/mtreviso/cluster-scope" target="_blank">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/mtreviso/cluster-scope" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">cluster-scope</div>
           <div class="mt-1 text-sm text-zinc-600">Utilities for cluster exploration.</div>
         </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/mtreviso/pytorch-lecture" target="_blank">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/mtreviso/pytorch-lecture" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">PyTorch Lecture (Tensor Puzzles)</div>
           <div class="mt-1 text-sm text-zinc-600">With Sasha Rush — puzzles and notebooks.</div>
         </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition" href="https://github.com/deep-spin/triton-tutorial" target="_blank">
+        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+           href="https://github.com/deep-spin/triton-tutorial" target="_blank" rel="noopener noreferrer">
           <div class="font-medium">triton-tutorial</div>
           <div class="mt-1 text-sm text-zinc-600">Hands-on Triton kernels for efficiency.</div>
         </a>
       </div>
     </section>
 
+    <!-- Footer -->
+    <footer class="mt-12 text-sm text-zinc-500">
+      <p>&copy; <span id="year"></span> Marcos Treviso</p>
+    </footer>
   </main>
+
+  <script>
+    // Set year in footer without blocking rendering
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
