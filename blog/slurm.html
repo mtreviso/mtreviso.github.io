@@ -146,6 +146,26 @@
       margin: 8px 0;
     }
 
+    .toc ul ul {
+      padding-left: 24px;
+      margin-top: 8px;
+    }
+
+    .toc ul ul li {
+      margin: 4px 0;
+      font-size: 0.9rem;
+    }
+
+    .toc ul ul a {
+      color: #6b7280;
+      font-weight: 400;
+    }
+
+    .toc ul ul a:hover {
+      color: #4f46e5;
+      background-color: #e0e7ff;
+    }
+
     .toc a {
       color: #4f46e5;
       text-decoration: none;
@@ -283,18 +303,95 @@
 <div class="toc">
 <h2 class="text-2xl font-bold mb-4">Table of Contents</h2>
 <ul>
-<li><a href="#introduction">1. The Scaling Challenge: How We Improved Our Infrastructure</a></li>
-<li><a href="#concepts">2. Understanding SLURM Core Concepts</a></li>
-<li><a href="#installation">3. Installation and Basic Setup</a></li>
-<li><a href="#configuration">4. Configuration Files Deep Dive</a></li>
-<li><a href="#multi-node">5. Multi-Node Setup and Authentication</a></li>
-<li><a href="#gpu-enforcement">6. GPU Access Control and Enforcement</a></li>
-<li><a href="#qos">7. Quality of Service Policies</a></li>
-<li><a href="#monitoring">8. Advanced Monitoring and Analytics</a></li>
-<li><a href="#production">9. Production Optimizations</a></li>
-<li><a href="#usage">10. Real-World Usage Examples</a></li>
-<li><a href="#troubleshooting">11. Troubleshooting and Maintenance</a></li>
-<li><a href="#reporting">12. Automated Reporting and Analytics</a></li>
+  <li><a href="#introduction">1. How We Improved Our Infrastructure</a></li>
+
+  <li>
+    <a href="#concepts">2. Understanding SLURM Core Concepts</a>
+    <ul>
+      <li><a href="#concepts">Cgroups: The Foundation of Resource Control</a></li>
+      <li><a href="#concepts">Partitions: Organizing Your Hardware</a></li>
+      <li><a href="#concepts">Quality of Service: The Art of Fair Scheduling</a></li>
+      <li><a href="#concepts">The SLURM Ecosystem</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#installation">3. Installation and Basic Setup</a>
+    <ul>
+      <li><a href="#installation">Prerequisites and Planning</a></li>
+      <li><a href="#installation">Server Organization</a></li>
+      <li><a href="#installation">Controller Node Installation</a></li>
+      <li><a href="#installation">Compute Nodes Installation</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#multi-node">4. Multi-Node Setup and Authentication</a>
+    <ul>
+      <li><a href="#multi-node">Munge: The Authentication Backbone</a></li>
+      <li><a href="#multi-node">User and Group Synchronization</a></li>
+      <li><a href="#multi-node">Network Configuration</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#configuration">5. Configuration Files Deep Dive</a>
+    <ul>
+      <li><a href="#configuration">Database Configuration: slurmdbd.conf</a></li>
+      <li><a href="#configuration">GPU Resource Mapping: gres.conf</a></li>
+      <li><a href="#configuration">Primary Configuration: slurm.conf</a></li>
+      <li><a href="#configuration">Node and Partition Definitions</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#qos">6. Quality of Service Policies</a>
+    <ul>
+      <li><a href="#qos">Initialize the Accounting System</a></li>
+      <li><a href="#qos">QoS Design Philosophy</a></li>
+      <li><a href="#qos">Creating QoS Policies</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#monitoring">7. Advanced Monitoring and Analytics</a>
+    <ul>
+      <li><a href="#monitoring">Enhanced Queue Viewer: psqueue</a></li>
+      <li><a href="#monitoring">Installing Enhanced Tools</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#usage">8. Real-World Usage Examples</a>
+    <ul>
+      <li><a href="#usage">Interactive Development Workflows</a></li>
+      <li><a href="#usage">Production Batch Jobs</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#troubleshooting">9. Troubleshooting and Maintenance</a>
+    <ul>
+      <li><a href="#troubleshooting">Node in DRAIN State</a></li>
+      <li><a href="#troubleshooting">Jobs Stuck PENDING</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#reporting">10. Interactive HTML Reports</a>
+    <ul>
+      <li><a href="#reporting">Interactive HTML Reports</a></li>
+    </ul>
+  </li>
+
+  <li>
+    <a href="#conclusion">11. Conclusion</a>
+    <ul>
+      <li><a href="#conclusion">Whats next?</a></li>
+    </ul>
+  </li>
+
+  <li><a href="#comments">12. Comments</a></li>
 </ul>
 </div>
 
@@ -1630,7 +1727,7 @@ That's all!
 <section>
 <div class="bg-gray-50 rounded-xl p-6 mt-8 mb-8">
 <p class="text-zinc-700 text-center">
-<strong>Acknowledgments:</strong> Special thanks to true SARDINE warriors, Duarte Alves and Sweta Agrawal, 
+<strong>Acknowledgments:</strong> Special thanks to the true SARDINE warriors, Duarte Alves and Sweta Agrawal, 
           whose patience, expertise, and funny debugging sessions made this SLURM guide possible 🙏.
         </p>
 </div>
