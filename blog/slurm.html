@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>SLURM Job Scheduler Setup and Configuration - Complete Production Guide</title>
+<meta content="Complete guide to setting up SLURM job scheduler for academic research clusters. GPU scheduling, QoS policies, multi-node configuration, monitoring, and production optimizations." name="description"/>
+<meta content="#ffffff" name="theme-color"/>
+<link href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;rect width='100' height='100' fill='%230a0a0a'/&gt;&lt;text x='50' y='62' font-size='60' text-anchor='middle' fill='%23fff' font-family='Arial'&gt;MT&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- Prism.js for syntax highlighting -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+<!-- KaTeX for math expressions -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica", "Arial", "Noto Sans", "sans-serif"] },
+          colors: {
+            brand: {
+              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc", 400: "#818cf8", 500: "#6366f1",
+              600: "#4f46e5", 700: "#4338ca", 800: "#3730a3", 900: "#312e81"
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    
+    /* Code blocks styling */
+    .code-block-header {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 8px 8px 0 0;
+      margin-bottom: 0;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    }
+    
+    .code-block-header + pre {
+      margin-top: 0 !important;
+      border-radius: 0 0 8px 8px !important;
+    }
+    
+    pre[class*="language-"] {
+      margin: 1.5em 0;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Inline code */
+    code:not([class*="language-"]) { 
+      background: #f3f4f6; 
+      padding: 2px 6px; 
+      border-radius: 4px; 
+      font-size: 0.9em;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    }
+
+    .narrative-section {
+      margin: 2rem 0;
+      line-height: 1.7;
+    }
+
+    .insight-box {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 1px solid #0ea5e9;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .insight-box::before {
+      content: "💡";
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      background: #0ea5e9;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .warning-box {
+      background: linear-gradient(135deg, #fef2f2 0%, #fde8e8 100%);
+      border: 1px solid #ef4444;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .warning-box::before {
+      content: "⚠️";
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      background: #ef4444;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%);
+      margin: 3rem 0;
+    }
+
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+
+    .toc ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .toc li {
+      margin: 8px 0;
+    }
+
+    .toc a {
+      color: #4f46e5;
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    .toc a:hover {
+      background-color: #e0e7ff;
+    }
+
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin: 24px 0;
+    }
+
+    .info-grid-three {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 24px 0;
+    }
+
+    .info-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .info-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Hero image styling */
+    .hero-image {
+      aspect-ratio: 3/2;
+      object-fit: cover;
+    }
+
+    @media (max-width: 1024px) {
+      .info-grid-three {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (min-width: 1025px) and (max-width: 1280px) {
+      .info-grid-three {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .hero-image {
+        aspect-ratio: 4/3;
+      }
+    }
+
+    /* Ensure proper spacing */
+    header .hero-image-container {
+      margin-bottom: 2rem;
+    }
+  
+/* icon-only header */
+.code-block-header { display:flex; align-items:center; gap:10px; }
+.code-block-header i { font-size: 0.95rem; opacity: .9; }
+
+.code-header-file { background:#0f172a !important; }
+.code-header-terminal { background:#0f172a !important; }
+
+.code-block-header .label { display:none; } /* no text chips; icon-only as requested */
+
+/* Make headers sticky to their code blocks for better scanning */
+.code-block-header + pre[class*="language-"] { margin-top:0 !important; }
+
+/* Subtle separator for file-callouts */
+.file-callout { background:#f8fafc; border:1px dashed #cbd5e1; padding:12px 14px; border-radius:10px; }
+</style>
+</head>
+<body class="bg-white text-zinc-900 antialiased">
+<!-- Navigation -->
+<nav class="bg-white border-b border-zinc-200 sticky top-0 z-50 backdrop-blur-sm bg-white/80">
+<div class="max-w-4xl mx-auto px-4 sm:px-6">
+<div class="flex justify-between items-center py-4">
+<a class="text-xl font-bold text-zinc-900 hover:text-brand-600 transition" href="../index.html">Marcos Treviso</a>
+<div class="flex items-center gap-6 text-sm">
+<a class="text-zinc-600 hover:text-brand-600 transition" href="../index.html">Home</a>
+<a class="text-brand-600 font-medium" href="../blog.html">Blog</a>
+</div>
+</div>
+</div>
+</nav>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+<nav class="text-sm text-zinc-500">
+<a class="hover:text-brand-600" href="../index.html">Home</a>
+<span class="mx-2">›</span>
+<a class="hover:text-brand-600" href="../blog.html">Blog</a>
+<span class="mx-2">›</span>
+<span class="text-zinc-900">SLURM Setup Guide</span>
+</nav>
+</div>
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+<!-- Header -->
+<header class="mb-12">
+<!-- Hero Image -->
+<div class="hero-image-container mb-8">
+<div class="flex justify-center">
+<div class="max-w-2xl w-full">
+<img alt="Cartoon illustration of eight anthropomorphic sardine characters representing Greek gods (Hermes, Athena, Zeus, Hera, Poseidon, Artemis, Dionysus, and Hades) standing in front of glowing server racks in a colorful server room" class="w-full h-auto rounded-2xl shadow-xl" src="./figs/sardine-servers.jpeg" title="Eight Server Nodes Depicted as Greek Deities in the SARDINE Lab Data Center."/>
+</div>
+</div>
+<p class="text-sm text-zinc-500 text-center mt-3 italic">
+          The only gods we trust with our CUDA kernels.
+        </p>
+</div>
+<div class="text-sm text-zinc-500 mb-4">
+        Production Guide • Updated January 2025 • 50 min read
+      </div>
+<h1 class="text-5xl font-bold tracking-tight mb-6">
+        SLURM in the Wild: A Practical Guide for Academic Labs
+      </h1>
+<p class="text-xl text-zinc-600 leading-relaxed mb-8">
+        A complete guide from basic concepts to academic deployment, covering multi-node setup, GPU scheduling, advanced monitoring, and the hard-learned lessons from scaling a research lab from 2 to 30+ users across heterogeneous hardware.
+      </p>
+</header>
+<!-- Table of Contents -->
+<section class="mb-16">
+<div class="toc">
+<h2 class="text-2xl font-bold mb-4">Table of Contents</h2>
+<ul>
+<li><a href="#introduction">1. The Scaling Challenge: How We Improved Our Infrastructure</a></li>
+<li><a href="#concepts">2. Understanding SLURM Core Concepts</a></li>
+<li><a href="#installation">3. Installation and Basic Setup</a></li>
+<li><a href="#configuration">4. Configuration Files Deep Dive</a></li>
+<li><a href="#multi-node">5. Multi-Node Setup and Authentication</a></li>
+<li><a href="#gpu-enforcement">6. GPU Access Control and Enforcement</a></li>
+<li><a href="#qos">7. Quality of Service Policies</a></li>
+<li><a href="#monitoring">8. Advanced Monitoring and Analytics</a></li>
+<li><a href="#production">9. Production Optimizations</a></li>
+<li><a href="#usage">10. Real-World Usage Examples</a></li>
+<li><a href="#troubleshooting">11. Troubleshooting and Maintenance</a></li>
+<li><a href="#reporting">12. Automated Reporting and Analytics</a></li>
+</ul>
+</div>
+
+<p class="text-zinc-500">
+  Note: All configuration files and scripts mentioned in this guide are available in this 
+  <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/mtreviso/slurm-setup/" rel="noopener" target="_blank">GitHub repository</a>. 
+  <!-- Feel free to adapt them to your specific environment and contribute improvements back to the community. -->
+</p>
+
+</section>
+
+<!-- Introduction Story -->
+<section class="mb-16" id="introduction">
+<h2 class="text-3xl font-bold mb-8">How We Improved Our Infrastructure</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+          When I joined the <a class="text-brand-600 hover:text-brand-700 underline" href="https://sardine-lab.github.io/" rel="noopener" target="_blank">SARDINE Lab</a> 
+          in 2018-2019 (called <a class="text-brand-600 hover:text-brand-700 underline" href="http://deep-spin.github.io/" rel="noopener" target="_blank">DeepSPIN</a> at the time), our computing infrastructure was refreshingly simple: two machines with 4x GTX 1080 GPUs each, supporting a tight-knit group 
+          of 5 PhD students and 2 postdocs. For the NLP research we were doing at the time, this setup was more than adequate.
+        </p>
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+          Our resource allocation system was equally simple: a shared Google Spreadsheet where researchers would claim GPUs 
+          for their experiments. It worked well enough, except during those frenzied pre-deadline periods when everyone suddenly 
+          needed to run "large-scale" experiments simultaneously. The spreadsheet would become a battlefield of merged cells 
+          and conflicting claims, but we survived those chaotic moments through informal Slack negotiations and good-natured 
+          compromise.
+        </p>
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+          Fast-forward to today: our lab has grown to around 30 active researchers across 9 physically distributed servers 
+          featuring different GPU architectures—from older GTX cards to modern H100s and H200s. What started as manageable chaos 
+          had become completely unworkable. The spreadsheet method simply doesn't scale when you have dozens of users 
+          competing for resources across heterogeneous hardware. We were losing precious compute cycles to forgotten 
+          reservations, experiencing frequent conflicts over GPU access, and had no way to track actual resource utilization 
+          or ensure fair allocation.
+        </p>
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+          After evaluating various options, we decided to implement <a class="text-brand-600 hover:text-brand-700 underline" href="https://slurm.schedmd.com/documentation.html" rel="noopener" target="_blank">SLURM</a>. 
+          While initially an unpopular decision among some lab members who preferred the "freedom" of manual coordination, 
+          it has proven transformative. Now researchers submit jobs to intelligent queues that automatically allocate 
+          resources based on availability and priority. We have complete visibility into usage patterns, fair resource 
+          distribution, and the peace of mind that comes from professional job scheduling.
+        </p>
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+          However, I won't sugarcoat the journey... Setting up SLURM is notoriously challenging. The documentation is dense, 
+          configuration files are numerous and interdependent, and examples for research lab environments (as opposed to 
+          traditional HPC centers) are scarce. Multi-node GPU clusters add another layer of complexity that can feel like 
+          navigating uncharted territory.
+        </p>
+<p class="text-lg text-zinc-700 leading-relaxed mb-4">
+           This guide documents my real-world experience building a production SLURM cluster for academic research. 
+           Rather than jumping straight into configuration files, I'll start with the essential concepts that make 
+           SLURM tick. Understanding these fundamentals will make the subsequent setup much more intuitive and help 
+           you troubleshoot issues when they inevitably arise.
+           <!-- As a small note, I just want to emphasize that I'm not a systems administrator by training. I've just learned through necessity and want to share what actually works.  -->
+        </p>
+</div>
+</section>
+<!-- Core Concepts -->
+<section class="mb-16" id="concepts">
+<h2 class="text-3xl font-bold mb-8">Understanding SLURM Core Concepts</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Before diving into installation, you need to understand SLURM's key concepts. Think of SLURM as an intelligent 
+          resource broker that sits between users and hardware, making decisions about who gets what resources and when.
+          The magic happens through three core concepts that work together: cgroups for isolation, partitions for 
+          organization, and Quality of Service (QoS) for fairness.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Cgroups: The Foundation of Resource Control</h3>
+<p class="text-zinc-700 mb-4">
+          The first thing to understand is that SLURM doesn't just schedule jobs, it can also enforce resource limits. 
+          This is extremelly useful, because without proper enforcement, a user requesting 1 GPU could accidentally (or intentionally) use all GPUs on a node, completely defeating the purpose of scheduling. This is where Linux control groups (cgroups) come in.
+          Cgroups are Linux kernel features that isolate and limit resource usage for groups of processes. 
+          SLURM uses them to create "containers" around jobs, ensuring they can only access the CPU cores, 
+          memory, and devices they were allocated.
+        </p>
+<p class="text-zinc-700 mb-4">
+          Setting up cgroups requires both kernel configuration and SLURM configuration. First, we need to enable 
+          the right kernel parameters in <code>/etc/default/grub</code>
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>/etc/default/grub</div>
+<pre><code class="language-bash"># Add cgroup options to kernel command line
+GRUB_CMDLINE_LINUX="cgroup_enable=memory systemd.unified_cgroup_hierarchy=0"
+</code></pre>
+
+
+After editing, update grub and reboot:
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div>
+<pre><code class="language-bash">sudo update-grub
+sudo reboot
+</code></pre>
+
+
+<p class="text-zinc-700 mb-4">
+          Then configure SLURM to use cgroups for resource control by editting (or creating in case it does not exist) the file <code>/etc/slurm/cgroup.conf</code>:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+<a class="text-blue-200 hover:text-white" href="https://github.com/mtreviso/slurm-setup/blob/main/confs/cgroup.conf">/etc/slurm/cgroup.conf</a>
+</div>
+<pre><code class="language-ini">CgroupAutomount=yes
+ConstrainCores=yes       # Limit CPU cores
+ConstrainRAMSpace=yes    # Limit memory usage
+ConstrainDevices=yes     # Control device access</code></pre>
+
+
+<p class="text-zinc-700 mb-4">
+  And the specific devices that jobs are allowed to access in <code><a href="https://github.com/mtreviso/slurm-setup/blob/main/confs/cgroup_allowed_devices_file.conf">/etc/slurm/cgroup_allowed_devices_file.conf</a></code>:
+</p>
+
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+/etc/slurm/cgroup_allowed_devices_file.conf
+</div>
+<pre><code class="language-bash">
+/dev/null
+/dev/urandom
+/dev/zero
+/dev/sda*
+/dev/cpu/*/*
+/dev/pts/*
+/dev/nvidia*    # Allow GPU access</code></pre>
+<h3 class="text-2xl font-semibold mb-6 mt-8">Partitions: Organizing Your Hardware</h3>
+<p class="text-zinc-700 mb-4">
+          Once you have resource enforcement working, you need to organize your hardware logically. 
+          SLURM partitions are like job queues, but more powerful. They group nodes with similar characteristics 
+          and can have different policies, priorities, and access controls.
+        </p>
+<p class="text-zinc-700 mb-6">
+          In our lab, we organize partitions primarily by GPU type, since that's usually the limiting factor 
+          for our workloads. This allows researchers to request specific hardware for their experiments:
+          <code>sbatch --partition=h100 my_large_model_job.sh</code> ensures the job runs on our high-memory H100 nodes, 
+          while <code>--partition=a6000</code> targets our more numerous A6000 nodes for less intensive training runs.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Quality of Service: The Art of Fair Scheduling</h3>
+<p class="text-zinc-700 mb-4">
+          Here's where SLURM gets really interesting. Quality of Service (QoS) policies are templates that define 
+          resource limits, priorities, and time constraints. But they're much more than simple quotas—they're 
+          tools for shaping user behavior and encouraging efficient resource usage.
+        </p>
+<p class="text-zinc-700 mb-6">
+          The key insight is that good QoS design creates incentive alignment. Short jobs get high priority and 
+          generous resource limits, encouraging users to break large experiments into smaller pieces when possible. 
+          Long jobs get lower priority but extended time limits, ensuring important work can still complete. 
+          Emergency QoS levels provide escape hatches for urgent deadlines.
+          We will talk more about Partitions and QoSs later.
+        </p>
+
+    <h3 class="text-2xl font-semibold mb-6">The SLURM Ecosystem</h3>
+    
+    <p class="text-zinc-700 mb-6">
+      SLURM's architecture is elegantly simple yet powerful. 
+      At its core, you have <code class="bg-yellow-100 font-semibold text-yellow-700">slurmd</code> daemons 
+      running on each compute node, communicating with a central <code class="bg-purple-100 font-semibold text-purple-700">slurmctld</code> daemon on the management 
+      node. For a project like ours, you'll also run <code class="bg-purple-100 font-semibold text-purple-700">slurmdbd</code> for accounting and historical data. The figure below illustrates how each deamon interacts with each other.
+    </p>
+
+    <center>
+    <img src="figs/slurm-arch.jpeg" class="max-w-md mb-4">
+    </center>
+
+    <p class="text-zinc-700 mb-6">
+      SLURM provides a comprehensive set of commands, but in practice, you'll use a core set regularly. 
+      Understanding these commands and their purposes will make the subsequent configuration much clearer:
+    </p>
+
+    <div class="info-grid-three">
+      <div class="info-card">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+          <i class="fas fa-play text-green-600"></i>
+          Job Submission
+        </h4>
+        <ul class="space-y-2 text-zinc-700 text-sm">
+          <li><strong>sbatch:</strong> Submit batch jobs</li>
+          <li><strong>srun:</strong> Interactive job execution</li>
+          <li><strong>salloc:</strong> Allocate resources</li>
+          <li><strong>scancel:</strong> Cancel jobs</li>
+        </ul>
+      </div>
+
+      <div class="info-card">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+          <i class="fas fa-chart-line text-blue-600"></i>
+          Monitoring
+        </h4>
+        <ul class="space-y-2 text-zinc-700 text-sm">
+          <li><strong>squeue:</strong> Job queue</li>
+          <li><strong>sinfo:</strong> Partition information</li>
+          <li><strong>sacct:</strong> Job usage history</li>
+          <li><strong>scontrol:</strong> Administrative control</li>
+        </ul>
+      </div>
+
+      <div class="info-card">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+          <i class="fas fa-users text-purple-600"></i>
+          Management
+        </h4>
+        <ul class="space-y-2 text-zinc-700 text-sm">
+          <li><strong>sacctmgr:</strong> Account management</li>
+          <li><strong>sprio:</strong> Job priority analysis</li>
+          <li><strong>sreport:</strong> Usage reports</li>
+        </ul>
+      </div>
+    </div>
+
+
+
+<div class="insight-box">
+<p class="text-sky-800 font-medium">
+          Before installing Slurm, you may want to consider which plugins you will need for your installation. Refer to the list of possible plugins
+          <a class="text-brand-600 hover:text-brand-700 underline" href="https://slurm.schedmd.com/quickstart_admin.html#build_install" rel="noopener" target="_blank">here</a>. 
+          In this guide, we will use two plugins: <code>cgroups</code> for resource enforcement and <code>munge</code> for authentication.
+        </p>
+</div>
+
+  </div>
+</section>
+
+
+
+<div class="section-divider"></div>
+
+<!-- Installation -->
+<section class="mb-16" id="installation">
+<h2 class="text-3xl font-bold mb-8">Installation and Basic Setup</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Now that you understand the concepts, let's build the actual system. 
+          My recommendation is to start simple: 
+          set up a single controller node that also runs compute jobs, get that working perfectly, then add 
+          additional compute nodes. 
+          This incremental approach makes debugging much easier. 
+          My recommendation is to plan for <strong>2-4 hours</strong> for initial setup and testing. SLURM has many interdependent components, and rushing through the installation often leads to hard-to-debug authentication and configuration issues.
+        </p>
+
+<h3 class="text-xl font-semibold mb-4">Prerequisites and Planning</h3>
+
+<p class="text-zinc-700 mb-4">
+          Before installing anything, ensure your environment meets the basic requirements. 
+          <strong>It's important that all nodes use the same linux kernel and OS version.  </strong>
+          I recommend using Ubuntu with a LTS version (e.g., 22.04 LTS). 
+          At this point, we should have NVIDIA GPU drivers installed already. 
+          More critically, you need <strong>consistent user 
+          management</strong> across nodes. That is, all users should have the same UID and GID in <code>/etc/passwd</code>, including slurm-related accounts such as <code>munge</code> and <code>slurm</code> (we will talk about them later).
+          Otherwise, authentication will fail in mysterious ways.
+
+        </p>
+
+
+<h3 class="text-xl font-semibold mb-4">Server Organization</h3>
+
+<p class="text-zinc-700 mb-4">
+  To make this guide more concrete, let's pretend we have a setup with 3 servers (with Ancient Greek God names, ofc) in 2 different physical locations:
+</p>
+
+<figure class="diagram mb-4" role="group" aria-labelledby="diagram-title" aria-describedby="diagram-desc">
+  <div>
+    <!-- Two sites -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+      <section aria-labelledby="site-taguspark" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <h3 id="site-taguspark" class="mb-3 text-sm font-semibold tracking-wide text-slate-700">Location A</h3>
+
+        <ul class="space-y-3">
+          <li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-lg">🏹</div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-base font-semibold text-slate-900">artemis</span>
+                  <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                    compute
+                  </span>
+                  <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    controller
+                  </span>
+                </div>
+                <p class="mt-1 text-sm text-slate-600">8x A6000 (46GB)</p>
+              </div>
+            </div>
+          </li>
+
+          <li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-fuchsia-50 text-lg">🍇</div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-base font-semibold text-slate-900">dionysus</span>
+                  <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                    compute
+                  </span>
+                </div>
+                <p class="mt-1 text-sm text-slate-600">4x H100 (80GB)</p>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="site-alameda" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <h3 id="site-alameda" class="mb-3 text-sm font-semibold tracking-wide text-slate-700">Location B</h3>
+
+        <ul class="space-y-3">
+          <li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-50 text-lg">🔥</div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-base font-semibold text-slate-900">hades</span>
+                  <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                    compute
+                  </span>
+                </div>
+                <p class="mt-1 text-sm text-slate-600">8x H200 (140GB)</p>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+  </div>
+</figure>
+
+<p class="text-zinc-700 mb-4">
+  All servers are compute nodes since all of them have GPUs to run jobs. However, we need to select one of them to be a <strong>controller node</strong>. In our case, it's <strong>artemis</strong>.
+</p>
+
+
+<h3 class="text-xl font-semibold mb-4 mt-8">Controller Node Installation</h3>
+<p class="text-zinc-700 mb-4">
+          The controller node runs the central scheduling daemon (<code>slurmctld</code>), the accounting 
+          database daemon (<code>slurmdbd</code>), and typically a compute daemon (<code>slurmd</code>) if 
+          it also runs jobs. Start by installing all the necessary packages:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Update system and install SLURM components
+sudo apt update &amp;&amp; sudo apt upgrade -y
+sudo apt install slurmd slurmctld slurm-client slurmdbd mariadb-server munge
+
+# Install additional tools
+sudo apt install mailutils  # For SLURM notifications
+sudo systemctl enable slurmd slurmctld slurmdbd munge
+
+# Additional packages
+sudo apt install build-essential libpam0g-dev libmariadb-client-lgpl-dev libmysqlclient-dev mariadb-server libssl-dev
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  Next, configure MariaDB for SLURM's accounting database. This database tracks every job, 
+  resource allocation, and usage metric—it's essential for QoS enforcement and reporting.
+</p>
+
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div>
+<pre><code class="language-sql">sudo systemctl enable mysql
+sudo systemctl start mysql
+sudo mysql -u root
+</code></pre>
+
+
+Then, in MySQL prompt:
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div>
+<pre><code class="language-sql">CREATE DATABASE slurm_acct_db;
+CREATE USER 'slurm'@'localhost';
+SET PASSWORD FOR 'slurm'@'localhost' = PASSWORD('slurmdbpass');
+GRANT USAGE ON *.* TO 'slurm'@'localhost';
+GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  Ideally you want to change the password to something different than "slurmdbpass". We will set the same password later in <code>/etc/slurm/slurmdbd.conf</code>.
+</p>
+
+
+
+<h4 class="text-lg font-semibold mb-2">Database Performance Tuning</h4>
+<p class="text-zinc-700 mb-4">
+          For busy clusters with hundreds of daily jobs, the default MariaDB configuration becomes a bottleneck. 
+          The accounting database handles constant writes as jobs start and finish, plus reads for priority 
+          calculations and reporting. Optimizing these settings can dramatically improve responsiveness:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>/etc/mysql/mariadb.conf.d/50-server.cnf</div>
+<pre><code class="language-ini"># Optimizations for SLURM accounting database
+
+innodb_buffer_pool_size=80G      # 50-80% of RAM
+innodb_log_file_size=512M        # Larger for write-heavy workloads
+innodb_lock_wait_timeout=900     # Longer timeouts for batch operations
+</code></pre>
+<p class="text-zinc-700 mb-4">
+    Database configuration changes require a restart and may need log file recreation:
+  </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo systemctl stop mariadb
+sudo rm /var/lib/mysql/ib_logfile?  # Remove old log files
+sudo systemctl start mariadb</code></pre>
+
+
+<h3 class="text-xl font-semibold mb-4 mt-8">Compute Nodes Installation</h3>
+<p class="text-zinc-700 mb-4">
+          Compute nodes are simpler: they only need the compute daemon and authentication. So, on each compute node, run:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo apt update
+sudo apt install slurmd slurm-client munge
+sudo systemctl enable slurmd munge</code></pre>
+</div>
+</section>
+<!-- Multi-Node Setup -->
+<section class="mb-16" id="multi-node">
+<h2 class="text-3xl font-bold mb-8">Multi-Node Setup and Authentication</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Single-node SLURM is relatively straightforward, but multi-node deployments introduce authentication 
+          complexity that can be frustrating to debug. The key is understanding that SLURM components need to 
+          authenticate with each other constantly: the controller talks to compute nodes, nodes report back to 
+          the controller, and the database tracks everything.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Munge: The Authentication Backbone</h3>
+<p class="text-zinc-700 mb-4">
+          SLURM uses <a class="text-brand-600 hover:text-brand-700 underline" href="https://dun.github.io/munge" rel="noopener" target="_blank">Munge</a>, and so each message between SLURM daemons gets signed 
+          with a shared secret key, ensuring that only authorized processes can communicate.
+        </p>
+<p class="text-zinc-700 mb-4">
+          The setup process requires careful attention to file permissions and user synchronization. 
+          First, install and configure Munge on all nodes:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Controller node
+sudo apt-get install libmunge-dev libmunge2 munge -y
+sudo systemctl enable munge
+sudo systemctl start munge
+
+# Compute nodes  
+sudo apt-get install libmunge-dev libmunge2 munge -y</code></pre>
+<p class="text-zinc-700 mb-4">
+          The critical step is distributing the Munge key. This shared secret must be identical on all nodes:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Copy key from controller to all compute nodes
+sudo scp -p /etc/munge/munge.key username@compute-node:/etc/munge/munge.key
+
+# Set proper permissions on all nodes (this is crucial!)
+sudo chown -R munge: /etc/munge/ /var/log/munge/
+sudo chmod 0700 /etc/munge/ /var/log/munge/</code></pre>
+<div class="warning-box">
+<p class="text-red-800 font-medium">
+            Incorrect file permissions are the most common cause of Munge authentication failures. 
+            The munge.key file must be readable only by the munge user, and the directories must 
+            have the exact permissions shown above.
+          </p>
+</div>
+<p class="text-zinc-700 mb-4">
+          For busy clusters, optimize Munge threading to handle the authentication load. For that, increase the number of thread in 
+          <code>/etc/default/munge</code>:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>/etc/default/munge</div>
+<pre><code class="language-bash">OPTIONS="--num-threads 10"</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  Then, restart munge on all nodes:
+</p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo systemctl daemon-reload
+sudo systemctl restart munge</code></pre>
+<p class="text-zinc-700 mb-4">
+          Always test Munge authentication before proceeding:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Test munge on each node
+munge -n | unmunge
+# Should show "STATUS: Success (0)"
+
+# Test cross-node authentication
+ssh compute-node "munge -n" | unmunge</code></pre>
+<h3 class="text-2xl font-semibold mb-6 mt-8">User and Group Synchronization</h3>
+<p class="text-zinc-700 mb-4">
+          Here's where many SLURM deployments fail: user and group IDs must be synchronized across all nodes. 
+          When the controller tells a compute node to run a job as user ID 1001, that ID must refer to the 
+          same user on both machines. More subtly, the <code>munge</code> and <code>slurm</code> system users 
+          must also have consistent IDs.
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Check current UIDs/GIDs on controller
+sudo cat /etc/passwd | grep -P "slurm|munge"
+# Example output:
+# munge:x:64029:64029::/nonexistent:/usr/sbin/nologin
+# slurm:x:64030:64030:,,,:/home/slurm:/bin/bash
+
+# Synchronize on compute nodes (if needed)
+sudo usermod -u 64029 munge
+sudo groupmod -g 64029 munge
+sudo usermod -u 64030 slurm
+sudo groupmod -g 64030 slurm</code></pre>
+<h3 class="text-2xl font-semibold mb-6 mt-8">Network Configuration</h3>
+<p class="text-zinc-700 mb-4">
+          SLURM components communicate over specific TCP/UDP ports. In a trusted internal network, 
+          the simplest approach is to allow all traffic between cluster nodes:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Open required ports on all nodes
+sudo ufw allow 6817/tcp  # slurmctld
+sudo ufw allow 6817/udp
+sudo ufw allow 6818/tcp  # slurmd
+sudo ufw allow 6818/udp
+sudo ufw allow 6819/tcp  # slurmdbd
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+Alternativelly, you can allow all trafic between specific nodes
+</p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo ufw allow from NODE_IP
+</code></pre>
+
+
+</div>
+</section>
+<!-- Configuration Files -->
+<section class="mb-16" id="configuration">
+<h2 class="text-3xl font-bold mb-8">Configuration Files Deep Dive</h2>
+<div class="file-callout text-sm text-zinc-700 mb-6">
+<strong>Files to edit:</strong>
+<ul class="list-disc pl-6">
+<li><code>/etc/slurm/cgroup.conf</code> (all nodes)</li>
+<li><code>/etc/slurm/cgroup_allowed_devices_file.conf</code> (all nodes)</li>
+<li><code>/etc/slurm/slurmdbd.conf</code> (controller only)</li>
+<li><code>/etc/slurm/gres.conf</code> (all nodes)</li>
+<li><code>/etc/slurm/slurm.conf</code> (all nodes)</li>
+</ul>
+<p class="mt-2">See repo: <a class="underline" href="https://github.com/mtreviso/slurm-setup/" rel="noopener" target="_blank">github.com/mtreviso/slurm-setup</a></p>
+</div>
+
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          SLURM's behavior is controlled by several interconnected configuration files, and getting these right 
+          is crucial for a successful deployment. The main configuration file, <code>slurm.conf</code>, must be 
+          identical on all nodes (any mismatch will cause nodes to appear as "drained" and refuse to accept jobs). 
+          Before that, we will define how many GPUs we have available and from which type.
+        </p>
+
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">Database Configuration: slurmdbd.conf</h3>
+<p class="text-zinc-700 mb-4">
+          The database configuration is only needed on the controller node and requires careful 
+          attention to security:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+<a class="text-blue-200 hover:text-white" href="https://github.com/mtreviso/slurm-setup/blob/main/confs/slurmdbd.conf">/etc/slurm/slurmdbd.conf</a>
+</div>
+<pre><code class="language-ini"># === DATABASE CONNECTION ===
+AuthType=auth/munge
+DbdHost=localhost
+StorageHost=localhost
+StorageLoc=slurm_acct_db
+StoragePass=slurmdbpass
+StorageType=accounting_storage/mysql
+StorageUser=slurm
+SlurmUser=slurm
+
+# === LOGGING ===
+LogFile=/var/log/slurm/slurmdbd.log
+PidFile=/run/slurmdbd.pid</code></pre>
+
+<p class="text-zinc-700 mb-4">
+            Aftwerads, make sure the file has the correct permissions:
+          </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo chmod 600 /etc/slurm/slurmdbd.conf
+sudo chown slurm:slurm /etc/slurm/slurmdbd.conf</code></pre>
+
+
+
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">GPU Resource Mapping: gres.conf</h3>
+<p class="text-zinc-700 mb-4">
+          This file maps physical GPU devices to SLURM resources and must be created on all nodes:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+<a class="text-blue-200 hover:text-white" href="https://github.com/mtreviso/slurm-setup/blob/main/confs/gres.conf">/etc/slurm/gres.conf</a>
+</div>
+<pre><code class="language-ini"># === GPU RESOURCE MAPPING ===
+# Maps physical /dev/nvidia* devices to SLURM GPU resources
+
+# Artemis node - A6000 GPUs
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia0
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia1
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia2
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia3
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia4
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia5
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia6
+NodeName=artemis Type=a6000 Name=gpu File=/dev/nvidia7
+
+# Dionysus node - H100 GPUs
+NodeName=dionysus Type=h100 Name=gpu File=/dev/nvidia0
+NodeName=dionysus Type=h100 Name=gpu File=/dev/nvidia1
+NodeName=dionysus Type=h100 Name=gpu File=/dev/nvidia2
+NodeName=dionysus Type=h100 Name=gpu File=/dev/nvidia3
+
+# Hades node - H200 GPUs
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia0
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia1
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia2
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia3
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia4
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia5
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia6
+NodeName=hades Type=h200 Name=gpu File=/dev/nvidia7</code></pre>
+
+<h3 class="text-2xl font-semibold mb-6">Primary Configuration: slurm.conf</h3>
+<p class="text-zinc-700 mb-4">
+          Let's build the main configuration file section by section. This file defines your entire cluster 
+          topology, scheduling policies, and resource management settings:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+<a class="text-blue-200 hover:text-white" href="https://github.com/mtreviso/slurm-setup/blob/main/confs/slurm.conf">/etc/slurm/slurm.conf</a>
+</div>
+<pre><code class="language-ini"># === CLUSTER IDENTIFICATION ===
+ClusterName=sardine-cluster
+SlurmctldHost=artemis  # Your controller hostname
+MpiDefault=none
+
+# === SLURM CONFIG ===
+ReturnToService=1
+SlurmctldPidFile=/run/slurmctld.pid
+SlurmctldPort=6817
+SlurmdPidFile=/run/slurmd.pid
+SlurmdPort=6818
+SlurmdSpoolDir=/var/lib/slurm/slurmd
+SlurmUser=slurm
+SlurmctldDebug=info
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmdDebug=debug2
+SlurmdLogFile=/var/log/slurm/slurmd.log
+StateSaveLocation=/var/lib/slurm/slurmctld
+SwitchType=switch/none
+
+# === TIMERS ===
+InactiveLimit=0
+KillWait=30
+MinJobAge=300
+SlurmctldTimeout=120
+SlurmdTimeout=300
+Waittime=0
+
+# === RESOURCE MANAGEMENT ===
+GresTypes=gpu                     # Enable GPU tracking
+ProctrackType=proctrack/cgroup    # Use cgroups for process tracking
+TaskPlugin=task/affinity,task/cgroup  # Enable cgroup
+# TaskProlog=/etc/slurm/prolog.sh   # GPU enforcement script (if needed, create one)
+
+# === SCHEDULING ===
+SchedulerType=sched/backfill        # Fill gaps with smaller jobs
+SelectType=select/cons_tres         # Track individual resources
+SelectTypeParameters=CR_CPU_Memory  # Consumable resources
+
+
+# === JOB PRIORITY ===
+PriorityType=priority/multifactor
+PriorityWeightAge=10000           # Jobs gain priority over time
+PriorityWeightQOS=250000          # QoS has high impact on priority
+
+# === ACCOUNTING AND LIMITS ===
+AccountingStorageEnforce=limits,qos  # Enforce QoS limits
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=artemis      # Controller hostname
+AccountingStorageUser=slurm
+AccountingStoreFlags=job_comment
+AccountingStorageTRES=gres/gpu,gres/gpu:a6000,gres/gpu:h100,gres/gpu:h200
+
+# === JOB OPTIONS ===
+JobCompType=jobcomp/none
+JobAcctGatherFrequency=30
+JobAcctGatherType=jobacct_gather/none
+
+# === COMPUTE NODES ===
+NodeName=artemis CPUs=112 Boards=1 SocketsPerBoard=2 CoresPerSocket=28 ThreadsPerCore=2 RealMemory=1031696 Gres=gpu:a6000:8 
+
+NodeName=dionysus CPUs=96 Boards=1 SocketsPerBoard=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=1031564 Gres=gpu:h100:4
+
+NodeName=hades CPUs=192 Boards=1 SocketsPerBoard=2 CoresPerSocket=48 ThreadsPerCore=2 RealMemory=2063731 Gres=gpu:h200:8
+
+# === PARTITIONS ===
+PartitionName=a6000 Nodes=artemis Default=NO MaxTime=INFINITE State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerCPU=12800 DefMemPerGPU=102400 AllowQos=cpu,gpu-debug,gpu-short,gpu-medium,gpu-long
+
+PartitionName=h100 Nodes=dionysus Default=NO MaxTime=INFINITE State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerCPU=21550 DefMemPerGPU=172400 AllowQos=cpu,gpu-debug,gpu-short,gpu-h100
+
+PartitionName=h200 Nodes=hades Default=NO MaxTime=INFINITE State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerCPU=21550 DefMemPerGPU=172400 AllowQos=cpu,gpu-debug,gpu-short,gpu-h200
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  As you can see, there are many options in this file. I removed many commented options for the sake of clarity. Check out the original file to see all commented options: <code><a class="underline" href="https://github.com/mtreviso/slurm-setup/confs/slurm.conf" rel="noopener" target="_blank">/etc/slurm/slurm.conf</a></code>. Let's dive into some of the most concerning options, such as how to define nodes and partitions.
+</p>
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">Node and Partition Definitions</h3>
+<p class="text-zinc-700 mb-4">
+          Hardware specifications in SLURM must match reality **exactly**, or nodes will enter drained state. 
+          For that, use <code>sudo slurmd -C</code> on each node to get accurate specifications:
+        </p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># On each node
+sudo slurmd -C
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+As output, you may obtain something like <code>NodeName=artemis CPUs=112 Boards=1 SocketsPerBoard=2 CoresPerSocket=28 ThreadsPerCore=2 RealMemory=1031696</code>
+</p>
+
+<p class="text-zinc-700 mb-4">
+Copy the output and save it somewhere. We will need that information to fill in the node definitions next. For each node, 
+paste the exact information that you got, and then, afterwards, insert the <code>Gres</code> information (i.e., which GPU types and how many). Remember that the GPU types and quantity were defined in <code>gres.conf</code> before.
+</p>
+
+<pre><code class="language-ini"># === NODE DEFINITIONS ===
+NodeName=artemis CPUs=112 Boards=1 SocketsPerBoard=2 CoresPerSocket=28 ThreadsPerCore=2 RealMemory=1031696 Gres=gpu:a6000:8 
+
+NodeName=dionysus CPUs=96 Boards=1 SocketsPerBoard=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=1031564 Gres=gpu:h100:4
+
+NodeName=hades CPUs=192 Boards=1 SocketsPerBoard=2 CoresPerSocket=48 ThreadsPerCore=2 RealMemory=2063731 Gres=gpu:h200:8
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+Once we have the nodes definition, we can create our partitions as we wish. Here, we need to inform 3 key parameters: 
+</p>
+
+<p class="text-zinc-700 mb-4">
+<ul class="list-disc ml-6">
+  <li class="mb-1">
+    <code>DefCpuPerGPU</code>: the default number of CPUs per GPU. My suggestions is to choose a reasonable number such that you have a few CPU cores left for other processes.
+  </li>
+  <li class="mb-1">
+    <code>DefMemPerGPU</code>: the default number of RAM memory per GPU. Again, my suggestions is to choose a reasonable number such that you have a few RAM left for other processes in your OS.
+  </li>
+  <li class="mb-1">
+    <code>AllowQos</code>: the QoSs that people can use in that partition. We wil talk more about this later. Note that you can always go back and edit <code>/etc/slurm/slurm.conf</code> whenever you wish. Just make sure to restart all the deamon services afterwards.
+  </li>
+</ul>
+</p>
+
+<p class="text-zinc-700 mb-4">
+With that said, here is a possible partition setup:
+</p>
+
+<pre><code class="language-ini"># === PARTITIONS ===
+# Group nodes by hardware type for intelligent scheduling
+
+PartitionName=a6000 Nodes=artemis Default=NO MaxTime=INFINITE \
+    State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerGPU=102400 \
+    AllowQos=cpu,gpu-debug,gpu-short,gpu-medium,gpu-long
+
+PartitionName=h100 Nodes=dionysus Default=NO MaxTime=INFINITE \
+    State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerGPU=172400 \
+    AllowQos=cpu,gpu-debug,gpu-short,gpu-h100
+
+PartitionName=h200 Nodes=hades Default=NO MaxTime=INFINITE \
+    State=UP OverSubscribe=YES DefCpuPerGPU=8 DefMemPerGPU=172400 \
+    AllowQos=cpu,gpu-debug,gpu-short,gpu-h200
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+          So, <code>DefCpuPerGPU=8</code> automatically allocates 
+          8 CPU cores for each GPU requested, while <code>DefMemPerGPU=102400</code> allocates about 100GB 
+          of memory per GPU. <code>OverSubscribe=YES</code> allows more jobs than physical cores, useful 
+          for I/O-bound workloads. <code>AllowQos</code> restricts which QoS levels can run on each partition.
+        </p>
+
+
+</div>
+</section>
+
+<!-- QoS Setup -->
+<section class="mb-16" id="qos">
+<h2 class="text-3xl font-bold mb-8">Quality of Service Policies</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          QoS policies are where SLURM transforms from a simple job scheduler into an intelligent resource 
+          management system. I believe that QoS is something that needs to be discussed with the whole group and should not be set on stone. In our group, we are consistently monitoring slurm usage and updating our QoSs in order to maximize resource usage.
+          For me, the key insight is creating incentive alignment: make the right thing to do 
+          also the easiest thing to do. So, let's dive in.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Initialize the Accounting System</h3>
+<p class="text-zinc-700 mb-4">
+          Before creating QoS policies, initialize the accounting database:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Create cluster and account (run once on controller)
+sudo sacctmgr add cluster sardine-cluster
+sudo sacctmgr add account sardine Description="Research Account" Organization=university</code></pre>
+
+<p class="text-zinc-700 mb-4">Note that the cluster name needs to be the same as the one defined in <code>/etc/slurm/slurm.conf</code>. So, if necessary, adjust the name in the conf file.
+</p>
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">QoS Design Philosophy</h3>
+<p class="text-zinc-700 mb-6">
+          In our cluster, our QoS system creates a time-versus-priority trade-off. 
+          Short-running jobs get high priority and generous resource limits, encouraging users to break large experiments into smaller pieces when possible. Long jobs get lower priority but extended time limits. Emergency QoS provides 
+          escape hatches for urgent deadlines. This creates natural incentives for efficient resource usage. 
+          We also have specific QoSs that we give on a per-user basis in order to allow only some users to use specific resources (e.g., H100s and H200s).
+        </p>
+<div class="info-grid">
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-red-100 rounded-lg p-2">
+<i class="fas fa-bug text-red-600"></i>
+</div>
+<h4 class="font-semibold">gpu-debug</h4>
+</div>
+<span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Priority: 20</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Quick testing, debugging, interactive development</p>
+<p><strong>Limits:</strong> 1 job, up to 8 GPUs, 1 hour max</p>
+<p><strong>Philosophy:</strong> Highest priority for rapid iteration</p>
+</div>
+</div>
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-orange-100 rounded-lg p-2">
+<i class="fas fa-fast-forward text-orange-600"></i>
+</div>
+<h4 class="font-semibold">gpu-short</h4>
+</div>
+<span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Priority: 10</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Short experiments, hyperparameter sweeps, quick training</p>
+<p><strong>Limits:</strong> 2 jobs, up to 4 GPUs each, 4 hours max</p>
+<p><strong>Philosophy:</strong> High throughput for iterative research</p>
+</div>
+</div>
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-blue-100 rounded-lg p-2">
+<i class="fas fa-clock text-blue-600"></i>
+</div>
+<h4 class="font-semibold">gpu-medium</h4>
+</div>
+<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Priority: 5</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Regular training runs, model development, evaluation</p>
+<p><strong>Limits:</strong> 1 job, up to 4 GPUs, 2 days max</p>
+<p><strong>Philosophy:</strong> Balanced resources for production work</p>
+</div>
+</div>
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-purple-100 rounded-lg p-2">
+<i class="fas fa-calendar-alt text-purple-600"></i>
+</div>
+<h4 class="font-semibold">gpu-long</h4>
+</div>
+<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Priority: 2</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Extended training, large models, final experiments</p>
+<p><strong>Limits:</strong> 2 jobs, up to 2 GPUs each, 7 days max</p>
+<p><strong>Philosophy:</strong> Lower priority but extended time for big jobs</p>
+</div>
+</div>
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-yellow-100 rounded-lg p-2">
+<i class="fas fa-crown text-yellow-600"></i>
+</div>
+<h4 class="font-semibold">gpu-h100</h4>
+</div>
+<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Priority: 10</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Only for poeple authorized to use H100s</p>
+<p><strong>Limits:</strong> 2 jobs, up to 4 GPUs each, unlimited time</p>
+<p><strong>Philosophy:</strong> Useful for large LLM training.</p>
+</div>
+
+</div>
+<div class="info-card">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="bg-emerald-100 rounded-lg p-2">
+<i class="fas fa-crown text-emerald-600"></i>
+</div>
+<h4 class="font-semibold">gpu-h200</h4>
+</div>
+<span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">Priority: 10</span>
+</div>
+<div class="text-sm text-zinc-700 space-y-2">
+<p><strong>Purpose:</strong> Only for poeple authorized to use H200s</p>
+<p><strong>Limits:</strong> 4 jobs, up to 4 GPUs each, unlimited time</p>
+<p><strong>Philosophy:</strong> Useful for even large LLM training.</p>
+</div>
+
+</div>
+
+</div>
+<h3 class="text-2xl font-semibold mb-6 mt-8">Creating QoS Policies</h3>
+<p class="text-zinc-700 mb-4">
+  To add a QoS, use <code>sacctmgr</code>. Here is an example:
+</p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Create QoS levels with carefully designed limits
+sudo sacctmgr add qos cpu set priority=10 MaxJobsPerUser=4 \
+    MaxTRESPerUser=cpu=32,mem=128G,gres/gpu=0
+
+sudo sacctmgr add qos gpu-debug set priority=20 MaxJobsPerUser=1 \
+    MaxTRESPerUser=gres/gpu=8 MaxWallDurationPerJob=01:00:00
+
+sudo sacctmgr add qos gpu-short set priority=10 MaxJobsPerUser=2 \
+    MaxTRESPerUser=gres/gpu=4 MaxWallDurationPerJob=04:00:00
+
+sudo sacctmgr add qos gpu-medium set priority=5 MaxJobsPerUser=1 \
+    MaxTRESPerUser=gres/gpu=4 MaxWallDurationPerJob=2-00:00:00
+
+sudo sacctmgr add qos gpu-long set priority=2 MaxJobsPerUser=2 \
+    MaxTRESPerUser=gres/gpu=2 MaxWallDurationPerJob=7-00:00:00
+
+# Special QoS for H100/H200 nodes (higher memory requirements)
+sudo sacctmgr add qos gpu-h100 set priority=10 MaxJobsPerUser=2 \
+    MaxTRESPerUser=gres/gpu=4 MaxWallDurationPerJob=2-00:00:00
+
+sudo sacctmgr add qos gpu-h200 set priority=10 MaxJobsPerUser=4 \
+    MaxTRESPerUser=gres/gpu=4 MaxWallDurationPerJob=4-00:00:00
+
+# Even more Special QoS:
+# Emergency QoS for urgent situations (or for admins)
+sudo sacctmgr add qos gpu-hero set priority=100 MaxJobsPerUser=8 \
+    MaxTRESPerUser=gres/gpu=8</code></pre>
+
+<p class="text-zinc-700 mb-4">
+          Note that the math behind priority weighting matters. With <code>PriorityWeightQOS=250000</code> and 
+          <code>PriorityWeightAge=10000</code>, QoS dominates priority calculations. A job with QoS 
+          priority 100 gets 25,000,000 priority points, while age contributes at most a few thousand 
+          points per day. This ensures urgent jobs run immediately while still allowing aging for fairness.
+          The full math for a job priority depends on a lot of factors. You can check all details in  <a class="text-brand-600 hover:text-brand-700 underline" rel="noopener" target="_blank" href="https://slurm.schedmd.com/priority_multifactor.html#general">SLURM's priority multifactor documentation</a>.
+</p>
+
+<p class="text-zinc-700 mb-4">
+          Then, add users and grant them access to appropriate QoS levels:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Add users and grant QoS access
+sudo sacctmgr create user --immediate name=alice account=sardine \
+    QOS=cpu,gpu-debug,gpu-short,gpu-medium,gpu-long
+
+sudo sacctmgr create user --immediate name=bob account=sardine \
+    QOS=cpu,gpu-debug,gpu-short,gpu-medium,gpu-long,gpu-h100
+
+# Verify user configuration
+sudo sacctmgr show user alice -s</code></pre>
+<p class="text-zinc-700 mb-4">
+    The parameter breakdown: <strong>Priority</strong> determines run order (higher runs first), 
+  <strong>MaxJobsPerUser</strong> limits concurrent jobs, <strong>MaxTRESPerUser</strong> caps 
+  total resources, and <strong>MaxWallDurationPerJob</strong> sets time limits. Users choose 
+  appropriate QoS based on their job requirements, creating natural load balancing.
+</p>
+
+<p class="text-zinc-700 mb-4">
+Finally, restart services and check their status. Note that service startup order is critical for SLURM. Starting services in the wrong order may lead to authentication failures and jobs that refuse to start. The controller node requires a specific sequence, while compute nodes are simpler (only require <code>slurmd</code>):
+</p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Enable
+sudo systemctl enable slurmdbd
+sudo systemctl enable slurmctld
+sudo systemctl enable slurmd
+
+# Restart
+sudo systemctl restart slurmdbd
+sudo systemctl restart slurmctld
+sudo systemctl restart slurmd
+
+# Check status
+sudo systemctl status slurmdbd
+sudo systemctl status slurmctld
+sudo systemctl status slurmd
+</code></pre>
+
+If something fails, check the logs in <code>/var/log/slurm/slurmdbd.log</code>, <code>/var/log/slurm/slurmctld.log</code>, and <code>/var/log/slurm/slurmd.log</code> for more information.
+
+</div>
+</section>
+
+
+
+<!-- Advanced Monitoring -->
+<section class="mb-16" id="monitoring">
+<h2 class="text-3xl font-bold mb-8">Advanced Monitoring and Analytics</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Standard SLURM commands like <code>squeue</code> and <code>sinfo</code> are functional but provide 
+          a poor user experience. The output is hard to read, lacks crucial information like GPU allocations, 
+          and doesn't highlight relevant information for the current user. We can do much better.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Enhanced Queue Viewer: psqueue</h3>
+<p class="text-zinc-700 mb-6">
+          I've developed enhanced replacements that provide beautiful tabular output, GPU allocation details, 
+          memory usage information, and user highlighting. The difference is quite dramatic.
+        </p>
+<p class="text-zinc-700 mb-4">
+          Standard squeue shows basic information in hard-to-read format:
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i>squeue</div><pre><code class="language-bash">JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+  123     a6000    train    alice    R       4:32        1 artemis
+  124     a6000    eval     bob      PD      0:00        1 (Resources)
+  125      h100    big      charlie  R       1-02:15:42  1 dionysus
+</code></pre>
+<p class="text-zinc-700 mb-4">
+  Preety squeue (psqueue) provides beautiful tables with GPU and memory information:
+</p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i>psqueue</div><pre><code class="language-bash">┏━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ JOBID ┃ NAME           ┃ USER    ┃ QOS        ┃ START_TIME ┃ TIME_LEFT  ┃ CPUS ┃ GPUS       ┃ MEMORY      ┃ STATE   ┃ NODELIST            ┃
+┡━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ 71020 │ python3        │ dony    │ gpu-medium │ 1-19:18:32 │ 2-00:00:00 │ 100  │ 4          │   0G (0%)   │ PENDING │ (Priority)          │
+│ 71002 │ cv-judge       │ bob     │ gpu-long   │ -          │ 11:03:13   │ 8    │ 1 (ID 3)   │ 100G (100%) │ RUNNING │ artemis             │
+│ 70916 │ mt-explanation │ miguel  │ gpu-h100   │ -          │ 5-05:18:51 │ 1    │ 2 (ID 5-6) │ 100G (50%)  │ RUNNING │ dionysus            │
+│ 71101 │ qwen-coder     │ charlie │ gpu-h200   │ -          │ 3-23:39:10 │ 1    │ 1 (ID 3)   │ 168G (100%) │ RUNNING │ hades               │
+│ 71076 │ llama-pretrain │ alice   │ gpu-h200   │ -          │ 21:52:01   │ 24   │ 2 (ID 4-5) │ 337G (100%) │ RUNNING │ hades               │
+└───────┴────────────────┴─────────┴────────────┴────────────┴────────────┴──────┴────────────┴─────────────┴─────────┴─────────────────────┘
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  Standard sinfo is very simple:
+</p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i>squeue</div><pre><code class="language-bash">PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+a6000        up   infinite      1    mix artemis
+h100         up   infinite      1    mix dionysus
+h200         up   infinite      1    mix hades
+</code></pre>
+<p class="text-zinc-700 mb-4">
+    Preety sinfo (psinfo) provides beautiful tables and more information:
+  </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i>psqueue</div><pre><code class="language-bash">┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃ NODE     ┃ GPUS_USED        ┃ GPUS    ┃ MEM_USED   ┃ MEMORY     ┃ CPU_LOAD ┃ CPUS ┃ STATE ┃ REASON         ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━┩
+│ artemis  │ 8 (ID 0-7)       │ a6000:8 │ 943.49 GB  │ 1007.52 GB │ 29.00%   │ 112  │ mixed │                │
+│ dionysus │ 3 (ID 0-1,3)     │ h100:4  │ 951.34 GB  │ 1007.52 GB │ 5.81%    │ 112  │ mixed │                │
+│ hades    │ 8 (ID 0-7)       │ h200:8  │ 1763.67 GB │ 2015.36 GB │ 4.82%    │ 192  │ mixed │                │
+└──────────┴──────────────────┴─────────┴────────────┴────────────┴──────────┴──────┴───────┴────────────────┘
+</code></pre>
+
+
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">Installing Enhanced Tools</h3>
+
+<p class="text-zinc-700 mb-4">
+  The tools are just standalone python packages. They required the <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/Textualize/rich" rel="noopener" target="_blank">rich library</a>, which can be installed on a per-user basis with pip via <code>pip install --user rich</code> or (not recommended) globally via <code>sudo pip install rich</code>.
+</p>
+
+<p class="text-zinc-700 mb-4">
+  You can find them in the GitHub repo:
+</p>
+
+<ul class="list-disc pl-6 mb-4">
+  <li>
+    <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/mtreviso/slurm-setup/blob/main/scripts/psqueue.py" rel="noopener" target="_blank">psqueue.py</a>
+  </li>
+  <li>
+    <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/mtreviso/slurm-setup/blob/main/scripts/psinfo.py" rel="noopener" target="_blank">psinfo.py</a>
+  </li>
+</ul>
+
+<p class="text-zinc-700 mb-4">
+  Afterwards, installing is just a matter of copying the scripts to <code>/usr/local/bin</code> and giving them the right permissions:
+</p>
+
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Install the enhanced queue and node viewers
+sudo cp psqueue.py /usr/local/bin/psqueue
+sudo chmod +x /usr/local/bin/psqueue
+sudo cp psinfo.py /usr/local/bin/psinfo
+sudo chmod +x /usr/local/bin/psinfo
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+  NOTE: The enhanced tools support <strong>all the same arguments</strong> as their SLURM counterparts. For example:
+</p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Enhanced queue display
+psqueue
+
+# Show only your jobs
+psqueue --user=$USER
+
+# Show only pending jobs with reasons
+psqueue --states=PENDING
+
+# Enhanced node information
+psinfo
+
+# Force ASCII output for scripts
+psqueue --plain
+psinfo --plain</code></pre>
+
+
+
+
+<!-- Real-World Usage -->
+<section class="mb-16 mt-12" id="usage">
+<h2 class="text-3xl font-bold mb-8">Real-World Usage Examples</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Here are some common examples that researchers  actually use, from quick debugging sessions to large-scale training runs.
+        </p>
+
+<h3 class="text-xl font-semibold mb-6">Interactive Development Workflows</h3>
+<p class="text-zinc-700 mb-6">
+      Interactive sessions are crucial for research work—debugging code, testing models, and exploring 
+      datasets. The key is making these sessions fast to obtain (high priority) but limited in scope 
+      to prevent abuse. To launch an interactive session, pass <code>--pty bash</code> to <code>srun</code>:
+    </p>
+
+<div class="info-card mb-4">
+<h4 class="font-semibold mb-3">Examples with <code>srun</code></h4>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre class="text-xs mb-2"><code class="language-bash"># Immediate access to 1 GPU for testing in artemis. 
+srun -p a6000 -w artemis --gres=gpu:1 --qos=gpu-debug --pty bash
+
+# 4 hours with 4 A6000 GPUs in artemis.
+srun -p a6000 -w artemis --gres=gpu:4 --qos=gpu-short --time=04:00:00 --pty bash
+
+# Request specific H100 GPUs in the correct node (dionysus).
+srun -p h100 -w dionysus --gres=gpu:h100:2 --qos=gpu-h100 --pty bash
+</code></pre>
+</div>
+
+<h3 class="text-xl font-semibold mb-6 mt-8">Production Batch Jobs</h3>
+<p class="text-zinc-700 mb-4">
+          Batch jobs are where SLURM really shines. A well-written job script includes proper resource 
+          requests, environment setup, logging, and error handling. Here's a complete example that shows 
+          best practices:
+        </p>
+<div class="code-header-file code-block-header"><i class="fa-solid fa-file-code"></i>
+<a class="text-blue-200 hover:text-white" href="https://github.com/mtreviso/slurm-setup/blob/main/examples/training-job.sh">examples/training-job.sh</a>
+</div>
+<pre><code class="language-bash">#!/bin/bash
+# Complete SLURM batch script example
+
+# === SLURM JOB PARAMETERS ===
+# Slurm parameters are informed via the #SBATCH (yes, like a comment)
+
+#SBATCH --job-name=bert-large-training
+#SBATCH --gres=gpu:a6000:4              # 4 A6000 GPUs
+#SBATCH --qos=gpu-medium                # Medium priority queue
+#SBATCH --time=1-12:00:00               # 36 hours
+#SBATCH --partition=a6000               # A6000 partition
+#SBATCH --cpus-per-task=32              # 8 CPUs per GPU
+#SBATCH --mem=100G                      # 25GB per GPU
+#SBATCH --output=logs/training-%j.out   # %j = job ID
+#SBATCH --error=logs/training-%j.err
+
+# === ENVIRONMENT SETUP ===
+
+# load specific python and cuda modules, if necessary
+# module load python/3.11.4 cuda/12.1.0
+
+# activate your virtual enviroment in an accessible dir point
+source /mnt/scratch/alice/envs/training/bin/activate
+
+# === JOB INFO LOGGING ===
+echo "Job started at: $(date)"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURM_NODELIST"
+echo "GPUs: $CUDA_VISIBLE_DEVICES"
+echo "Working directory: $(pwd)"
+
+# === ACTUAL TRAINING ===
+cd /mnt/data/alice/bert-project
+
+python -m torch.distributed.launch \
+    --nproc_per_node=$SLURM_GPUS_ON_NODE \
+    --nnodes=$SLURM_NNODES \
+    --node_rank=$SLURM_PROCID \
+    --master_addr=$SLURM_LAUNCH_NODE_IPADDR \
+    --master_port=29500 \
+    train.py \
+        --config configs/bert-large.yaml \
+        --output_dir checkpoints/bert-large-$(date +%Y%m%d) \
+        --logging_dir logs/tensorboard-$SLURM_JOB_ID
+
+echo "Job finished at: $(date)"
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+Next, all we have to do is to submit the job using <code>sbatch</code>:
+</p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sbatch training-job.sh
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+Your job will be given an ID by slurm (e.g., <code>12345</code>). At this point, you can monitor all jobs, including yours, using <code>psqueue</code>. The output of your job (the stdout) will be saved in <code>logs/training-12345.out</code>.
+</p>
+
+
+</div>
+</section>
+<!-- Troubleshooting -->
+<section class="mb-16" id="troubleshooting">
+<h2 class="text-3xl font-bold mb-8">Troubleshooting and Maintenance</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+  Most problems fall into a few categories: hardware specification mismatches, authentication failures, 
+  resource conflicts, and performance bottlenecks.
+</p>
+
+<h3 class="text-2xl font-semibold mb-6">Node in DRAIN State</h3>
+<p class="text-zinc-700 mb-6">
+  This is by far the most common issue. When this happens, nodes appear as "drain", "drng", or "down" in <code>psinfo</code> output. 
+  This almost always indicates a mismatch between the hardware specifications in <code>slurm.conf</code> 
+  and the actual hardware SLURM detects on the node.
+</p>
+
+<p class="text-zinc-700 mb-4">
+In order to solve the issues, I recommend checking <code>/etc/slurm/slurm.conf</code> and making sure all Node values are correct, according to what we obtain with <code>free -m</code> and <code>sudo slurmd -C</code>.
+</p>
+
+
+<p class="text-zinc-700 mb-4">
+The simplest solution is to try the following command, which sets a specific node back to the RESUME state:
+</p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash">sudo scontrol update NodeName=nodename State=RESUME
+</code></pre>
+
+<p class="text-zinc-700 mb-4">
+If that doesn't work, check logs. For example, via <code>sudo journalctl -u slurmd --since "1 hour ago"</code> or checking the log files directly in <code>/var/log/slurm/*</code>.
+</p>
+
+
+
+
+<h3 class="text-2xl font-semibold mb-6 mt-8">Jobs Stuck PENDING</h3>
+<p class="text-zinc-700 mb-6">
+          The enhanced queue viewer makes diagnosing pending jobs much easier by showing detailed reasons. 
+          Understanding these reasons helps users adjust their requests appropriately.
+        </p>
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># See detailed pending reasons
+psqueue --states=PENDING</code></pre>
+<p class="text-zinc-700 mb-4">Common pending reasons and their meanings:</p>
+<ul class="list-disc list-inside text-zinc-700 mb-6 space-y-2">
+<li><strong>Priority:</strong> Higher priority jobs waiting → normal, will run eventually</li>
+<li><strong>Resources:</strong> Not enough free GPUs/memory → wait or reduce request</li>
+<li><strong>QOSMaxGRESPerUser:</strong> User exceeded GPU limit → wait for jobs to finish</li>
+<li><strong>BadConstraints:</strong> Invalid resource request → fix job parameters</li>
+<li><strong>PartitionNodeLimit:</strong> Partition full → try different partition</li>
+</ul>
+
+</section>
+<!-- Automated Reporting -->
+<section class="mb-16" id="reporting">
+<h2 class="text-3xl font-bold mb-8">Interactive HTML Reports</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          Production clusters generate vast amounts of usage data that can provide insights into user behavior, 
+          resource efficiency, and policy effectiveness. Automated reporting transforms this raw data into 
+          actionable insights for capacity planning and optimization.
+        </p>
+<h3 class="text-2xl font-semibold mb-6">Interactive HTML Reports</h3>
+
+<p class="text-zinc-700 mb-6">
+  How to decide the chracteristics of each QoS? How to know if the server is idle and too many jobs are just stuck in the queue? 
+  To answer that, slurm provides a vast amount of usage data via <code>sacct</code>. However, all of that data comes in a terrible format that is almost impossible to read.
+  Therefore, I decided to create a script that transform that raw data into actionable insights for capacity planning and optimization.
+</p>
+
+<p class="text-zinc-700 mb-6">
+    The <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/mtreviso/cluster-scope" rel="noopener" target="_blank">cluster scope</a> script generates comprehensive HTML reports with interactive 
+    charts and analytics. These reports help identify usage patterns, efficiency metrics, and 
+    optimization opportunities.
+  </p>
+
+
+<p class="text-zinc-700 mb-6">
+  Report features include interactive visualizations (job state distribution, timeline analysis), 
+    resource utilization by user/QoS, queue performance metrics, efficiency rates, and capacity 
+    planning recommendations based on actual usage patterns. Here are instruction on how to use it:
+</p>
+
+<div class="code-block-header code-header-terminal"><i class="fa-solid fa-terminal"></i></div><pre><code class="language-bash"># Install dependencies
+pip install pandas matplotlib numpy seaborn jinja2
+
+# Generate comprehensive report 
+sudo python3 slurm_report.py --start-date 2025-01-01
+</code></pre>
+
+
+That's all!
+
+</div>
+</section>
+<!-- Conclusion -->
+<section class="mb-16">
+<h2 class="text-3xl font-bold mb-8">Conclusion</h2>
+<div class="narrative-section">
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+          This guide has taken you from basic concepts to a fully operational, production-ready SLURM cluster 
+          with advanced monitoring, analytics, and optimization features. What started as a solution to our 
+          lab's spreadsheet chaos has become a robust system that fairly allocates resources, encourages 
+          efficient usage patterns, and provides valuable insights into research computing patterns.
+        </p>
+
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+    You now have a production-ready SLURM cluster with sophisticated QoS policies, beautiful monitoring 
+    tools, automated reporting, and optimization features that rival commercial HPC installations 🚀🚀.
+  </p>
+
+
+<h3 class="text-2xl font-semibold mb-6">Whats next?</h3>
+
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+  A cluster is only as good as its management. Regular monitoring, user feedback, and continuous 
+  optimization will ensure your SLURM deployment remains effective and valuable for your research 
+  community. I strongly believe that the time invested in proper setup pays off in research productivity, 
+  fair resource access, and reduced administrative overhead (trust me, life is so much better with slurm).
+</p>
+
+<p class="text-lg text-zinc-700 mb-8 leading-relaxed">
+  In that spirit, there are many more things that you will need to setup in order to provide a seamless 
+  experience to your users. Such as:
+  <ul class="list-disc pl-6">
+    <li class="mb-2"><strong>Shared filesystem:</strong> In our clusters, we use <a class="text-brand-600 hover:text-brand-700 underline" href="https://docs.gluster.org/en/latest/" rel="noopener" target="_blank">GlusterFS</a> as the shared filesystem for our <code>home</code> directories, so that all users have a unique home folder regardless of which server they log in.
+    </li>
+
+    <li class="mb-2"><strong>NFS mountpoints:</strong> I strongly suggest dividing disks into three categories: <code>home</code> disks to store standard user data such as code and scripts (small disks with RAID 1), <code>data</code> disks to store importante large files such as annotation data (large disks with RAID 5/6), and <code>scratch</code> disks to store very large files such as datasets and model checkpoints (large disks with RAID 0). We use NFS for <code>data</code> and <code>scratch</code> disks, so they can be accessed from all servers.
+    </li>
+
+
+    <li class="mb-2"><strong>Quota:</strong> Without quota, people will just download data and generate checkpoints up to the limit. Using a quota system helps a lot in maintaing a fair use of disk space.</li>
+
+    <li class="mb-2"><strong>Spack and LMOD:</strong> Having the option to start a project with the correct version of python, cuda, or sox is very imporant. The combination between Spack and LMOD is great for this. You can juse do <code>module load python/3.13</code> and go with it.</li>
+  </ul>
+
+</p>
+
+<p class="text-lg text-zinc-700 mt-6 leading-relaxed">
+  Again, all configuration files, scripts, and tools mentioned in this guide are available in the 
+  <a class="text-brand-600 hover:text-brand-700 underline" href="https://github.com/mtreviso/slurm-setup/" rel="noopener" target="_blank">accompanying GitHub repository</a>. 
+  Feel free to adapt them to your specific environment and contribute improvements back to the community!
+</p>
+
+</section>
+<!-- Acks -->
+<section>
+<div class="bg-gray-50 rounded-xl p-6 mt-8 mb-8">
+<p class="text-zinc-700 text-center">
+<strong>Acknowledgments:</strong> Special thanks to true SARDINE warriors, Duarte Alves and Sweta Agrawal, 
+          whose patience, expertise, and funny debugging sessions made this SLURM guide possible 🙏.
+        </p>
+</div>
+</section>
+
+
+<!-- Comments Section -->
+<div class="section-divider"></div>
+<section id="comments" class="mt-10">
+  <h2 class="text-2xl font-bold mb-4">Comments</h2>
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <script src="https://giscus.app/client.js"
+      data-repo="mtreviso/slurm-setup"
+      data-repo-id="YOUR_REPO_ID"
+      data-category="General"
+      data-category-id="YOUR_CATEGORY_ID"
+      data-mapping="pathname"
+      data-strict="0"
+      data-reactions-enabled="1"
+      data-emit-metadata="0"
+      data-input-position="bottom"
+      data-theme="light"
+      data-lang="en"
+      crossorigin="anonymous"
+      async>
+    </script>
+    <noscript class="text-sm text-slate-500">
+      Enable JavaScript to view comments powered by Giscus.
+    </noscript>
+  </div>
+</section>
+
+</main>
+<!-- Prism.js for syntax highlighting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<!-- KaTeX for math expressions -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+<script>
+    // Initialize math rendering
+    document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.body, {
+        delimiters: [
+          {left: "$$", right: "$$", display: true},
+          {left: "$", right: "$", display: false}
+        ]
+      });
+    });
+  </script>
+</body>
+</html>
