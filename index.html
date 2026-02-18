@@ -4,24 +4,29 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Marcos Treviso</title>
-  <meta name="description" content="Marcos Treviso — Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in ML & NLP, explainability, and efficiency." />
-  <meta name="theme-color" content="#ffffff" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><text x='50' y='62' font-size='60' text-anchor='middle' fill='%23fff' font-family='Arial'>MT</text></svg>">
+  <meta name="description" content="Marcos Treviso — Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in ML & NLP, efficiency, and interpretability." />
+  <meta name="theme-color" content="#F7F3EC" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230E1F1C'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='%23E8D5B0' font-family='Georgia,serif' font-weight='bold'>MT</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica", "Arial", "Noto Sans", "sans-serif"] },
+          fontFamily: {
+            display: ['Fraunces', 'Georgia', 'serif'],
+            sans: ['Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
           colors: {
-            brand: {
-              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc", 400: "#818cf8", 500: "#6366f1",
-              600: "#4f46e5", 700: "#4338ca", 800: "#3730a3", 900: "#312e81"
-            }
+            ink: '#0E1F1C',
+            parchment: '#F7F3EC',
+            warm: '#E8D5B0',
+            teal: { DEFAULT: '#0A7C6A', light: '#12A68E', dark: '#065749' },
+            muted: '#6B7C79',
+            rule: '#D5CFC3',
           }
         }
       }
@@ -29,114 +34,619 @@
   </script>
   <style>
     html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    /* Grain texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.5;
+    }
+
+    .pub-card {
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .pub-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #D5CFC3;
+      border-radius: 2px;
+      transition: background 0.2s ease;
+    }
+    .pub-card:hover::before {
+      background: #0A7C6A;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border-radius: 3px;
+    }
+
+    .badge-award { background: #FEF3C7; color: #92400E; }
+    .badge-venue { background: #ECFDF5; color: #065F46; }
+    .badge-spotlight { background: #EDE9FE; color: #4C1D95; }
+
+    .project-card {
+      transition: all 0.2s ease;
+      border: 1px solid #D5CFC3;
+    }
+    .project-card:hover {
+      border-color: #0A7C6A;
+      box-shadow: 4px 4px 0 #0A7C6A;
+      transform: translate(-2px, -2px);
+    }
+
+    .social-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: #6B7C79;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #D5CFC3;
+      border-radius: 100px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .social-link:hover {
+      color: #0E1F1C;
+      border-color: #0A7C6A;
+      background: #F0FAF7;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.6s ease forwards; }
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    .delay-4 { animation-delay: 0.45s; opacity: 0; }
+
+    nav a { transition: color 0.2s; }
   </style>
-  <!-- Open Graph -->
-  <meta property="og:title" content="Marcos Treviso" />
-  <meta property="og:description" content="Assistant Professor at Instituto Superior Técnico, University of Lisbon. Research in NLP, explainability, and efficiency." />
-  <meta property="og:type" content="website" />
 </head>
-<body class="bg-white text-zinc-900 antialiased">
-  <main id="main" class="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-    <!-- Hero / Intro -->
-    <section aria-labelledby="intro">
-      <div class="flex flex-col sm:flex-row items-start gap-5 sm:gap-6">
-        <img src="profile.png" alt="Portrait of Marcos Treviso" class="w-28 h-28 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-2xl object-cover object-center shadow aspect-square select-none" fetchpriority="high" decoding="async" />
-        <div>
-          <h1 id="intro" class="text-3xl sm:text-4xl font-extrabold tracking-tight">Marcos Treviso</h1>
-          <p class="mt-2 text-base sm:text-md text-zinc-600">
-            Assistant Professor at
-            <a class="text-brand-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
-               href="https://tecnico.ulisboa.pt" target="_blank" rel="noopener noreferrer">Instituto Superior Técnico</a>, University of Lisbon.
-          </p>
-          <p class="mt-2 text-base sm:text-md text-zinc-600">
-            I work on Machine Learning ∩ Natural Language Processing with interests in efficiency and explainability.
-          </p>
+<body class="bg-parchment text-ink font-sans antialiased">
 
-          <div class="mt-4 flex items-center gap-4 text-xl text-zinc-700">
-            <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" aria-label="Email" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded">
-              <i class="fas fa-envelope"></i>
-            </a>
-            <a href="https://twitter.com/MarcosTreviso" aria-label="Twitter" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
-              <i class="fab fa-twitter"></i>
-            </a>
-            <a href="https://www.linkedin.com/in/mtreviso/" aria-label="LinkedIn" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
-              <i class="fab fa-linkedin"></i>
-            </a>
-            <a href="https://github.com/mtreviso" aria-label="GitHub" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
-              <i class="fab fa-github"></i>
-            </a>
-            <a href="https://scholar.google.com/citations?user=puR_FskAAAAJ" aria-label="Google Scholar" class="hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
-              <i class="fas fa-graduation-cap"></i>
-            </a>
-            <a href="CV.pdf" aria-label="CV" class="hover:text-brand-600 font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded" target="_blank" rel="noopener noreferrer">
-              CV
-            </a>
+  <!-- Navigation -->
+  <nav class="sticky top-0 z-50 border-b border-rule bg-parchment/90 backdrop-blur-sm">
+    <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
+      <a href="index.html" class="font-display font-semibold text-lg text-ink hover:text-teal transition-colors">Marcos Treviso</a>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="#publications" class="hover:text-ink transition-colors">Publications</a>
+        <a href="#projects" class="hover:text-ink transition-colors">Projects</a>
+        <a href="blog.html" class="hover:text-ink transition-colors">Blog</a>
+        <a href="CV.pdf" class="hover:text-ink transition-colors" target="_blank">CV</a>
+      </div>
+    </div>
+  </nav>
 
-            <a href="blog.html" class="hover:text-brand-600 font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded">
-              <i class="fas fa-book mr-1"></i> Blog
+  <main class="max-w-4xl mx-auto px-6 py-14 sm:py-20">
+
+    <!-- ── HERO ─────────────────────────────────────── -->
+    <section class="mb-20">
+      <div class="flex flex-col sm:flex-row gap-8 sm:gap-12 items-start">
+
+        <!-- Photo -->
+        <div class="fade-up shrink-0">
+          <div class="relative">
+            <div class="absolute inset-0 translate-x-2 translate-y-2 rounded-2xl bg-teal opacity-20"></div>
+            <img
+              src="profile.png"
+              alt="Portrait of Marcos Treviso"
+              class="relative w-36 h-36 sm:w-44 sm:h-44 rounded-2xl object-cover object-center"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
+        </div>
+
+        <!-- Bio -->
+        <div class="fade-up delay-1">
+          <h1 class="font-display text-4xl sm:text-5xl font-semibold leading-tight mb-1">
+            Marcos Treviso
+          </h1>
+          <p class="text-muted font-medium text-sm tracking-wide mb-4">
+            Assistant Professor at <a class="text-ink" href="https://tecnico.ulisboa.pt/en/" target="_blank" rel="noopener">Instituto Superior Técnico</a>, University of Lisbon
+          </p>
+          <p class="text-muted leading-relaxed mb-2 max-w-xl">
+            I work at the intersection of efficiency,
+            long-context modeling, and
+            interpretability in machine learning.
+            I'm a co-PI at the <a href="https://sardine-lab.github.io/" class="text-teal hover:underline underline-offset-2 font-medium" target="_blank" rel="noopener">SARDINE Lab 🐟</a> and a
+            member of the <a class="text-teal hover:underline underline-offset-2 font-medium" href="https://ellis.eu/research/sites/unit-lisbon" target="_blank" rel="noopener">ELLIS Unit Lisbon 🏛️</a>.
+          </p>
+          <!-- <p class="text-muted leading-relaxed text-sm max-w-xl mb-6">
+            Previously a post-doc at Instituto de Telecomunicações (2023–2025) and a PhD student
+            (2019–2023) under <a href="https://andre-martins.github.io/" class="text-teal hover:underline underline-offset-2" target="_blank">André F. T. Martins</a>,
+            where I worked on sparse attention and translation quality estimation.
+          </p> -->
+
+          <!-- Social links -->
+          <div class="flex flex-wrap gap-2">
+            <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" class="social-link">
+              <i class="fas fa-envelope text-xs"></i> Email
+            </a>
+            <a href="https://scholar.google.com/citations?user=puR_FskAAAAJ" target="_blank" rel="noopener" class="social-link">
+              <i class="fas fa-graduation-cap text-xs"></i> Scholar
+            </a>
+            <a href="https://github.com/mtreviso" target="_blank" rel="noopener" class="social-link">
+              <i class="fab fa-github text-xs"></i> GitHub
+            </a>
+            <a href="https://twitter.com/MarcosTreviso" target="_blank" rel="noopener" class="social-link">
+              <i class="fab fa-twitter text-xs"></i> Twitter
+            </a>
+            <a href="https://www.linkedin.com/in/mtreviso/" target="_blank" rel="noopener" class="social-link">
+              <i class="fab fa-linkedin text-xs"></i> LinkedIn
+            </a>
+            <a href="CV.pdf" target="_blank" rel="noopener" class="social-link">
+              <i class="fas fa-file-alt text-xs"></i> CV
             </a>
           </div>
-
         </div>
       </div>
     </section>
 
-    <!-- Publications -->
-    <section id="publications" class="mt-10" aria-labelledby="pubs-heading">
-      <h2 id="pubs-heading" class="text-xl font-semibold">Publications</h2>
-      <p class="mt-3 text-zinc-700">
-        For an up-to-date list, please see
-        <a class="text-brand-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
-           href="https://scholar.google.com/citations?user=puR_FskAAAAJ" target="_blank" rel="noopener noreferrer">my Google Scholar profile</a>.
-      </p>
-    </section>
 
-    <!-- Selected Projects -->
-    <section id="projects" class="mt-10" aria-labelledby="projects-heading">
-      <h2 id="projects-heading" class="text-xl font-semibold">Some Projects</h2>
-      <div class="mt-5 grid gap-4 sm:grid-cols-2">
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/mtreviso/linear-chain-crf" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">Linear-chain CRF in PyTorch</div>
-          <div class="mt-1 text-sm text-zinc-600">Reference implementation and tutorial.</div>
-        </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/mtreviso/entmax-demo" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">entmax-demo</div>
-          <div class="mt-1 text-sm text-zinc-600">Interactive demos of α-entmax.</div>
-        </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/mtreviso/arr-report-generator" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">arr-report-generator</div>
-          <div class="mt-1 text-sm text-zinc-600">Generate reports from ARR data.</div>
-        </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/mtreviso/cluster-scope" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">cluster-scope</div>
-          <div class="mt-1 text-sm text-zinc-600">Utilities for cluster exploration.</div>
-        </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/mtreviso/pytorch-lecture" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">PyTorch Lecture (Tensor Puzzles)</div>
-          <div class="mt-1 text-sm text-zinc-600">With Sasha Rush — puzzles and notebooks.</div>
-        </a>
-        <a class="block p-4 rounded-2xl border border-zinc-200 hover:border-brand-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-           href="https://github.com/deep-spin/triton-tutorial" target="_blank" rel="noopener noreferrer">
-          <div class="font-medium">triton-tutorial</div>
-          <div class="mt-1 text-sm text-zinc-600">Hands-on Triton kernels for efficiency.</div>
-        </a>
+    <hr class="border-rule mb-20" />
+
+    <!-- ── NEWS ─────────────────────────────────────── -->
+    <section class="mb-20 fade-up delay-2">
+      <h2 class="font-display text-2xl font-semibold mb-6">Recent News</h2>
+      <div class="space-y-3 text-sm">
+
+        <div class="flex gap-4">
+          <span class="text-muted shrink-0 w-23 font-mono text-xs pt-0.5">Feb 2026</span>
+          <p class="text-ink leading-relaxed">
+            Our paper, <a href="https://arxiv.org/pdf/2506.16640" target="_blank" class="text-teal hover:underline"><em>Long-context Generalization with Sparse Attention</em></a> was accepted at <strong>ICLR 2026</strong>. See you in Rio!
+          </p>
+        </div>
+
+        <div class="flex gap-4">
+          <span class="text-muted shrink-0 w-23 font-mono text-xs pt-0.5">Sep 2025</span>
+          <p class="text-ink leading-relaxed">
+            New blog post: <a href="blog/slurm.html" class="text-teal hover:underline">SLURM in the Wild: A Practical Guide for Academic Labs</a> — 50 min read on scaling research compute.
+          </p>
+        </div>
+
+        <div class="flex gap-4">
+          <span class="text-muted shrink-0 w-23 font-mono text-xs pt-0.5">Aug 2025</span>
+          <p class="text-ink leading-relaxed">
+            Started as <strong>Assistant Professor</strong> at the Computer Engineering Department, IST — University of Lisbon.
+          </p>
+        </div>
+
+        <div class="flex gap-4">
+          <span class="text-muted shrink-0 w-23 font-mono text-xs pt-0.5">May 2025</span>
+          <p class="text-ink leading-relaxed">
+            <a href="https://arxiv.org/pdf/2502.12082" target="_blank" class="text-teal hover:underline"><em>AdaSplash: Adaptive Sparse Flash Attention</em></a> was presented at <strong>ICML 2025</strong> as a Spotlight (top 1%) ⚡.
+          </p>
+        </div>
+
+        <div class="flex gap-4">
+          <span class="text-muted shrink-0 w-23 font-mono text-xs pt-0.5">May 2025</span>
+          <p class="text-ink leading-relaxed">
+            <a href="https://arxiv.org/pdf/2502.15612" target="_blank" class="text-teal hover:underline"><em>LaTIM: Measuring Latent Token-to-Token Interactions in Mamba Models</em></a> received an Outstanding Paper Award 🏆 at <strong>ACL 2025</strong>.
+          </p>
+        </div>
+
       </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="mt-12 text-sm text-zinc-500">
-      <p>&copy; <span id="year"></span> Marcos Treviso</p>
+    <hr class="border-rule mb-20" />
+
+    <!-- ── PUBLICATIONS ──────────────────────────────── -->
+    <section id="publications" class="mb-20 fade-up delay-3">
+      <div class="flex justify-between items-baseline mb-8">
+        <h2 class="font-display text-2xl font-semibold">Recent Publications</h2>
+        <a href="https://scholar.google.com/citations?user=puR_FskAAAAJ&sortby=pubdate" target="_blank"
+           class="text-sm text-teal hover:underline underline-offset-2">Full list on Google Scholar →</a>
+      </div>
+
+      <div class="space-y-5">
+
+        <!-- 2026 -->
+        <p class="text-xs font-semibold uppercase tracking-widest text-muted mt-8 mb-3">2026</p>
+
+        <div class="pub-card pl-5 py-1">
+          <div class="flex flex-wrap gap-2 mb-1.5">
+            <span class="badge badge-venue">arXiv · Preprint</span>
+          </div>
+          <h3 class="font-medium text-ink leading-snug mb-0.5">
+            <a href="https://arxiv.org/abs/2601.22766" target="_blank" rel="noopener" class="hover:text-teal transition-colors">Sparse Attention as Compact Kernel Regression</a>
+          </h3>
+          <p class="text-sm text-muted">Saul Santos, Nuno Gonçalves, Daniel C. McNamee, <strong>Marcos Treviso</strong>, André F. T. Martins</p>
+        </div>
+
+        <div class="pub-card pl-5 py-1">
+          <div class="flex flex-wrap gap-2 mb-1.5">
+            <span class="badge badge-venue">ICLR 2026</span>
+          </div>
+          <h3 class="font-medium text-ink leading-snug mb-0.5">
+            <a href="https://arxiv.org/abs/2506.16640" target="_blank" rel="noopener" class="hover:text-teal transition-colors">Long-Context Generalization with Sparse Attention</a>
+          </h3>
+          <p class="text-sm text-muted">Pavlo Vasylenko, Hugo Pitorro, André F. T. Martins, <strong>Marcos V. Treviso</strong></p>
+        </div>
+
+        <!-- 2025 -->
+        <p class="text-xs font-semibold uppercase tracking-widest text-muted mt-8 mb-3">2025</p>
+
+        <div class="pub-card pl-5 py-1">
+          <div class="flex flex-wrap gap-2 mb-1.5">
+            <span class="badge badge-venue">ICML 2025</span>
+            <span class="badge badge-spotlight">⚡ Spotlight &amp; Oral · Top 1%</span>
+          </div>
+          <h3 class="font-medium text-ink leading-snug mb-0.5">
+            <a href="https://openreview.net/forum?id=OWIPDWhUcO" target="_blank" rel="noopener" class="hover:text-teal transition-colors">AdaSplash: Adaptive Sparse Flash Attention</a>
+          </h3>
+          <p class="text-sm text-muted">Nuno Gonçalves, <strong>Marcos V. Treviso</strong>, André F. T. Martins</p>
+        </div>
+
+        <div class="pub-card pl-5 py-1">
+          <div class="flex flex-wrap gap-2 mb-1.5">
+            <span class="badge badge-venue">ACL 2025</span>
+            <span class="badge badge-award">🏆 Outstanding Paper</span>
+          </div>
+          <h3 class="font-medium text-ink leading-snug mb-0.5">
+            <a href="https://aclanthology.org/2025.acl-long.1194/" target="_blank" rel="noopener" class="hover:text-teal transition-colors">LaTIM: Measuring Latent Token-to-Token Interactions in Mamba Models</a>
+          </h3>
+          <p class="text-sm text-muted">Hugo Pitorro, <strong>Marcos V. Treviso</strong></p>
+        </div>
+
+        <div class="pub-card pl-5 py-1">
+          <div class="flex flex-wrap gap-2 mb-1.5">
+            <span class="badge badge-venue">TAFFC 2025 · Journal</span>
+          </div>
+          <h3 class="font-medium text-ink leading-snug mb-0.5">
+            <a href="https://ieeexplore.ieee.org/abstract/document/11248933" target="_blank" rel="noopener" class="hover:text-teal transition-colors">AMUSED: A Multi-Modal Dataset for Usability Smell Identification</a>
+          </h3>
+          <p class="text-sm text-muted">Flavia Santos, <strong>Marcos Treviso</strong>, Kamila Rodrigues, Renata Fortes, Sandra Gama</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="border-rule mb-20" />
+
+    <!-- ── STUDENTS ───────────────────────────────────── -->
+    <section id="students" class="mb-10 fade-up delay-4">
+      <h2 class="font-display text-2xl font-semibold mb-8">Students</h2>
+
+      <!-- Current -->
+      <h3 class="text-xs font-semibold uppercase tracking-widest text-muted mb-3">Current</h3>
+      <div class="divide-y divide-rule mb-8">
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">PV</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Pavlo Vasylenko</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Long-context modeling · with André, IST</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">HP</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Hugo Pitorro</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Self distillation · with Ricardo Rei, IST</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">AB</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Afonso Baldo</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Memory &amp; agents · with Nuno Guerreiro</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">NG</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Nuno Gonçalves</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Efficiency &amp; sparsity · with André, IST &amp; Lei Li, CMU</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">GD</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Gonçalo Duarte</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">MSc</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Efficient sparse inference · IST</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">JG</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Julio Galdino</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">Visiting PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Speech segmentation · ICMC USP, Brazil</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">RL</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Rodrigo Lima</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">Visiting BSc</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Speech segmentation · ICMC USP, Brazil</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">WL</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Weiming Li</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">Visiting PhD</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Sparse DNA models · ISR, IST</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center text-teal text-[10px] font-bold font-display">EJ</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Erik Jhones</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">Researcher</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Sparse tabular models · IFCE</p>
+        </div>
+
+      </div>
+
+      <!-- Previous -->
+      <h3 class="text-xs font-semibold uppercase tracking-widest text-muted mb-3">Previous</h3>
+      <div class="divide-y divide-rule">
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold font-display" style="background:rgba(14,31,28,0.06);color:var(--muted)">TN</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Titus Naber</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">MSc</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Sparse graph attention · with Elvin Isufi, TU Delft</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold font-display" style="background:rgba(14,31,28,0.06);color:var(--muted)">HP</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Hugo Pitorro</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">MSc</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Linear recurrent models · with André, TUM</p>
+        </div>
+
+        <div class="flex items-center gap-4 px-5 py-3.5">
+          <div class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold font-display" style="background:rgba(14,31,28,0.06);color:var(--muted)">NG</div>
+          <div class="flex-1 min-w-0">
+            <span class="font-medium text-sm text-ink">Nuno Gonçalves</span>
+            <span class="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background:rgba(14,31,28,0.07);color:var(--muted)">MSc</span>
+          </div>
+          <p class="text-xs text-muted text-right hidden sm:block">Efficient sparse attention · with André, IST</p>
+        </div>
+
+      </div>
+    </section>
+
+    <hr class="border-rule mb-20" />
+
+    <!-- ── PROJECTS ──────────────────────────────────── -->
+    <section id="projects" class="mb-20 fade-up delay-4">
+      <h2 class="font-display text-2xl font-semibold mb-8">Tools, Tutorials, and Puzzles</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+        <a href="https://github.com/deep-spin/triton-tutorial" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Tutorial</div>
+          <div class="font-medium text-ink mb-1">Triton Tutorial</div>
+          <div class="text-sm text-muted leading-relaxed">Hands-on Triton kernels for writing efficient GPU code from scratch.</div>
+        </a>
+
+        <a href="https://mtreviso.github.io/entmax-demo/" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Demo</div>
+          <div class="font-medium text-ink mb-1">α-entmax Demo</div>
+          <div class="text-sm text-muted leading-relaxed">Interactive visualizations of sparse probability transformations.</div>
+        </a>
+
+        <a href="https://github.com/mtreviso/linear-chain-crf" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Library</div>
+          <div class="font-medium text-ink mb-1">Linear-chain CRF</div>
+          <div class="text-sm text-muted leading-relaxed">Reference PyTorch implementation and tutorial for CRF models.</div>
+        </a>
+
+        <a href="https://github.com/mtreviso/pytorch-lecture" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Tutorial</div>
+          <div class="font-medium text-ink mb-1">Tensor Puzzles</div>
+          <div class="text-sm text-muted leading-relaxed">PyTorch lecture and puzzle set created with Sasha Rush.</div>
+        </a>
+
+        <a href="https://github.com/mtreviso/arr-report-generator" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Tool</div>
+          <div class="font-medium text-ink mb-1">ARR Report Generator</div>
+          <div class="text-sm text-muted leading-relaxed">Automated report generation from ACL Rolling Review data.</div>
+        </a>
+
+        <a href="https://github.com/mtreviso/cluster-scope" target="_blank" rel="noopener" class="project-card rounded-xl p-5 bg-white/50 block">
+          <div class="text-xs text-teal font-semibold uppercase tracking-wide mb-2">Tool</div>
+          <div class="font-medium text-ink mb-1">cluster-scope</div>
+          <div class="text-sm text-muted leading-relaxed">Utilities for exploring and monitoring GPU clusters.</div>
+        </a>
+
+      </div>
+    </section>
+
+    <hr class="border-rule mb-20" />
+
+    <!-- ── TEACHING ───────────────────────────────────── -->
+    <section id="teaching" class="mb-20 fade-up delay-4">
+      <h2 class="font-display text-2xl font-semibold mb-8">Teaching</h2>
+      <div class="space-y-6">
+
+        <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+          <div class="shrink-0 sm:w-48">
+            <p class="font-medium text-ink">Machine Learning</p>
+            <p class="text-xs text-muted mt-0.5">Invited Assistant Professor</p>
+          </div>
+          <div class="text-sm text-muted">
+            MEEC, IST · 120 students · Lab component
+          </div>
+        </div>
+
+        <div class="border-t border-rule pt-6 flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+          <div class="shrink-0 sm:w-48">
+            <p class="font-medium text-ink">Deep Structured Learning</p>
+            <p class="text-xs text-muted mt-0.5">Teaching Assistant</p>
+          </div>
+          <div class="text-sm text-muted">
+            <p class="mb-2">DEEC, IST</p>
+            <div class="flex flex-col gap-1">
+              <a href="https://github.com/mtreviso/pytorch-lecture" target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-1.5 text-xs text-teal hover:underline underline-offset-2">
+                <i class="fas fa-code text-[10px]"></i> A PyTorch Tutorial
+              </a>
+              <a href="https://andre-martins.github.io/docs/dsl2020/attention-mechanisms.pdf" target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-1.5 text-xs text-teal hover:underline underline-offset-2">
+                <i class="fas fa-file-pdf text-[10px]"></i> Neural Attention Mechanisms (lecture)
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <hr class="border-rule mb-20" />
+
+    <!-- ── SERVICE ────────────────────────────────────── -->
+    <section id="service" class="mb-20 fade-up delay-4">
+      <h2 class="font-display text-2xl font-semibold mb-8">Service</h2>
+      <div class="space-y-6">
+
+        <div class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+          <div class="shrink-0 sm:w-48">
+            <p class="font-medium text-ink">Reviewer</p>
+            <p class="text-xs text-muted mt-1">🏅 Outstanding Reviewer<br/>EMNLP, NeurIPS, ICLR<br/><span class="italic">multiple years</span></p>
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-0.5">
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">ACL</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">EMNLP</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">EACL</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">NAACL</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">ICML</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">ICLR</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">NeurIPS</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">PROPOR</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">STIL</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">EAMT</span>
+          </div>
+        </div>
+
+        <div class="border-t border-rule pt-6 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+          <div class="shrink-0 sm:w-48">
+            <p class="font-medium text-ink">Area Chair</p>
+            <p class="text-xs text-muted mt-0.5">Senior Area Chair</p>
+          </div>
+          <p class="text-sm text-muted">ACL 2024 &amp; 2025 · EMNLP 2025 · ACL 2026</p>
+        </div>
+
+        <div class="border-t border-rule pt-6 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+          <div class="shrink-0 sm:w-48">
+            <p class="font-medium text-ink">ACL Tech Team</p>
+          </div>
+          <p class="text-sm text-muted">
+            Member · maintainer of the
+            <a href="https://github.com/mtreviso/arr-report-generator" target="_blank" rel="noopener"
+               class="text-teal hover:underline underline-offset-2">ARR Report Generator</a>
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <hr class="border-rule mb-20" />
+
+    <!-- ── RESEARCH PROJECTS ───────────────────────────── -->
+    <section id="projects-research" class="mb-20 fade-up delay-4">
+      <h2 class="font-display text-2xl font-semibold mb-8">Research Projects</h2>
+
+      <div class="space-y-5">
+
+        <!-- SMURF4EU -->
+        <div class="rounded-xl border border-rule bg-white/40 p-6">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+            <div>
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h3 class="font-display text-lg font-semibold">SMURF4EU</h3>
+                <span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">Co-PI</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full" style="background:rgba(14,31,28,0.07);color:var(--muted)">EuroHPC · 2026–2027</span>
+              </div>
+              <p class="text-sm text-muted">A Suite of Multimodal Reasoning Foundation Models for Europe</p>
+            </div>
+            <a href="#" class="shrink-0 text-xs text-teal hover:underline underline-offset-2 whitespace-nowrap">Project page →</a>
+          </div>
+          <p class="text-sm text-muted leading-relaxed mb-4">
+            Developing and releasing a suite of fully open, high-performance multimodal reasoning foundation models spanning text, code, speech, vision, and video — with support for all 24 official EU languages. Targets multiple model sizes and long multimodal contexts up to 1M tokens using efficient attention and memory-compression techniques.
+          </p>
+        </div>
+
+        <!-- AMALIA -->
+        <div class="rounded-xl border border-rule bg-white/40 p-6">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+            <div>
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h3 class="font-display text-lg font-semibold">AMALIA</h3>
+                <span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal/10 text-teal border border-teal/20">Team member</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full" style="background:rgba(14,31,28,0.07);color:var(--muted)">Portugal · 2025–2026</span>
+              </div>
+              <p class="text-sm text-muted">European-Portuguese Large Language Model</p>
+            </div>
+            <a href="https://amaliallm.pt/" class="shrink-0 text-xs text-teal hover:underline underline-offset-2 whitespace-nowrap">Project page →</a>
+          </div>
+          <p class="text-sm text-muted leading-relaxed mb-4">
+            An open LLM developed specifically for Portuguese as used in Portugal — preserving culturally grounded language use and supporting data sovereignty for Public Administration use cases. Built by a national consortium (NOVA, IST, Coimbra, Porto, Minho, FCT/Arquivo.PT), pre-trained on ~4 trillion words, with a roadmap toward multimodality and a targeted release around June 2026.
+          </p>
+        </div>
+
+
+      </div>
+    </section>
+
+
+    <hr class="border-rule mb-12" />
+
+    <!-- ── FOOTER ────────────────────────────────────── -->
+    <footer class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm text-muted">
+      <p class="font-display italic">Lisbon, Portugal &mdash; <span id="year"></span></p>
+      <div class="flex gap-4">
+        <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" class="hover:text-teal transition-colors"><i class="fas fa-envelope"></i></a>
+        <a href="https://github.com/mtreviso" target="_blank" class="hover:text-teal transition-colors"><i class="fab fa-github"></i></a>
+        <a href="https://twitter.com/MarcosTreviso" target="_blank" class="hover:text-teal transition-colors"><i class="fab fa-twitter"></i></a>
+      </div>
     </footer>
+
   </main>
 
   <script>
-    // Set year in footer without blocking rendering
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
 </body>
