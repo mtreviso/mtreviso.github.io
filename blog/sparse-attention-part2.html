@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>The Leap of Sparse Attention · Part II — Marcos Treviso</title>
+<meta content="A math-first history of sparse attention in transformers. Part II: the efficiency era — IO-aware kernels (FlashAttention), block-sparse selection, the KV-cache problem, native trained-in sparsity, and entmax-native systems." name="description"/>
+<link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230E1F1C'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='%23E8D5B0' font-family='Georgia,serif' font-weight='bold'>MT</text></svg>" rel="icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { display: ["Fraunces","Georgia","serif"], sans: ["Outfit","ui-sans-serif","system-ui","sans-serif"] },
+    colors: { ink:"#0E1F1C", teal:"#0A7C6A", parchment:"#F7F3EC", warm:"#E8D5B0", muted:"#6B7C79", rule:"#D5CFC3" }
+  }}}
+</script>
+<style>
+  :root{ --ink:#0E1F1C; --teal:#0A7C6A; --teal-l:#12A68E; --parchment:#F7F3EC; --warm:#E8D5B0; --muted:#6B7C79; --rule:#D5CFC3;
+    --rust:#B45309; --rose:#B91C1C; --sky:#0369A1; --plum:#6D28D9; }
+  html{scroll-behavior:smooth;} @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body{ background:var(--parchment); color:var(--ink); font-family:"Outfit",ui-sans-serif,system-ui,sans-serif; }
+  body::before{ content:""; position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:0; opacity:0.5; }
+  main, nav, footer { position:relative; z-index:1; }
+  h1,h2,h3{ font-family:"Fraunces",Georgia,serif; color:var(--ink); }
+  h4{ font-family:"Outfit",sans-serif; font-weight:600; color:var(--ink); }
+  p{ color:var(--ink); opacity:0.86; }
+  a.prose-link, .narrative-section a:not(.no-style), .toc a { color:var(--teal); text-decoration:underline; text-underline-offset:3px; }
+  a.prose-link:hover, .narrative-section a:not(.no-style):hover, .toc a:hover { opacity:0.75; }
+  a.cite{ color:var(--teal); text-decoration:none; border-bottom:1px dotted var(--teal); font-variant-numeric:tabular-nums; }
+  a.cite:hover{ background:rgba(10,124,106,.08); }
+  code:not([class*="language-"]){ background:rgba(10,124,106,0.08); color:var(--ink); padding:2px 6px; border-radius:4px; font-size:0.88em; font-family:'SF Mono','Monaco','Consolas',monospace; border:1px solid rgba(10,124,106,0.15); }
+  .insight-box{ background:rgba(10,124,106,0.06); border:1px solid rgba(10,124,106,0.25); border-left:3px solid var(--teal); border-radius:10px; padding:1.25rem 1.5rem; margin:1.5rem 0; }
+  .insight-box p{ color:var(--ink); opacity:1; }
+  .insight-box .lab{ font-family:"Outfit"; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--teal); }
+  .warning-box{ background:rgba(180,83,9,0.05); border:1px solid rgba(180,83,9,0.22); border-left:3px solid var(--rust); border-radius:10px; padding:1.25rem 1.5rem; margin:1.5rem 0; }
+  .warning-box .lab{ font-family:"Outfit"; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--rust); }
+  .section-divider{ height:1px; background:var(--rule); margin:3rem 0; }
+  .toc{ background:rgba(255,255,255,0.5); border:1px solid var(--rule); border-radius:12px; padding:24px; margin:24px 0; }
+  .toc ul{ list-style:none; padding-left:0; } .toc li{ margin:7px 0; }
+  .toc a{ color:var(--teal); text-decoration:none; padding:2px 6px; border-radius:4px; transition:background 0.15s; }
+  .toc a:hover{ background:rgba(10,124,106,0.1); }
+  .narrative-section{ margin:1.5rem 0; line-height:1.75; } .narrative-section p{ margin-bottom:1rem; }
+  .breadcrumb{ color:var(--muted); font-size:0.875rem; } .breadcrumb a{ color:var(--muted); } .breadcrumb a:hover{ color:var(--teal); }
+  .katex{ font-size:1.04em; } .katex-display{ margin:1.3rem 0; padding:.4rem 0; overflow-x:auto; overflow-y:hidden; }
+  .eqbox{ padding:.1rem 0; margin:1.15rem 0; }
+  .viz-card{ background:rgba(255,255,255,0.55); border:1px solid var(--rule); border-radius:14px; padding:20px 20px 16px; margin:26px 0; }
+  .viz-card h4{ margin:0 0 2px; font-size:1.02rem; } .viz-card .sub{ color:var(--muted); font-size:.9rem; margin:0 0 12px; }
+  .fig-caption{ color:var(--muted); font-size:0.85rem; margin-top:12px; line-height:1.55; } .fig-caption .fnum{ font-weight:700; color:var(--ink); }
+  .figc{ margin:24px 0; text-align:center; }
+  .figc img{ max-width:100%; height:auto; border:1px solid var(--rule); border-radius:12px; background:#fff; padding:12px; }
+  .code-hd{ display:flex; align-items:center; gap:10px; background:#1e293b; color:#93a3bd; padding:7px 16px; font-size:0.76rem; font-weight:600; border-radius:12px 12px 0 0; font-family:'SF Mono','Monaco','Consolas',monospace; }
+  .code-hd a{ color:#93c5a8; margin-left:auto; text-decoration:none; } .code-hd a:hover{ color:#c7f0d6; }
+  .codeblk{ background:#0f172a; color:#e2e8f0; border-radius:0 0 12px 12px; padding:14px 16px; overflow-x:auto; font-size:0.8rem; font-family:'SF Mono','Monaco','Consolas',monospace; line-height:1.6; margin:0 0 1.4rem 0; box-shadow:0 4px 20px rgba(14,31,28,0.15); white-space:pre; }
+  .codeblk .cmt{ color:#64748b; font-style:italic; } .codeblk .kw{ color:#e8a06a; } .codeblk .fn{ color:#8bd5a0; } .codeblk .op{ color:#7dd3fc; }
+  .subhead{ font-family:"Fraunces",serif; font-weight:600; font-size:1.35rem; margin:2rem 0 .6rem; color:var(--ink); }
+  .controls{ display:flex; flex-wrap:wrap; align-items:center; gap:16px 26px; margin-top:12px; }
+  .ctl{ display:flex; flex-direction:column; gap:6px; min-width:210px; flex:1; }
+  .ctl .row{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .ctl label{ font-weight:600; font-size:.92rem; } .ctl .val{ font-family:"Fraunces",serif; font-weight:600; color:var(--teal); font-variant-numeric:tabular-nums; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:100px; background:linear-gradient(90deg,var(--teal),var(--teal-l)); outline:none; margin:8px 0; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#fff; border:3px solid var(--teal); cursor:grab; box-shadow:0 2px 6px rgba(10,124,106,.35); }
+  input[type=range]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid var(--teal); cursor:grab; }
+  .btn{ border:0; border-radius:10px; padding:9px 16px; font-weight:600; font-size:.92rem; cursor:pointer; font-family:"Outfit"; background:var(--teal); color:#fff; }
+  .btn.ghost{ background:transparent; color:var(--teal); border:1.5px solid rgba(10,124,106,.4); }
+  .seg{ display:inline-flex; background:rgba(255,255,255,.6); border:1px solid var(--rule); border-radius:10px; padding:3px; gap:3px; flex-wrap:wrap; }
+  .seg button{ border:0; background:transparent; padding:7px 13px; border-radius:8px; font-weight:600; font-size:.86rem; color:var(--muted); cursor:pointer; font-family:"Outfit"; transition:.15s; }
+  .seg button.on{ background:var(--teal); color:#fff; }
+  .stats{ display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; }
+  .stat{ background:rgba(255,255,255,.6); border:1px solid var(--rule); border-radius:10px; padding:9px 13px; min-width:96px; }
+  .stat .n{ font-family:"Fraunces",serif; font-weight:700; font-size:1.28rem; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .stat .k{ font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:5px; }
+  svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .axis path,.axis line{ stroke:var(--rule); } .axis text{ fill:var(--muted); font-size:12px; font-family:"Outfit"; }
+  .tokenlabel{ font-size:12px; fill:var(--muted); font-family:"Outfit"; }
+  .series-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:8px; }
+  .series-legend span{ display:inline-flex; align-items:center; gap:6px; } .series-legend i{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pill{ font-size:.75rem; font-weight:600; padding:4px 11px; border-radius:100px; background:rgba(10,124,106,.1); color:var(--teal); }
+  .part-nav{ display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:1rem; }
+  .part-nav a{ flex:1; min-width:240px; border:1px solid var(--rule); border-radius:12px; padding:16px 18px; background:rgba(255,255,255,.5); text-decoration:none; color:var(--ink); transition:.2s; }
+  .part-nav a:hover{ border-color:var(--teal); box-shadow:0 6px 18px rgba(10,124,106,.08); }
+  .part-nav .lab{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .part-nav .ttl{ font-family:"Fraunces",serif; font-weight:600; font-size:1.05rem; margin-top:3px; }
+  .ref-list{ counter-reset:ref; list-style:none; padding-left:0; }
+  .ref-list li{ margin:9px 0; padding-left:2.2rem; position:relative; font-size:.92rem; color:var(--ink); opacity:.9; }
+  .ref-list li::before{ counter-increment:ref; content:"["counter(ref)"]"; position:absolute; left:0; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .ref-list a{ color:var(--teal); text-decoration:none; } .ref-list a:hover{ text-decoration:underline; }
+  table.taxo{ width:100%; border-collapse:collapse; margin:20px 0; font-size:.9rem; }
+  table.taxo th,table.taxo td{ border:1px solid var(--rule); padding:9px 12px; text-align:left; vertical-align:top; }
+  table.taxo th{ background:rgba(10,124,106,.06); font-family:"Outfit"; font-weight:600; }
+  table.taxo td code{ font-size:.82em; }
+  .tbl-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.bigtab{ min-width:1040px; font-size:.84rem; }
+  table.bigtab th,table.bigtab td{ padding:7px 10px; }
+  table.bigtab td.m{ font-weight:600; white-space:nowrap; }
+  tr.grp td{ background:rgba(10,124,106,.09); font-family:"Outfit"; font-weight:700; font-size:.8rem; letter-spacing:.03em; text-transform:uppercase; }
+  .ap{ color:var(--rust); font-weight:600; } .ex{ color:var(--teal); font-weight:700; } .fx{ color:var(--muted); }
+</style>
+</head>
+
+<body class="bg-slate-50 text-ink font-sans antialiased">
+
+<nav class="sticky top-0 z-50 border-b border-rule bg-slate-100/90 backdrop-blur-sm">
+  <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
+    <a href="../index.html" class="font-display font-semibold text-lg text-ink hover:text-teal transition-colors">Marcos Treviso</a>
+    <div class="flex items-center gap-6 text-sm text-muted">
+      <a href="../index.html#publications" class="hover:text-ink transition-colors">Publications</a>
+      <a href="../blog.html" class="text-ink font-medium">Blog</a>
+      <a href="../CV.pdf" class="hover:text-ink transition-colors" target="_blank">CV</a>
+    </div>
+  </div>
+</nav>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+  <nav class="breadcrumb">
+    <a href="../index.html">Home</a><span class="mx-2 text-rule">›</span>
+    <a href="../blog.html">Blog</a><span class="mx-2 text-rule">›</span>
+    <span class="text-ink">The Leap of Sparse Attention · Part II</span>
+  </nav>
+</div>
+
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
+  <header class="mb-12">
+    <div class="text-sm mb-4" style="color:var(--muted)">Essay · Part II of II · ~45 min read</div>
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight mb-5 leading-tight">
+      The Leap of Sparse Attention in Transformers
+    </h1>
+    <p class="font-display text-2xl italic mb-6" style="color:var(--teal)">Part II — The Efficiency Era</p>
+    <p class="text-lg leading-relaxed mb-6" style="color:var(--muted)">
+      <a class="prose-link" href="sparse-attention-part1.html">Part I</a> argued that the right object is
+      <em>bounded support</em> — exact zeros, from sparsemax to α-entmax to compact kernels. This part is the
+      engineering story, organized around one fault line the literature rarely names out loud:
+      <strong>training-free</strong> methods that bolt sparsity onto a pretrained <em>softmax</em> model and can
+      therefore only ever <em>approximate</em> it, versus <strong>trainable</strong> methods that make sparsity part
+      of the model itself. It ends where our own line lives — entmax-native kernels (AdaSplash, DashAttention,
+      EntmaxKV) that are trainable <em>and</em> exact, sidestepping the approximation ceiling the training-free
+      family cannot cross.
+    </p>
+    <div class="pill-row">
+      <span class="pill">training-free</span><span class="pill">trainable</span><span class="pill">KV-cache</span>
+      <span class="pill">native sparse</span><span class="pill">AdaSplash</span><span class="pill">EntmaxKV</span>
+    </div>
+  </header>
+
+  <section class="mb-14">
+    <div class="toc">
+      <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
+      <ul>
+        <li><a href="#objection">1. The objection Part I left open</a></li>
+        <li><a href="#io">2. IO-awareness: FlashAttention and exact speed</a></li>
+        <li><a href="#families">3. Two families: training-free vs. trainable</a></li>
+        <li><a href="#blocks">4. Training-free I: dynamic block sparsity</a></li>
+        <li><a href="#kv">5. Training-free II: the KV cache</a></li>
+        <li><a href="#query">6. Training-free III: query-awareness &amp; adaptive budgets</a></li>
+        <li><a href="#support">7. The approximation ceiling</a></li>
+        <li><a href="#native">8. Trainable: native sparse attention</a></li>
+        <li><a href="#entmax-native">9. Entmax-native: trainable and exact</a></li>
+        <li><a href="#reality">10. A reality check and the open tensions</a></li>
+        <li><a href="#landscape">11. At a glance: comparison table</a></li>
+        <li><a href="#refs">References</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section class="mb-16" id="objection">
+    <h2 class="font-display text-3xl font-semibold mb-8">1. The objection Part I left open</h2>
+    <div class="narrative-section">
+      <p>
+        Part I ended on a practical objection. Exact, data-dependent zeros are theoretically the right thing — but
+        two facts stood in the way of using them at scale. First, GPUs are throughput machines that want big dense
+        matrix multiplies, not scattered token-level zeros. Second, computing the α-entmax threshold \(\tau\)
+        requires <em>iterative root-finding</em>, where softmax gets its normalizer in one closed-form pass. For
+        years this made sparse attention look like a loser on wall-clock time even when it won on FLOPs.
+      </p>
+      <p>
+        Dismantling that objection took a decade of systems work, most of it developed independently of the
+        principled lineage. The pivotal realization — the one that reorganized the whole field — is that
+        <strong>reducing FLOPs does not reduce runtime unless you also reduce memory traffic</strong>.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 2 -->
+  <section class="mb-16" id="io">
+    <h2 class="font-display text-3xl font-semibold mb-8">2. IO-awareness: FlashAttention and exact speed</h2>
+    <div class="narrative-section">
+      <p>
+        A GPU has a steep memory hierarchy: a large but slow high-bandwidth memory (HBM) and a tiny but fast
+        on-chip SRAM. Naïve attention materializes the full \(n\times n\) score matrix \(S=QK^\top\) in HBM,
+        reads it back to softmax it, and reads it again to multiply by \(V\) — the bottleneck is that traffic, not
+        the arithmetic. <em>FlashAttention</em> <a class="cite" href="https://arxiv.org/abs/2205.14135">(Dao et al., 2022)</a>
+        makes attention <strong>IO-aware</strong>: it tiles \(Q,K,V\), streams the tiles through SRAM, and computes
+        the <em>exact</em> output in a single fused pass, never writing \(S\) to HBM. Memory drops from
+        \(\mathcal O(n^2)\) to \(\mathcal O(n)\), with provably
+      </p>
+      <div class="eqbox">
+        $$ \Theta\!\left(\frac{n^2 d^2}{M}\right)\ \text{HBM accesses}, \qquad M=\text{SRAM size}, $$
+      </div>
+      <p>
+        far below the \(\Theta(n^2)\) of the naïve algorithm. The trick that makes a single pass possible is
+        <em>online softmax</em>: as each new key-block arrives, keep a running maximum \(m\) and running
+        denominator \(\ell\), and rescale the partial output \(O\) by the correction factor when the max changes:
+      </p>
+      <div class="eqbox">
+        $$ m^{\text{new}} = \max(m, \tilde m),\quad
+           \ell^{\text{new}} = e^{\,m-m^{\text{new}}}\ell + e^{\,\tilde m-m^{\text{new}}}\tilde\ell,\quad
+           O^{\text{new}} = e^{\,m-m^{\text{new}}}O + (\cdots). $$
+      </div>
+      <p>
+        The successors form a ladder tracking GPU generations: <em>FlashAttention-2</em> parallelizes over the
+        sequence and cuts non-matmul work <a class="cite" href="https://arxiv.org/abs/2307.08691">(Dao, 2023)</a>;
+        <em>FA-3</em> exploits Hopper asynchrony and FP8 <a class="cite" href="https://arxiv.org/abs/2407.08608">(Shah et al., 2024)</a>;
+        <em>FA-4</em> targets Blackwell. Crucially, FlashAttention already shipped a <em>block-sparse</em> variant
+        “faster than any existing approximate attention method” — the door through which principled sparsity would
+        eventually walk. Step through the online-softmax accumulation below.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Online softmax: one streaming pass, \(\mathcal O(n)\) memory</h4>
+      <p class="sub">Scores arrive in tiles. Track running max \(m\) and denominator \(\ell\); rescale as you go. The result equals the full softmax — without ever storing it.</p>
+      <div id="viz-online"></div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px">
+        <button class="btn" id="on-step">Process next tile ▶</button>
+        <button class="btn ghost" id="on-reset">Reset</button>
+        <div class="stats" style="margin-left:auto">
+          <div class="stat"><div class="n" id="on-m" style="color:var(--teal)">—</div><div class="k">running max m</div></div>
+          <div class="stat"><div class="n" id="on-l" style="color:var(--plum)">—</div><div class="k">denom ℓ</div></div>
+          <div class="stat"><div class="n" id="on-err">—</div><div class="k">‖err‖ vs full</div></div>
+        </div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 1.</span> Each tile updates \(m\) and \(\ell\) and rescales the
+        partial result; once every tile is seen, the streamed weights match the full softmax to machine precision.
+        This is why exact attention can be fast — and why a kernel can process arbitrary blocks, present or skipped,
+        in the same streaming frame.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 3. TWO FAMILIES -->
+  <section class="mb-16" id="families">
+    <h2 class="font-display text-3xl font-semibold mb-8">3. Two families: training-free vs. trainable</h2>
+    <div class="narrative-section">
+      <p>
+        Before touring the methods, it helps to draw the line that actually organizes them — a line the papers
+        themselves often blur. Every efficient-attention method falls into one of two families, and which family it
+        is in determines what it can and cannot achieve.
+      </p>
+      <p>
+        <strong>Training-free</strong> methods take a model that was pretrained with dense <em>softmax</em>
+        attention and, at inference time, skip or evict part of the computation. They need no retraining, which is
+        their great practical appeal. But it comes with a hard constraint: the model they run on assigns
+        <em>strictly positive</em> weight to every token, so any sparse shortcut is an <em>approximation</em> of a
+        dense distribution — and truncating a distribution that is nonzero everywhere <em>always</em> throws away
+        some real probability mass. Their output error is bounded below by that discarded tail; it can be made small,
+        but never zero.
+      </p>
+      <p>
+        <strong>Trainable</strong> methods instead make sparsity part of the model — present during training, so
+        that training and inference compute the same thing. Block-native methods like NSA and MoBA learn
+        <em>which blocks</em> to attend to; the entmax-native line learns attention that is sparse at the level of
+        individual tokens, with <em>exact</em> zeros. Because the model is genuinely sparse, inference is not an
+        approximation problem at all — it is <em>support recovery</em>, and it can be exact.
+      </p>
+      <div class="tbl-wrap">
+      <table class="taxo">
+        <tr><th></th><th>Training-free</th><th>Trainable (native)</th></tr>
+        <tr><td><strong>Idea</strong></td><td>Retrofit sparsity onto a frozen softmax model at inference</td><td>Make sparsity part of the model; train with it</td></tr>
+        <tr><td><strong>Retraining</strong></td><td>None — drop-in</td><td>Pretrain or finetune with the sparse operator</td></tr>
+        <tr><td><strong>Attention it runs on</strong></td><td>Dense softmax (positive everywhere)</td><td>Sparse by construction</td></tr>
+        <tr><td><strong>Best-case error</strong></td><td><code>δ &gt; 0</code> — a dense tail is always discarded</td><td><code>δ = 0</code> — exact once the support is recovered</td></tr>
+        <tr><td><strong>Examples</strong></td><td>H2O, StreamingLLM, Quest, SnapKV, PyramidKV, MInference, FlexPrefill, XAttention</td><td>NSA, MoBA, InfLLM-V2, NOSA; entmax-native: AdaSplash, DashAttention, EntmaxKV</td></tr>
+      </table>
+      </div>
+      <div class="warning-box">
+        <p class="lab">The ceiling, stated once</p>
+        <p>
+          A training-free method is, by definition, approximating softmax. Since softmax has no zeros, the very best
+          it can do is keep a large-enough slice of the tail — the discarded mass is an error floor it cannot escape
+          without changing the model. §7 makes this quantitative; it is the central argument of
+          <em>EntmaxKV</em> <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a> and the
+          reason our line invests in <em>trainable</em> exact sparsity rather than better approximations.
+        </p>
+      </div>
+      <p>
+        With that map in hand: §4–§6 survey the training-free family (and where it plateaus); §7 states the
+        approximation ceiling precisely; §8 covers trainable block-native methods; and §9 arrives at the
+        entmax-native systems that are trainable <em>and</em> exact.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 4. TRAINING-FREE I -->
+  <section class="mb-16" id="blocks">
+    <h2 class="font-display text-3xl font-semibold mb-8">4. Training-free I: dynamic block sparsity</h2>
+    <div class="narrative-section">
+      <p>
+        The training-free family’s first move is to keep the pretrained softmax model but compute only the parts of
+        the score matrix that matter. Once attention is computed block by block, the natural efficiency move is to
+        <em>skip entire blocks</em>.
+        The dynamic-prefill line estimates, cheaply and online, which query–key blocks carry mass and computes only
+        those. <em>MInference</em> <a class="cite" href="https://arxiv.org/abs/2407.02490">(Jiang et al., 2024)</a>
+        classifies each head offline into one of three patterns — A-shape, Vertical-Slash, Block-Sparse — then
+        builds per-input sparse indices online, reporting up to \(10\times\) faster prefill at 1M tokens.
+        <em>FlexPrefill</em> <a class="cite" href="https://arxiv.org/abs/2502.20766">(Lai et al., 2025)</a> switches
+        patterns by a JS-divergence test; <em>XAttention</em> <a class="cite" href="https://arxiv.org/abs/2503.16428">(Xu et al., 2025)</a>
+        scores blocks by an antidiagonal sum; <em>MMInference</em> <a class="cite" href="https://arxiv.org/abs/2504.16083">(Li et al., 2025)</a>
+        adds modality-aware permutation.
+      </p>
+      <p>
+        The programmable substrate underneath is <em>FlexAttention</em>
+        <a class="cite" href="https://arxiv.org/abs/2412.05496">(Dong et al., 2024)</a>, which compiles arbitrary
+        <code>score_mod</code> / <code>mask_mod</code> functions plus a <code>BlockMask</code> into a fused kernel —
+        turning “which blocks to skip” into a first-class, differentiable knob. The move from Part I’s
+        <em>fixed</em> patterns (Longformer, Big Bird) to these <em>content-estimated</em> patterns is the same
+        static→dynamic transition, now at block granularity and hardware-aligned.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 5. TRAINING-FREE II -->
+  <section class="mb-16" id="kv">
+    <h2 class="font-display text-3xl font-semibold mb-8">5. Training-free II: the KV cache</h2>
+    <div class="narrative-section">
+      <p>
+        Training sparsity is about the \(n\times n\) score matrix. <em>Decoding</em> sparsity is about a different
+        object: the <em>KV cache</em>, the stored keys and values of all past tokens, which grows linearly with
+        sequence length and batch size and quickly dominates memory bandwidth
+        <a class="cite" href="https://arxiv.org/abs/2306.14048">(Zhang et al., 2023)</a>. The serving substrate is
+        <em>PagedAttention</em> <a class="cite" href="https://arxiv.org/abs/2309.06180">(Kwon et al., 2023)</a>,
+        which stores the cache as OS-style non-contiguous pages with copy-on-write sharing. On top of it, two
+        philosophies compete.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">(a) Eviction — bounded, irreversible state</h3>
+      <p>
+        Permanently drop tokens to cap memory. <em>H2O</em> <a class="cite" href="https://arxiv.org/abs/2306.14048">(Zhang et al., 2023)</a>
+        keeps recent tokens plus “Heavy Hitters” (high accumulated attention), framing eviction as
+        <em>dynamic submodular</em> maximization with a
+      </p>
+      <div class="eqbox">
+        $$ (1-\alpha)\big(1-\tfrac1e\big)\ \text{competitive guarantee} $$
+      </div>
+      <p>
+        against the best fixed retained set. <em>StreamingLLM</em> <a class="cite" href="https://arxiv.org/abs/2309.17453">(Xiao et al., 2023)</a>
+        found that a few <em>initial</em> tokens act as <em>attention sinks</em> — they soak up the excess mass
+        softmax is forced to assign somewhere — so keeping the first few tokens plus a recent window preserves
+        quality at unbounded length. <em>TOVA</em> <a class="cite" href="https://arxiv.org/abs/2401.06104">(Oren et al., 2024)</a>
+        views decoders as “multi-state RNNs” and drops the single lowest-attention token per step; others evict by
+        per-head policy <a class="cite" href="https://arxiv.org/abs/2310.01801">(Ge et al., 2024)</a> or by key
+        \(\ell_2\)-norm <a class="cite" href="https://arxiv.org/abs/2406.11430">(Devoto et al., 2024)</a>.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">(b) Selection — full state, chosen per query</h3>
+      <p>
+        Keep everything, but load only what this query needs. <em>Quest</em>
+        <a class="cite" href="https://arxiv.org/abs/2406.10774">(Tang et al., 2024)</a> stores per-page coordinatewise
+        min/max of the keys, \(m^p\) and \(M^p\), and scores a page by an <em>upper bound</em> on the best
+        attention it could contain:
+      </p>
+      <div class="eqbox">
+        $$ \text{score}(p) \;=\; \sum_{d} \max\!\big(Q_d\, m^p_d,\ Q_d\, M^p_d\big) \;\ge\; \max_{k\in p} Q^\top k, $$
+      </div>
+      <p>
+        then loads only the top-\(K\) pages. Because the score is a provable upper bound, high-relevance pages are
+        never wrongly skipped. <em>SnapKV</em> <a class="cite" href="https://arxiv.org/abs/2404.14469">(Li et al., 2024)</a>
+        votes with an end-of-prompt window; <em>PyramidKV</em> <a class="cite" href="https://arxiv.org/abs/2406.02069">(Cai et al., 2024)</a>
+        allocates <em>non-uniform per-layer budgets</em>; <em>Loki</em> <a class="cite" href="https://arxiv.org/abs/2406.02542">(Singhania et al., 2024)</a>
+        ranks in a PCA subspace; <em>ShadowKV</em> <a class="cite" href="https://arxiv.org/abs/2410.21465">(Sun et al., 2024)</a>
+        offloads values to the CPU.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Two ways to shrink the KV cache</h4>
+      <p class="sub">A stream of past tokens (left→right). Teal = kept in cache; faded = gone. Toggle the strategy; the current query is the rightmost token.</p>
+      <div class="seg" id="kv-seg" style="margin-bottom:10px">
+        <button data-kv="evict" class="on">Eviction (H2O + sinks)</button>
+        <button data-kv="select">Selection (query-aware)</button>
+      </div>
+      <div id="viz-kv"></div>
+      <div class="controls">
+        <div class="ctl" style="max-width:320px"><div class="row"><label>cache budget</label><span class="val" id="kv-budget">40%</span></div>
+          <input type="range" id="kv-slider" min="10" max="100" step="5" value="40"></div>
+        <div class="stats"><div class="stat"><div class="n" id="kv-recall" style="color:var(--teal)">—</div><div class="k">true top-token kept?</div></div></div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 2.</span> Eviction permanently frees memory but can throw away
+        a token a later query needs (note the always-kept <em>sink</em> tokens on the far left). Selection keeps the
+        full cache and re-picks per query, so it never loses the true top token — at the cost of storing everything.
+        Both are <em>heuristics on a dense model</em>; §7 asks whether that is the right framing at all.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 6. TRAINING-FREE III -->
+  <section class="mb-16" id="query">
+    <h2 class="font-display text-3xl font-semibold mb-8">6. Training-free III: query-awareness &amp; adaptive budgets</h2>
+    <div class="narrative-section">
+      <p>
+        A recurring finding sharpens the picture: token importance is <em>query-dependent</em>. Query-agnostic
+        scores — accumulated attention, key norm, PCA energy — are cheap but fail on retrieval, where “the
+        criticality of a token highly depends on the query” <a class="cite" href="https://arxiv.org/abs/2406.10774">(Tang et al., 2024)</a>.
+        The most robust methods therefore score each key <em>against the current query</em>, and increasingly
+        replace a fixed budget \(k\) with an <em>adaptive</em> one.
+      </p>
+      <p>
+        Instead of “always keep \(k\) tokens,” adaptive-budget methods keep the smallest set whose cumulative
+        estimated mass exceeds a threshold — a top-\(p\) rule on attention:
+      </p>
+      <div class="eqbox">
+        $$ S(q) \;=\; \text{smallest set with}\ \sum_{i\in S(q)} \hat w_i \;\ge\; p, $$
+      </div>
+      <p>
+        so easy queries spend little and hard queries spend more. <em>Twilight</em>
+        <a class="cite" href="https://arxiv.org/abs/2502.02770">(Lin et al., 2025)</a>, <em>Tactic</em>
+        <a class="cite" href="https://arxiv.org/abs/2502.12216">(Zhu et al., 2025)</a>, and <em>Double-Sparse</em>-style
+        top-\(p\) selection <a class="cite" href="https://arxiv.org/abs/2602.05191">(2026)</a> all make the budget
+        data-dependent. If that “keep the smallest set covering mass \(p\)” rule sounds familiar, it should: it is a
+        thresholding heuristic reaching for exactly what α-entmax computes <em>exactly</em>. Which is the point of
+        the next section.
+      </p>
+    </div>
+    <div class="insight-box">
+      <p class="lab">The recurring shape</p>
+      <p>
+        Quest’s upper-bound page score, MoBA’s block gate (§8), and top-\(p\) budgets are all approximations of a
+        single question: <em>which keys have nonzero weight under this query?</em> On a softmax model that set is
+        formally all of them, so every method must estimate a fuzzy “effective support” and pay the §7 error floor.
+        On an α-entmax model the set is exact and finite — the estimation problem dissolves.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 7. THE CEILING -->
+  <section class="mb-16" id="support">
+    <h2 class="font-display text-3xl font-semibold mb-8">7. The approximation ceiling</h2>
+    <div class="narrative-section">
+      <p>
+        Now make the §3 warning quantitative — this is the hinge of the whole part. Every training-free method in
+        §4–§6, however clever its scoring, is approximating a <em>dense</em> softmax distribution with a truncated
+        one. And a truncated softmax <em>always discards nonzero probability mass</em>, so its output carries an
+        error \(\delta>0\) that you can shrink with a bigger budget but never eliminate. That floor is the ceiling
+        on the entire training-free family. <em>EntmaxKV</em>
+        <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a> reframes the problem to
+        remove it: with α-entmax, most keys have <em>exactly</em> zero weight, so an entmax decoder does not need to
+        approximate anything —
+      </p>
+      <div class="eqbox">
+        $$ \text{support}(p)\subseteq \mathcal C \;\Longrightarrow\; \delta \;=\;
+           \big\lVert o_{\mathcal C} - o_{\text{full}}\big\rVert \;=\; 0. $$
+      </div>
+      <p>
+        Once the cache \(\mathcal C\) contains the (small) nonzero support, the decoder’s output is
+        <em>exactly equal</em> to full-cache attention. The task changes from lossy approximation to lossless
+        <strong>support recovery</strong>: find the handful of tokens with nonzero weight, and you are done — no
+        budget to tune, no discarded tail. Compare the two regimes below.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Truncation error vs. support recovery</h4>
+      <p class="sub">Output error \(\delta\) as the KV budget grows, for a softmax decoder (truncate the tail) vs. an α-entmax decoder (recover the support).</p>
+      <div id="viz-support"></div>
+      <div class="series-legend">
+        <span><i style="background:var(--muted)"></i>softmax — truncated: \(\delta>0\) always</span>
+        <span><i style="background:var(--teal)"></i>α-entmax — exact once budget ≥ support</span>
+      </div>
+      <div class="controls">
+        <div class="ctl" style="max-width:340px"><div class="row"><label>KV budget (tokens kept)</label><span class="val" id="sp-budget">6</span></div>
+          <input type="range" id="sp-slider" min="1" max="40" step="1" value="6"></div>
+        <div class="stats">
+          <div class="stat"><div class="n" id="sp-sm" style="color:var(--muted)">—</div><div class="k">softmax δ</div></div>
+          <div class="stat"><div class="n" id="sp-en" style="color:var(--teal)">—</div><div class="k">entmax δ</div></div>
+        </div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 3.</span> The softmax curve decays but never touches zero — a
+        dense tail is always left behind. The α-entmax curve hits <em>exactly</em> zero the moment the budget
+        reaches the support size, and stays there. Sparsity in the <em>model</em> turns a hard approximation problem
+        into an easy exact one — the inference-time restatement of Part I’s dispersion argument.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 8. TRAINABLE -->
+  <section class="mb-16" id="native">
+    <h2 class="font-display text-3xl font-semibold mb-8">8. Trainable: native sparse attention</h2>
+    <div class="narrative-section">
+      <p>
+        Cross into the second family. Instead of approximating a frozen dense model, <em>train the sparsity in</em>
+        — so training and inference compute the same sparse operation and the kernel is co-designed with the
+        pattern. These methods escape the §7 ceiling in principle, because the model they run is genuinely sparse.
+        Most of them, though, are sparse at <em>block</em> granularity (which suits GPUs) rather than at the level of
+        individual tokens. <em>Native Sparse Attention (NSA)</em>
+        <a class="cite" href="https://arxiv.org/abs/2502.11089">(Yuan et al., 2025)</a> runs three branches per
+        query — a coarse <em>compressed</em> stream, a <em>selected</em> set of blocks, and a local
+        <em>sliding window</em> — combined by a learned gate, with a block layout aligned to GPU tensor cores.
+      </p>
+      <p>
+        <em>MoBA</em> <a class="cite" href="https://arxiv.org/abs/2502.13189">(Lu et al., 2025)</a> makes the
+        “attention sparsity is routing” analogy literal: it treats KV blocks as experts and applies
+        Mixture-of-Experts top-\(k\) gating, scoring each block by the affinity of the query to the block’s mean key
+      </p>
+      <div class="eqbox">
+        $$ g_i \;=\; \big\langle q,\ \operatorname{meanpool}(K_{[\,i\,]})\big\rangle, \qquad
+           \text{attend to the top-}k\ \text{blocks by } g_i, $$
+      </div>
+      <p>
+        explicitly adopting a “less structure” principle: let the model decide where to attend rather than imposing
+        a fixed pattern. <em>InfLLM-V2</em> <a class="cite" href="https://arxiv.org/abs/2509.24663">(2025)</a>
+        switches smoothly between dense and sparse; <em>NOSA</em> <a class="cite" href="https://arxiv.org/abs/2510.13602">(2025)</a>
+        splits the budget into query-aware and query-agnostic parts with a proven locality lower bound. Sparsity has
+        become an architectural primitive, not a post-hoc filter — the same destination Part I reached from the
+        theory side.
+      </p>
+      <p>
+        One thing these block-native methods do <em>not</em> quite give you is exactness. They learn <em>which
+        blocks</em> to keep, but inside a kept block the attention is still a dense softmax, and a dropped block is
+        still an approximation with \(\delta>0\). Closing that last gap — trainable sparsity that is exact at the
+        <em>token</em> level — is where our own line comes in.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Block routing: attention as top-\(k\) expert selection</h4>
+      <p class="sub">A query routes to KV blocks by affinity to each block’s mean key (MoBA-style). Keep the top-\(k\); skip the rest.</p>
+      <div id="viz-moba"></div>
+      <div class="controls">
+        <div class="ctl" style="max-width:320px"><div class="row"><label>blocks kept \(k\)</label><span class="val" id="mo-k">3</span></div>
+          <input type="range" id="mo-slider" min="1" max="12" step="1" value="3"></div>
+        <div class="stats"><div class="stat"><div class="n" id="mo-skip" style="color:var(--teal)">—</div><div class="k">blocks skipped</div></div></div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 4.</span> Each block’s bar is its gate score \(g_i\); the
+        top-\(k\) (teal) are computed, the rest (faded) are skipped entirely. This is Mixture-of-Experts routing
+        with KV blocks as experts — the mechanism that makes trained-in sparsity hardware-friendly.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 9. ENTMAX-NATIVE -->
+  <section class="mb-16" id="entmax-native">
+    <h2 class="font-display text-3xl font-semibold mb-8">9. Entmax-native: trainable and exact</h2>
+    <div class="narrative-section">
+      <p>
+        This is the corner of the design space that is <em>both</em> trainable <em>and</em> token-exact — and, as
+        far as the two-family map goes, the only one. α-entmax is trained into the model (Part I), so its zeros are
+        real, not approximated; the job that remains is purely a systems one. And it is a genuinely hard one, because
+        α-entmax breaks the two assumptions FlashAttention is built on: its normalizer is <em>not</em> a closed-form
+        reduction, and its zeros are <em>unstructured</em> (per-token, data-dependent), not neatly block-aligned.
+        This section opens up the kernels — <a class="cite" href="https://arxiv.org/abs/2502.12082">AdaSplash</a> and
+        <a class="cite" href="https://arxiv.org/abs/2604.15180">AdaSplash‑2</a> — and shows exactly how each obstacle
+        is turned into a speedup rather than a tax.
+      </p>
+
+      <h3 class="subhead">The bottleneck: a normalizer with no closed form</h3>
+      <p>
+        Softmax gets its normalizer for free — \(\tau=\log\sum_j e^{s_j}\) is one streaming reduction, computed
+        alongside the running max in FlashAttention’s online‑softmax. α-entmax’s threshold is the root of
+      </p>
+      <div class="eqbox">
+        $$ f(\tau)=\sum_i \big[(\alpha-1)s_i-\tau\big]_+^{1/(\alpha-1)}-1=0, $$
+      </div>
+      <p>
+        which has no closed form for general \(\alpha\). Every query row needs its own \(\tau\), found by iterative
+        root‑finding over that row’s scores. Historically this is what kept sparse attention off the FlashAttention
+        Pareto frontier: the inner loop is not a reduction but a <em>solve</em>. The whole engineering story is about
+        making that solve — and the sparsity it unlocks — nearly free.
+      </p>
+
+      <h3 class="subhead">AdaSplash: a safeguarded Halley–bisection solve</h3>
+      <p>
+        AdaSplash’s <code>_get_tau</code> kernel keeps \(f\) monotone and brackets the root in \([\tau_{\text{lo}},
+        \tau_{\text{hi}}]\), then takes second‑order <em>Halley</em> steps that fall back to bisection whenever a step
+        would leave the bracket. Because a single tiled pass over the scores can accumulate \(f,f',f''\) at once
+        (three running moments), each iteration is cheap, and the quadratic‑convergence of Halley cuts the iteration
+        count by roughly \(7\times\) versus plain bisection.
+      </p>
+      <div class="code-hd"><span>adasplash_block_mask.py · halley_bisect_update (simplified)</span><a href="https://github.com/deep-spin/adasplash/blob/main/adasplash/adasplash_block_mask.py" target="_blank" rel="noopener">source ↗</a></div>
+<div class="codeblk"><span class="cmt"># f(τ)=Σ_i [(α−1)s_i − τ]_+^{1/(α−1)} − 1 ; acc_* are tiled running moments</span>
+f   = acc_0 - 1.0                       <span class="cmt"># residual   f(τ)</span>
+df  = -coeff_0 * acc_1                   <span class="cmt"># f'(τ)</span>
+ddf =  coeff_0 * coeff_1 * acc_2         <span class="cmt"># f''(τ)</span>
+new_t = t - (<span class="op">2</span>*f*df) / (<span class="op">2</span>*df*df - f*ddf)  <span class="cmt"># Halley (cubic) step</span>
+ok    = (new_t &gt; t_lo - EPS) &amp; (new_t &lt; t_hi + EPS)  <span class="cmt"># still bracketed?</span>
+t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_lo + t_hi))    <span class="cmt"># else: bisection step</span></div>
+      <p>
+        The solver runs inside the tiled Q×K loop (block sizes like \(B_r{=}64,\,B_c{=}16\) for the \(\tau\) phase),
+        so it reuses scores already staged in SRAM rather than re‑reading them from HBM.
+      </p>
+
+      <h3 class="subhead">AdaSplash‑2: a histogram that brackets τ before you solve</h3>
+      <p>
+        AdaSplash‑2’s insight is to spend the <em>first</em> streaming pass building a coarse <strong>histogram of
+        the scores in SRAM</strong>, then read a provable bound on \(\tau\) straight off the bin counts — so the
+        root‑finder starts from a tight bracket and converges in one or two steps. The figure shows the forward
+        kernel: as each key tile \(K_j\) streams through, the score tile \(Z_{ij}\) updates the per‑query histogram
+        \(\mathcal H_{ij}\); a reverse sweep over bins gives \(\tau_i \le \tau_i^\star\), which is stored and handed
+        to the solver.
+      </p>
+      <div class="figc">
+        <img src="figs/grid_view_kernel_as2.png" alt="AdaSplash-2 forward kernel: Q grid-loop and K inner-loop stream score tiles Z_ij that update a per-query histogram H_ij in SRAM; a reverse sweep yields a lower bound on the threshold tau, stored to tau_h."/>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 5.</span> The AdaSplash‑2 forward pass. Query blocks
+        \(Q_i\) (grid loop) and key blocks \(K_j\) (inner loop) stream through SRAM; each score tile \(Z_{ij}\)
+        updates a compact histogram \(\mathcal H_{ij}\) held on‑chip. To keep it free, the bin counts are
+        <em>bit‑packed</em> into a single 64‑bit word (the kernel picks \(\text{BINS}\in\{8,4,2\}\) so every counter
+        fits in \(64/\text{BINS}\) bits and cannot overflow). A reverse sweep accumulates \(\sum z,\ \sum 1,\ \sum
+        z^2\) and stops at the first bin where the quadratic constraint \(n\,\tau^2-2z\,\tau+\sum z^2<1\) holds,
+        yielding a lower bound \(\tau_i \le \tau_i^\star\) — a tight initialization that needs no dense
+        intermediates.</p>
+
+      <h3 class="subhead">Skipping the zeros: from boolean masks to bit‑packing</h3>
+      <p>
+        A threshold is only half the win; the other half is <em>not computing</em> the blocks that end up all‑zero.
+        AdaSplash marks each \(64\times 64\) tile with a boolean <code>bmask</code> — a block is skippable when every
+        score in it falls below \(\tau\) (a row‑wise OR reduction) — then <code>compute_bidxs_and_cubcounts</code>
+        turns that into a list of surviving block indices, so the output kernel iterates only over
+        <code>good_nblocks</code> per query.
+      </p>
+      <p>
+        AdaSplash‑2 shrinks the mask itself. Instead of one byte per block it packs one <em>bit</em> per key block,
+        32 blocks to an <code>int32</code> (a 32× smaller mask), building it on the fly as
+        <code>bmask &lt;&lt;= 1; bmask += (Σ&nbsp;qk_mask &gt; 0)</code> and flushing every 32 blocks. The output
+        kernel then walks only the set bits using the GPU’s native <em>find‑next‑set</em> instruction
+        (<code>fns.b32</code>), jumping straight from one nonzero block to the next with no per‑block branch. Small
+        mask, branch‑free traversal, less HBM traffic.
+      </p>
+
+      <h3 class="subhead">The backward pass is sparse too — and that is where it pays</h3>
+      <p>
+        Training spends more time in the backward pass than the forward, so this is where exactness has to earn its
+        keep. It does, because the α-entmax Jacobian is <em>itself</em> sparse: for \(p=\alpha\text{-entmax}(s)\),
+      </p>
+      <div class="eqbox">
+        $$ \frac{\partial p}{\partial s}=\operatorname{diag}(u)-\frac{u\,u^\top}{\lVert u\rVert_1},\qquad
+           u_i=\big[p_i\big]^{\,2-\alpha}\ \text{(nonzero only on the support).} $$
+      </div>
+      <p>
+        So gradients touch only the surviving tokens. AdaSplash splits the backward into separate kernels for
+        \(dQ\) and for \(dK,dV\) (plus a small pre‑pass computing \(\delta=\sum_i o_i\,\mathrm{d}o_i\)), recomputes
+        \(\tau\) and the activations from the saved threshold rather than storing the \(n\times n\) matrix, and
+        reuses the very same block mask to skip null blocks. AdaSplash‑2 goes further and
+        <em>transposes</em> the block mask (<code>transpose_bmask</code>) so the \(dK,dV\) kernel — which must loop
+        over query blocks per key block — also iterates only over active blocks. At high sparsity this turns the
+        backward pass from the dominant cost into an order‑of‑magnitude speedup.
+      </p>
+
+      <div class="insight-box">
+        <p class="lab">So many ways to be “efficient”</p>
+        <p>
+          “Faster attention” hides at least six distinct axes, and a method can win on one while losing on another:
+        </p>
+        <ul style="margin:.6rem 0 0; padding-left:1.2rem; line-height:1.7">
+          <li><strong>FLOPs vs. bandwidth.</strong> Skipping blocks cuts FLOPs, but the win only shows on the clock if it also cuts HBM traffic — hence bit‑packed masks and fused kernels.</li>
+          <li><strong>Forward vs. backward.</strong> The backward pass is the larger bill; a method that only accelerates the forward leaves most of training on the table.</li>
+          <li><strong>Prefill vs. decode.</strong> Prefill is compute‑bound over the full \(n\times n\); decode is memory‑bound over the KV cache. Different bottlenecks, different kernels (this is why EntmaxKV is a separate decode‑time system).</li>
+          <li><strong>Structured vs. unstructured.</strong> Token‑exact zeros are unstructured; GPUs want contiguous blocks. AdaSplash pays a small granularity cost to keep exactness; NSA/MoBA choose block‑native sparsity instead.</li>
+          <li><strong>The cost of the mask itself.</strong> Deciding which blocks to skip must be cheaper than computing them — otherwise the bookkeeping eats the savings. The on‑chip histogram exists precisely to make that decision almost free.</li>
+          <li><strong>Numerics &amp; load balance.</strong> \(\mathrm{fp32}\) accumulation, \(2^x\)/\(\log_2\) instead of \(e^x\), and rows whose support sizes vary wildly (a load‑balancing problem the kernel must tolerate) all shape real throughput.</li>
+        </ul>
+      </div>
+
+      <p>
+        Two more systems close the loop. <strong>DashAttention</strong>
+        <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026)</a> fuses differentiable,
+        adaptive entmax <em>routing</em> with FlashAttention stages; and <strong>EntmaxKV</strong>
+        <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a> is the decode‑time answer
+        to §7’s ceiling — <em>exact support recovery</em> (\(\delta=0\), not \(\delta>0\)) in paged Triton kernels.
+        Together the four show that exact, adaptive, trainable sparsity is now competitive with the most optimized
+        dense kernels: you do not have to choose between exactness and speed.
+      </p>
+
+      <div class="insight-box">
+        <p class="lab">Play with it</p>
+        <p>
+          I built an interactive, touch-friendly companion to this section for ICML — drag α to watch tokens snap to
+          zero, step the τ solver from bisection to histogram (11 → 2 → 1 iterations), and watch the attention map
+          dissolve into skippable blocks:
+          <a class="prose-link" href="../entmax-demo/adasplash.html">α-entmax → AdaSplash, hands-on →</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 10. REALITY -->
+  <section class="mb-16" id="reality">
+    <h2 class="font-display text-3xl font-semibold mb-8">10. A reality check and the open tensions</h2>
+    <div class="narrative-section">
+      <p>
+        Efficiency claims are easy to overstate, so it is worth ending on discipline.
+        <em>The Sparse Frontier</em> <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2025)</a>
+        evaluates training-free sparse attention across a four-axis taxonomy and finds it genuinely shifts the
+        accuracy–efficiency Pareto frontier — while warning that fixed-budget methods are suboptimal in production
+        and that gains are task-dependent. The live disagreements that will shape the next few years:
+      </p>
+      <div class="tbl-wrap">
+      <table class="taxo">
+        <tr><th>Tension</th><th>One camp</th><th>The other</th></tr>
+        <tr><td>Where sparsity lives</td><td>Retrofit onto a dense model (H2O, Quest, MInference)</td><td>Train it in natively (NSA, MoBA, InfLLM-V2)</td></tr>
+        <tr><td>Granularity</td><td>Token-exact zeros (sparsemax/entmax)</td><td>Hardware-aligned blocks (NSA, XAttention)</td></tr>
+        <tr><td>Importance</td><td>Query-agnostic scores (H2O, key-norm)</td><td>Query-aware selection (Quest, NOSA)</td></tr>
+        <tr><td>Cache policy</td><td>Eviction — bounded, irreversible (H2O, TOVA)</td><td>Selection — full state, reversible (Quest, ShadowKV)</td></tr>
+        <tr><td>Length generalization</td><td>Patch softmax (Scalable-Softmax, temperature)</td><td>Replace softmax (α-entmax, exact zeros)</td></tr>
+        <tr><td>Approximation</td><td>Truncate a dense tail (δ &gt; 0)</td><td>Recover an exact support (δ = 0, EntmaxKV)</td></tr>
+      </table>
+      </div>
+      <p>
+        Read down the right column and a single position emerges: sparsity should be a <em>property of the model</em>,
+        trained in, exact, and co-designed with the kernel. That is precisely the object Part I built from
+        sparsemax and α-entmax. The efficiency era did not replace the principled lineage — it caught up to it.
+      </p>
+      <div class="part-nav">
+        <a href="sparse-attention-part1.html">
+          <div class="lab">← Back to</div>
+          <div class="ttl">Part I — The Principled Lineage</div>
+        </a>
+        <a href="../entmax-demo/adasplash.html">
+          <div class="lab">Interactive companion →</div>
+          <div class="ttl">α-entmax → AdaSplash, hands-on</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 11. LANDSCAPE TABLE -->
+  <section class="mb-16" id="landscape">
+    <h2 class="font-display text-3xl font-semibold mb-8">11. At a glance: the whole landscape</h2>
+    <div class="narrative-section">
+      <p>
+        One table for the whole zoo, grouped by family. Read across for what each method does; the column that
+        matters most is the last technical one — <span class="ap">approximates</span> softmax (a permanent error
+        floor) versus <span class="ex">exact</span> (δ = 0). Scroll the table sideways to see every column.
+      </p>
+    </div>
+    <div class="tbl-wrap">
+      <table class="taxo bigtab">
+        <tr>
+          <th>Method</th><th>Family</th><th>Stage</th><th>Granularity</th>
+          <th>Selection signal</th><th>Query-aware</th><th>vs. softmax</th><th>Key idea</th>
+        </tr>
+        <tr class="grp"><td colspan="8">Training-free — retrofit sparsity onto a frozen softmax model (no retraining)</td></tr>
+        <tr><td class="m">StreamingLLM</td><td>training-free</td><td>decode</td><td>token</td><td>first tokens + recent window</td><td>no</td><td class="ap">approximates</td><td>“attention sinks” absorb overflow mass</td></tr>
+        <tr><td class="m">H2O</td><td>training-free</td><td>decode</td><td>token</td><td>accumulated attention (heavy hitters)</td><td>no</td><td class="ap">approximates</td><td>submodular eviction, (1−α)(1−1/e) bound</td></tr>
+        <tr><td class="m">TOVA</td><td>training-free</td><td>decode</td><td>token</td><td>lowest current attention</td><td>partly</td><td class="ap">approximates</td><td>decoder as a multi-state RNN</td></tr>
+        <tr><td class="m">FastGen</td><td>training-free</td><td>decode</td><td>token / head</td><td>per-head structure profile</td><td>partly</td><td class="ap">approximates</td><td>cheapest eviction policy per head</td></tr>
+        <tr><td class="m">SnapKV</td><td>training-free</td><td>prefill→decode</td><td>token</td><td>end-of-prompt voting window</td><td>yes</td><td class="ap">approximates</td><td>observation window picks key tokens</td></tr>
+        <tr><td class="m">PyramidKV</td><td>training-free</td><td>prefill</td><td>token</td><td>attention, non-uniform layer budget</td><td>yes</td><td class="ap">approximates</td><td>pyramidal per-layer budget allocation</td></tr>
+        <tr><td class="m">Quest</td><td>training-free</td><td>decode</td><td>page</td><td>page min/max upper bound on Q·K</td><td>yes</td><td class="ap">approximates</td><td>query-aware page selection, top-K pages</td></tr>
+        <tr><td class="m">Loki</td><td>training-free</td><td>decode</td><td>token</td><td>PCA-subspace key ranking</td><td>partly</td><td class="ap">approximates</td><td>score keys in a low-rank subspace</td></tr>
+        <tr><td class="m">ShadowKV</td><td>training-free</td><td>decode</td><td>token</td><td>low-rank keys, CPU-offloaded values</td><td>yes</td><td class="ap">approximates</td><td>keep everything, re-select per step</td></tr>
+        <tr><td class="m">MInference</td><td>training-free</td><td>prefill</td><td>block</td><td>offline head pattern + online index</td><td>yes</td><td class="ap">approximates</td><td>A-shape / Vertical-Slash / Block-Sparse</td></tr>
+        <tr><td class="m">FlexPrefill</td><td>training-free</td><td>prefill</td><td>block</td><td>JS-divergence pattern switch</td><td>yes</td><td class="ap">approximates</td><td>choose the pattern per input</td></tr>
+        <tr><td class="m">XAttention</td><td>training-free</td><td>prefill</td><td>block</td><td>antidiagonal block score</td><td>yes</td><td class="ap">approximates</td><td>cheap block-importance estimate</td></tr>
+        <tr><td class="m">Twilight / Tactic</td><td>training-free</td><td>decode</td><td>token / block</td><td>adaptive top-p budget</td><td>yes</td><td class="ap">approximates</td><td>data-dependent budget, not fixed k</td></tr>
+        <tr class="grp"><td colspan="8">Trainable — sparsity is part of the model; training and inference match</td></tr>
+        <tr><td class="m">Sparse Transformer</td><td>trainable</td><td>train</td><td>block</td><td>fixed strided + local</td><td>no</td><td class="fx">fixed pattern</td><td>O(n·√n) factorized attention</td></tr>
+        <tr><td class="m">Longformer / Big Bird</td><td>trainable</td><td>train</td><td>block</td><td>window + global (+ random)</td><td>no</td><td class="fx">fixed pattern</td><td>O(n); Big Bird is a universal approx.</td></tr>
+        <tr><td class="m">Reformer</td><td>trainable</td><td>train</td><td>bucket</td><td>angular LSH hashing</td><td>yes</td><td class="ap">approximates</td><td>attend within a hash bucket</td></tr>
+        <tr><td class="m">Routing Transformer</td><td>trainable</td><td>train</td><td>cluster</td><td>online spherical k-means</td><td>yes</td><td class="ap">approximates</td><td>attend within the same centroid</td></tr>
+        <tr><td class="m">NSA</td><td>trainable</td><td>train</td><td>block</td><td>compress + select + slide, gated</td><td>yes</td><td class="fx">block-native</td><td>hardware-aligned 3-branch attention</td></tr>
+        <tr><td class="m">MoBA</td><td>trainable</td><td>train</td><td>block</td><td>MoE top-k over KV blocks</td><td>yes</td><td class="fx">block-native</td><td>attention = expert routing</td></tr>
+        <tr><td class="m">InfLLM-V2</td><td>trainable</td><td>train</td><td>block</td><td>dense↔sparse switch</td><td>yes</td><td class="fx">block-native</td><td>smooth dense-to-sparse transition</td></tr>
+        <tr><td class="m">NOSA</td><td>trainable</td><td>train</td><td>block</td><td>query-aware + query-agnostic split</td><td>yes</td><td class="fx">block-native</td><td>proven locality lower bound</td></tr>
+        <tr class="win"><td class="m">sparsemax / α-entmax</td><td>trainable</td><td>train</td><td><strong>token</strong></td><td>learned threshold τ (exact zeros)</td><td>yes</td><td class="ex">exact (δ=0)</td><td>differentiable, input-adaptive sparsity</td></tr>
+        <tr class="win"><td class="m">AdaSplash / AdaSplash-2</td><td>trainable</td><td>train</td><td>token → block-skip</td><td>entmax support + null-block skip</td><td>yes</td><td class="ex">exact (δ=0)</td><td>fast entmax: Halley/histogram τ, bitmask</td></tr>
+        <tr class="win"><td class="m">DashAttention</td><td>trainable</td><td>train</td><td>block</td><td>differentiable entmax routing</td><td>yes</td><td class="ex">exact-native</td><td>entmax routing fused with FlashAttention</td></tr>
+        <tr class="win"><td class="m">EntmaxKV</td><td>trainable</td><td>decode</td><td>token</td><td>exact support recovery</td><td>yes</td><td class="ex">exact (δ=0)</td><td>recover the support, don’t approximate</td></tr>
+      </table>
+    </div>
+    <p class="fig-caption"><span class="fnum">Table.</span> “Approximates” = the method runs on a dense softmax model
+      and discards nonzero mass, so its error has a floor (§7). “Fixed pattern” / “block-native” = trainable but sparse
+      only at block granularity. “Exact (δ=0)” = the model is genuinely sparse at the token level, so inference can
+      match full attention exactly. The bottom four rows — token-exact <em>and</em> trainable — are the corner our
+      own work lives in.</p>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- REFERENCES -->
+  <section class="mb-16" id="refs">
+    <h2 class="font-display text-3xl font-semibold mb-8">References</h2>
+    <p style="color:var(--muted); font-size:.9rem; margin-bottom:1rem">In order of appearance. Links go to arXiv.</p>
+    <ol class="ref-list">
+      <li>Dao et al. <a href="https://arxiv.org/abs/2205.14135">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a>. NeurIPS 2022.</li>
+      <li>Dao. <a href="https://arxiv.org/abs/2307.08691">FlashAttention-2</a>. 2023.</li>
+      <li>Shah et al. <a href="https://arxiv.org/abs/2407.08608">FlashAttention-3</a>. NeurIPS 2024.</li>
+      <li>Jiang et al. <a href="https://arxiv.org/abs/2407.02490">MInference: Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention</a>. NeurIPS 2024.</li>
+      <li>Lai et al. <a href="https://arxiv.org/abs/2502.20766">FlexPrefill</a>. ICLR 2025.</li>
+      <li>Xu et al. <a href="https://arxiv.org/abs/2503.16428">XAttention: Block Sparse Attention with Antidiagonal Scoring</a>. 2025.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2504.16083">MMInference</a>. 2025.</li>
+      <li>Dong et al. <a href="https://arxiv.org/abs/2412.05496">Flex Attention</a>. 2024.</li>
+      <li>Zhang et al. <a href="https://arxiv.org/abs/2306.14048">H2O: Heavy-Hitter Oracle for Efficient Generative Inference</a>. NeurIPS 2023.</li>
+      <li>Kwon et al. <a href="https://arxiv.org/abs/2309.06180">Efficient Memory Management for LLM Serving with PagedAttention</a>. SOSP 2023.</li>
+      <li>Xiao et al. <a href="https://arxiv.org/abs/2309.17453">Efficient Streaming Language Models with Attention Sinks</a>. ICLR 2024.</li>
+      <li>Oren et al. <a href="https://arxiv.org/abs/2401.06104">Transformers are Multi-State RNNs</a> (TOVA). 2024.</li>
+      <li>Ge et al. <a href="https://arxiv.org/abs/2310.01801">Model Tells You What to Discard</a> (FastGen). ICLR 2024.</li>
+      <li>Devoto et al. <a href="https://arxiv.org/abs/2406.11430">A Simple and Effective \(L_2\) Norm-Based KV Cache Compression</a>. 2024.</li>
+      <li>Tang et al. <a href="https://arxiv.org/abs/2406.10774">Quest: Query-Aware Sparsity for Efficient Long-Context Inference</a>. ICML 2024.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2404.14469">SnapKV</a>. NeurIPS 2024.</li>
+      <li>Cai et al. <a href="https://arxiv.org/abs/2406.02069">PyramidKV</a>. 2024.</li>
+      <li>Singhania et al. <a href="https://arxiv.org/abs/2406.02542">Loki: Low-Rank Keys for Efficient Sparse Attention</a>. NeurIPS 2024.</li>
+      <li>Sun et al. <a href="https://arxiv.org/abs/2410.21465">ShadowKV</a>. 2024.</li>
+      <li>Lin et al. <a href="https://arxiv.org/abs/2502.02770">Twilight: Adaptive Top-p Sparse Attention</a>. 2025.</li>
+      <li>Zhu et al. <a href="https://arxiv.org/abs/2502.12216">Tactic: Adaptive Sparse Attention with Clustering and Distribution Fitting</a>. 2025.</li>
+      <li>Yuan et al. <a href="https://arxiv.org/abs/2502.11089">Native Sparse Attention (NSA)</a>. 2025.</li>
+      <li>Lu et al. <a href="https://arxiv.org/abs/2502.13189">MoBA: Mixture of Block Attention for Long-Context LLMs</a>. 2025.</li>
+      <li>InfLLM-V2. <a href="https://arxiv.org/abs/2509.24663">Dense-Sparse Switchable Attention</a>. 2025.</li>
+      <li>NOSA. <a href="https://arxiv.org/abs/2510.13602">Native and Offloadable Sparse Attention</a>. 2025.</li>
+      <li>Gonçalves, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2502.12082">AdaSplash: Adaptive Sparse Flash Attention</a>. ICML 2025.</li>
+      <li>Gonçalves, Pitorro, Niculae, Ponti, Li, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2604.15180">AdaSplash-2: Faster Differentiable Sparse Attention</a>. 2026.</li>
+      <li>Huang et al. <a href="https://arxiv.org/abs/2605.18753">DashAttention</a>. 2026.</li>
+      <li>Duarte, Couceiro &amp; Treviso. <a href="https://arxiv.org/abs/2605.21649">EntmaxKV: Support-Aware Decoding for Entmax Attention</a>. 2026.</li>
+      <li>Nawrot et al. <a href="https://arxiv.org/abs/2504.17768">The Sparse Frontier: Sparse Attention Trade-offs in Transformer LLMs</a>. 2025.</li>
+    </ol>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <footer class="mt-8">
+    <hr class="border-rule mb-8"/>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm" style="color:var(--muted)">
+      <p class="font-display italic">Lisbon, Portugal — <span id="year"></span></p>
+      <div class="flex gap-4">
+        <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" class="hover:text-teal"><i class="fas fa-envelope"></i></a>
+        <a href="https://github.com/mtreviso" target="_blank" class="hover:text-teal"><i class="fab fa-github"></i></a>
+        <a href="https://twitter.com/MarcosTreviso" target="_blank" class="hover:text-teal"><i class="fab fa-twitter"></i></a>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<script>
+/* ===== shared math ===== */
+function softmax(s){ const m=Math.max(...s); const e=s.map(x=>Math.exp(x-m)); const z=e.reduce((a,b)=>a+b,0); return e.map(x=>x/z); }
+function entmaxFull(scores, alpha, nIter=60){
+  if (Math.abs(alpha-1)<1e-6) return {p:softmax(scores)};
+  const n=scores.length, am1=alpha-1; const X=scores.map(s=>s*am1); const maxVal=Math.max(...X);
+  let lo=maxVal-1, hi=maxVal-Math.pow(1/n,am1), p=null;
+  for(let it=0; it<nIter; it++){ const t=(lo+hi)/2; p=X.map(x=>{const d=x-t; return d>0?Math.pow(d,1/am1):0;}); (p.reduce((a,b)=>a+b,0)>1)?lo=t:hi=t; }
+  const sum=p.reduce((a,b)=>a+b,0); if(sum>0) p=p.map(x=>x/sum); return {p};
+}
+function entmax(s,a){ return entmaxFull(s,a).p; }
+const C={ ink:'#0E1F1C', teal:'#0A7C6A', tealL:'#12A68E', muted:'#6B7C79', rule:'#D5CFC3', warm:'#E8D5B0', rust:'#B45309', rose:'#B91C1C', sky:'#0369A1', plum:'#6D28D9' };
+
+/* ===== 1. ONLINE SOFTMAX ===== */
+function vizOnline(){
+  const el=document.getElementById('viz-online'); if(!el) return;
+  const scores=[1.2,0.4,2.8,0.9, 3.4,1.1,0.2,1.7, 0.6,2.1,1.4,0.8]; // 3 tiles of 4
+  const T=4, nT=scores.length/T;
+  const full=softmax(scores);
+  const W=el.clientWidth||820, H=210, m={t:16,r:12,b:34,l:12}, n=scores.length;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.3); const bw=x.bandwidth();
+  // the largest bar appears mid-stream (fewest tokens normalized), so size the axis for that peak — otherwise bars overflow the box
+  let maxY=Math.max(...full);
+  { let mm=-Infinity, ll=0;
+    for(let t=0;t<nT;t++){ const tile=scores.slice(t*T,t*T+T); const tm=Math.max(...tile), tl=tile.reduce((a,b)=>a+Math.exp(b-tm),0);
+      const mN=Math.max(mm,tm); ll=(mm===-Infinity?0:Math.exp(mm-mN)*ll)+Math.exp(tm-mN)*tl; mm=mN;
+      for(let i=0;i<(t+1)*T;i++){ const w=Math.exp(scores[i]-mm)/ll; if(w>maxY) maxY=w; } } }
+  const y=d3.scaleLinear().domain([0,maxY*1.06]).range([H-m.b,m.t]);
+  const bars=svg.selectAll('rect').data(d3.range(n)).join('rect').attr('x',i=>x(i)).attr('width',bw).attr('rx',2)
+    .attr('y',H-m.b).attr('height',0).attr('fill',C.rule);
+  const tileMark=svg.append('rect').attr('fill','none').attr('stroke',C.teal).attr('stroke-width',2).attr('rx',4).attr('opacity',0);
+  let st={seen:0, m:-Infinity, l:0, acc:new Array(n).fill(0)};
+  function draw(){
+    // partial softmax over seen tiles
+    const kSeen=st.seen*T;
+    let partial=new Array(n).fill(0);
+    if(kSeen>0){ const sub=scores.slice(0,kSeen); const sp=softmax(sub); for(let i=0;i<kSeen;i++) partial[i]=sp[i]*(kSeen/n>0?1:1); }
+    // for display, show current normalized weights over the seen set (rescaled) vs full
+    const disp = kSeen>0 ? scores.map((s,i)=> i<kSeen? Math.exp(s-st.m)/st.l : 0) : new Array(n).fill(0);
+    bars.data(disp).transition().duration(220)
+      .attr('y',d=>d>1e-9?y(d):H-m.b).attr('height',d=>d>1e-9?H-m.b-y(d):0)
+      .attr('fill',(d,i)=> i<kSeen? C.teal : C.rule).attr('opacity',(d,i)=> i<kSeen?0.92:0.5);
+    if(st.seen>0 && st.seen<=nT){
+      const i0=(st.seen-1)*T; tileMark.attr('opacity',0.8)
+        .attr('x',x(i0)-3).attr('y',m.t-4).attr('width',x(i0+T-1)+bw-x(i0)+6).attr('height',H-m.b-m.t+8);
+    } else tileMark.attr('opacity',0);
+    // error vs full (only meaningful once all seen)
+    let err = 0; for(let i=0;i<n;i++) err += Math.abs(disp[i]-full[i]);
+    document.getElementById('on-m').textContent = st.m===-Infinity? '—' : st.m.toFixed(2);
+    document.getElementById('on-l').textContent = st.l? st.l.toFixed(2):'—';
+    document.getElementById('on-err').textContent = st.seen? err.toExponential(1) : '—';
+  }
+  function step(){
+    if(st.seen>=nT) return;
+    const i0=st.seen*T, tile=scores.slice(i0,i0+T);
+    const tm=Math.max(...tile), tl=tile.reduce((a,b)=>a+Math.exp(b-tm),0);
+    const mNew=Math.max(st.m,tm);
+    st.l = (st.m===-Infinity?0:Math.exp(st.m-mNew)*st.l) + Math.exp(tm-mNew)*tl;
+    st.m = mNew; st.seen++;
+    draw();
+  }
+  function reset(){ st={seen:0, m:-Infinity, l:0, acc:new Array(n).fill(0)}; draw(); }
+  document.getElementById('on-step').addEventListener('click',step);
+  document.getElementById('on-reset').addEventListener('click',reset);
+  reset(); step();
+}
+
+/* ===== 2. KV CACHE ===== */
+function vizKV(){
+  const el=document.getElementById('viz-kv'); if(!el) return;
+  const n=40, W=el.clientWidth||820, H=120, m={t:14,r:10,b:26,l:10};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.18); const bw=x.bandwidth();
+  // deterministic "importance to the current (last) query"
+  // current-query relevance: the token THIS query needs is a specific mid-sequence token
+  const trueTop=12;
+  const rel=d3.range(n).map(i=>{ const recency=0.45*Math.exp(-(n-1-i)/6); const answer=(i===trueTop)?1.6:0; const content=Math.abs(Math.sin(i*2.7))>0.92?0.35:0; return recency+answer+content; });
+  // query-AGNOSTIC historical importance (what eviction sees): recency, sinks, generic hubs — NOT this query's answer
+  const hist=d3.range(n).map(i=>{ const recency=Math.exp(-(n-1-i)/6); const sink=i<3?1.0:0; const hub=(Math.abs(Math.sin(i*1.3))>0.8?0.5:0)+(i===trueTop?0.42:0); return recency+sink+hub; });
+  const cells=svg.selectAll('rect').data(d3.range(n)).join('rect')
+    .attr('x',i=>x(i)).attr('y',m.t).attr('width',bw).attr('height',H-m.b-m.t).attr('rx',2);
+  svg.append('text').attr('x',x(0)).attr('y',H-8).attr('class','tokenlabel').text('◀ oldest');
+  svg.append('text').attr('x',W-m.r).attr('y',H-8).attr('text-anchor','end').attr('class','tokenlabel').text('query ▶');
+  function update(mode,budget){
+    const keepN=Math.max(1,Math.round(n*budget/100));
+    let kept=new Set();
+    if(mode==='evict'){ // sinks + recent + heavy hitters
+      for(let i=0;i<3;i++) kept.add(i); // sinks
+      for(let i=n-1;i>=n-Math.round(keepN*0.5)&&i>=0;i--) kept.add(i); // recent window
+      const heavy=d3.range(n-1).map(i=>({i,r:hist[i]})).sort((a,b)=>b.r-a.r);
+      for(const h of heavy){ if(kept.size>=keepN) break; kept.add(h.i); }
+    } else { // selection: top-budget by query relevance (full state available)
+      const rank=d3.range(n).map(i=>({i,r:rel[i]})).sort((a,b)=>b.r-a.r);
+      for(let i=0;i<keepN;i++) kept.add(rank[i].i);
+    }
+    cells.transition().duration(200)
+      .attr('fill',i=> i===trueTop? (kept.has(i)?C.teal:C.rose) : (kept.has(i)? C.teal : 'rgba(10,124,106,0.06)'))
+      .attr('opacity',i=> i<3? 1 : (kept.has(i)?0.9:1))
+      .attr('stroke',i=> i<3? C.rust : (i===trueTop?C.rose:'none')).attr('stroke-width',i=> i<3?2:(i===trueTop?2:0));
+    document.getElementById('kv-budget').textContent=budget+'%';
+    document.getElementById('kv-recall').textContent = kept.has(trueTop)?'yes':'MISSED';
+    document.getElementById('kv-recall').style.color = kept.has(trueTop)?C.teal:C.rose;
+    d3.selectAll('#kv-seg button').classed('on',function(){return this.getAttribute('data-kv')===mode;});
+  }
+  let mode='evict';
+  d3.selectAll('#kv-seg button').on('click',function(){ mode=this.getAttribute('data-kv'); update(mode,+document.getElementById('kv-slider').value); });
+  document.getElementById('kv-slider').addEventListener('input',e=>update(mode,+e.target.value));
+  update('evict',40);
+}
+
+/* ===== 3. SUPPORT RECOVERY ===== */
+function vizSupport(){
+  const el=document.getElementById('viz-support'); if(!el) return;
+  const W=el.clientWidth||820, H=260, m={t:18,r:18,b:40,l:52};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  // a score vector with a small "true" support
+  const n=40; const scores=d3.range(n).map(i=>{ const spike=(i<6)?(3.0-i*0.25):0; return spike + 0.6*Math.abs(Math.sin(i*3.3)); });
+  const sm=softmax(scores); const en=entmax(scores,1.5);
+  const suppEn=en.filter(x=>x>1e-6).length;
+  // sort by weight desc to simulate "keep top-b"
+  const order=d3.range(n).sort((a,b)=>sm[b]-sm[a]);
+  const orderEn=d3.range(n).sort((a,b)=>en[b]-en[a]);
+  function deltaSoft(b){ // discarded mass (L1 error of truncated+renormalized ~ tail mass)
+    let kept=0; for(let i=0;i<b;i++) kept+=sm[order[i]]; return Math.max(0,1-kept); }
+  function deltaEnt(b){ let kept=0; for(let i=0;i<b;i++) kept+=en[orderEn[i]]; return Math.max(0,1-kept); }
+  const bs=d3.range(1,n+1);
+  const x=d3.scaleLinear().domain([1,n]).range([m.l,W-m.r]);
+  const y=d3.scaleLinear().domain([0,1]).range([H-m.b,m.t]);
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(6));
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5));
+  svg.append('text').attr('x',(m.l+W-m.r)/2).attr('y',H-4).attr('text-anchor','middle').attr('class','tokenlabel').text('KV budget b (tokens kept)');
+  svg.append('text').attr('transform',`translate(14,${(m.t+H-m.b)/2}) rotate(-90)`).attr('text-anchor','middle').attr('class','tokenlabel').text('output error δ');
+  const L=d3.line().x(d=>x(d)).y(function(){return 0;});
+  svg.append('path').datum(bs).attr('fill','none').attr('stroke',C.muted).attr('stroke-width',3)
+    .attr('d',d3.line().x(d=>x(d)).y(d=>y(deltaSoft(d))).curve(d3.curveMonotoneX));
+  svg.append('path').datum(bs).attr('fill','none').attr('stroke',C.teal).attr('stroke-width',3)
+    .attr('d',d3.line().x(d=>x(d)).y(d=>y(deltaEnt(d))).curve(d3.curveMonotoneX));
+  // support marker
+  svg.append('line').attr('x1',x(suppEn)).attr('x2',x(suppEn)).attr('y1',m.t).attr('y2',H-m.b).attr('stroke',C.teal).attr('stroke-dasharray','4 4').attr('opacity',.7);
+  svg.append('text').attr('x',x(suppEn)+5).attr('y',m.t+12).attr('class','tokenlabel').style('fill',C.teal).text('support = '+suppEn);
+  const cursor=svg.append('line').attr('y1',m.t).attr('y2',H-m.b).attr('stroke',C.ink).attr('stroke-width',1).attr('opacity',.3);
+  function update(b){
+    cursor.attr('x1',x(b)).attr('x2',x(b));
+    document.getElementById('sp-budget').textContent=b;
+    document.getElementById('sp-sm').textContent=deltaSoft(b).toFixed(3);
+    document.getElementById('sp-en').textContent=deltaEnt(b).toFixed(3);
+  }
+  document.getElementById('sp-slider').addEventListener('input',e=>update(+e.target.value));
+  update(6);
+}
+
+/* ===== 4. MoBA block routing ===== */
+function vizMoba(){
+  const el=document.getElementById('viz-moba'); if(!el) return;
+  const B=12, W=el.clientWidth||820, H=200, m={t:16,r:12,b:44,l:12};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const gate=d3.range(B).map(i=>0.3+Math.abs(Math.sin(i*1.9+0.6))); // gate scores g_i
+  const x=d3.scaleBand().domain(d3.range(B)).range([m.l,W-m.r]).padding(.28); const bw=x.bandwidth();
+  const y=d3.scaleLinear().domain([0,Math.max(...gate)*1.1]).range([H-m.b,m.t]);
+  const bars=svg.selectAll('rect').data(d3.range(B)).join('rect').attr('x',i=>x(i)).attr('width',bw).attr('rx',3)
+    .attr('y',i=>y(gate[i])).attr('height',i=>H-m.b-y(gate[i]));
+  svg.selectAll('text.bl').data(d3.range(B)).join('text').attr('class','bl tokenlabel')
+    .attr('x',i=>x(i)+bw/2).attr('y',H-m.b+18).attr('text-anchor','middle').text(i=>'B'+(i+1));
+  function update(k){
+    const thr=[...gate].sort((a,b)=>b-a)[k-1];
+    let skipped=0;
+    bars.transition().duration(180).attr('fill',i=>{ const on=gate[i]>=thr; if(!on)skipped++; return on?C.teal:C.rule; }).attr('opacity',i=>gate[i]>=thr?0.92:0.45);
+    document.getElementById('mo-k').textContent=k;
+    document.getElementById('mo-skip').textContent=skipped+' / '+B;
+  }
+  document.getElementById('mo-slider').addEventListener('input',e=>update(+e.target.value));
+  update(3);
+}
+
+/* ===== boot ===== */
+function boot(){ vizOnline(); vizKV(); vizSupport(); vizMoba(); document.getElementById('year').textContent=new Date().getFullYear(); }
+function renderMath(){ if(window.renderMathInElement) renderMathInElement(document.body,{ delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}], throwOnError:false }); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60)); else setTimeout(boot,60);
+window.addEventListener('load', renderMath);
+</script>
+</body>
+</html>

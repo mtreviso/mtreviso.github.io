@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>The Leap of Sparse Attention · Part I — Marcos Treviso</title>
+<meta content="A math-first history of sparse attention in transformers. Part I: the principled lineage — from sparsemax and Fenchel-Young losses to α-entmax, the dispersion theorems, and attention as kernel regression." name="description"/>
+<link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230E1F1C'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='%23E8D5B0' font-family='Georgia,serif' font-weight='bold'>MT</text></svg>" rel="icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ["Fraunces","Georgia","serif"], sans: ["Outfit","ui-sans-serif","system-ui","sans-serif"] },
+      colors: { ink:"#0E1F1C", teal:"#0A7C6A", parchment:"#F7F3EC", warm:"#E8D5B0", muted:"#6B7C79", rule:"#D5CFC3" }
+    }}
+  }
+</script>
+<style>
+  :root{
+    --ink:#0E1F1C; --teal:#0A7C6A; --teal-l:#12A68E; --parchment:#F7F3EC;
+    --warm:#E8D5B0; --muted:#6B7C79; --rule:#D5CFC3;
+    --rust:#B45309; --rose:#B91C1C; --sky:#0369A1; --plum:#6D28D9;
+  }
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body{ background:var(--parchment); color:var(--ink); font-family:"Outfit",ui-sans-serif,system-ui,sans-serif; }
+  body::before{ content:""; position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:0; opacity:0.5; }
+  main, nav, footer { position:relative; z-index:1; }
+  h1,h2,h3{ font-family:"Fraunces",Georgia,serif; color:var(--ink); }
+  h4{ font-family:"Outfit",sans-serif; font-weight:600; color:var(--ink); }
+  p{ color:var(--ink); opacity:0.86; }
+  a.prose-link, .narrative-section a:not(.no-style), .toc a { color:var(--teal); text-decoration:underline; text-underline-offset:3px; }
+  a.prose-link:hover, .narrative-section a:not(.no-style):hover, .toc a:hover { opacity:0.75; }
+  /* citations */
+  a.cite{ color:var(--teal); text-decoration:none; border-bottom:1px dotted var(--teal);
+    font-variant-numeric:tabular-nums; }
+  a.cite:hover{ background:rgba(10,124,106,.08); }
+  /* inline code */
+  code:not([class*="language-"]){ background:rgba(10,124,106,0.08); color:var(--ink); padding:2px 6px;
+    border-radius:4px; font-size:0.88em; font-family:'SF Mono','Monaco','Consolas',monospace; border:1px solid rgba(10,124,106,0.15); }
+  pre[class*="language-"]{ margin:0 0 1.5em 0; border-radius:0 0 10px 10px; box-shadow:0 4px 20px rgba(14,31,28,0.15); font-size:0.85em; }
+  .code-block-header{ display:flex; align-items:center; gap:10px; background:#0f172a; color:#94a3b8; padding:8px 16px;
+    font-size:0.8rem; font-weight:500; border-radius:10px 10px 0 0; font-family:'SF Mono','Monaco','Consolas',monospace; }
+  .code-block-header + pre[class*="language-"]{ margin-top:0!important; border-radius:0 0 10px 10px!important; }
+  /* boxes */
+  .insight-box{ background:rgba(10,124,106,0.06); border:1px solid rgba(10,124,106,0.25); border-left:3px solid var(--teal);
+    border-radius:10px; padding:1.25rem 1.5rem; margin:1.5rem 0; }
+  .insight-box p{ color:var(--ink); opacity:1; }
+  .insight-box .lab{ font-family:"Outfit"; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--teal); }
+  .warning-box{ background:rgba(180,83,9,0.05); border:1px solid rgba(180,83,9,0.22); border-left:3px solid var(--rust);
+    border-radius:10px; padding:1.25rem 1.5rem; margin:1.5rem 0; }
+  .warning-box .lab{ font-family:"Outfit"; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--rust); }
+  .section-divider{ height:1px; background:var(--rule); margin:3rem 0; }
+  /* TOC */
+  .toc{ background:rgba(255,255,255,0.5); border:1px solid var(--rule); border-radius:12px; padding:24px; margin:24px 0; }
+  .toc ul{ list-style:none; padding-left:0; } .toc li{ margin:7px 0; }
+  .toc ul ul{ padding-left:20px; margin-top:4px; } .toc ul ul li{ margin:3px 0; font-size:0.875rem; }
+  .toc a{ color:var(--teal); text-decoration:none; padding:2px 6px; border-radius:4px; transition:background 0.15s; }
+  .toc a:hover{ background:rgba(10,124,106,0.1); }
+  .narrative-section{ margin:1.5rem 0; line-height:1.75; } .narrative-section p{ margin-bottom:1rem; }
+  .breadcrumb{ color:var(--muted); font-size:0.875rem; } .breadcrumb a{ color:var(--muted); } .breadcrumb a:hover{ color:var(--teal); }
+  .nav-link{ color:var(--muted); font-size:0.875rem; transition:color 0.15s; } .nav-link:hover,.nav-link.active{ color:var(--teal); }
+  /* KaTeX */
+  .katex{ font-size:1.04em; }
+  .katex-display{ margin:1.3rem 0; padding:.4rem 0; overflow-x:auto; overflow-y:hidden; }
+  .eqbox{ padding:.1rem 0; margin:1.15rem 0; }
+  /* ---- viz ---- */
+  .viz-card{ background:rgba(255,255,255,0.55); border:1px solid var(--rule); border-radius:14px; padding:20px 20px 16px; margin:26px 0; }
+  .viz-card h4{ margin:0 0 2px; font-size:1.02rem; } .viz-card .sub{ color:var(--muted); font-size:.9rem; margin:0 0 12px; }
+  .fig-caption{ color:var(--muted); font-size:0.85rem; margin-top:12px; line-height:1.55; }
+  .fig-caption .fnum{ font-weight:700; color:var(--ink); }
+  .controls{ display:flex; flex-wrap:wrap; align-items:center; gap:16px 26px; margin-top:12px; }
+  .ctl{ display:flex; flex-direction:column; gap:6px; min-width:210px; flex:1; }
+  .ctl .row{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .ctl label{ font-weight:600; font-size:.92rem; } .ctl .val{ font-family:"Fraunces",serif; font-weight:600; color:var(--teal); font-variant-numeric:tabular-nums; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:100px;
+    background:linear-gradient(90deg,var(--teal),var(--teal-l)); outline:none; margin:8px 0; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+    background:#fff; border:3px solid var(--teal); cursor:grab; box-shadow:0 2px 6px rgba(10,124,106,.35); }
+  input[type=range]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid var(--teal); cursor:grab; }
+  .seg{ display:inline-flex; background:rgba(255,255,255,.6); border:1px solid var(--rule); border-radius:10px; padding:3px; gap:3px; flex-wrap:wrap; }
+  .seg button{ border:0; background:transparent; padding:7px 13px; border-radius:8px; font-weight:600; font-size:.86rem;
+    color:var(--muted); cursor:pointer; font-family:"Outfit"; transition:.15s; }
+  .seg button.on{ background:var(--teal); color:#fff; }
+  .stats{ display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; }
+  .stat{ background:rgba(255,255,255,.6); border:1px solid var(--rule); border-radius:10px; padding:9px 13px; min-width:96px; }
+  .stat .n{ font-family:"Fraunces",serif; font-weight:700; font-size:1.28rem; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .stat .k{ font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:5px; }
+  svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .axis path,.axis line{ stroke:var(--rule); } .axis text{ fill:var(--muted); font-size:12px; font-family:"Outfit"; }
+  .tokenlabel{ font-size:12px; fill:var(--muted); font-family:"Outfit"; }
+  .series-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:8px; }
+  .series-legend span{ display:inline-flex; align-items:center; gap:6px; } .series-legend i{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pill{ font-size:.75rem; font-weight:600; padding:4px 11px; border-radius:100px; background:rgba(10,124,106,.1); color:var(--teal); }
+  .part-nav{ display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:1rem; }
+  .part-nav a{ flex:1; min-width:240px; border:1px solid var(--rule); border-radius:12px; padding:16px 18px; background:rgba(255,255,255,.5);
+    text-decoration:none; color:var(--ink); transition:.2s; } .part-nav a:hover{ border-color:var(--teal); box-shadow:0 6px 18px rgba(10,124,106,.08); }
+  .part-nav .lab{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .part-nav .ttl{ font-family:"Fraunces",serif; font-weight:600; font-size:1.05rem; margin-top:3px; }
+  .ref-list{ counter-reset:ref; list-style:none; padding-left:0; } .ref-list li{ margin:9px 0; padding-left:2.2rem; position:relative; font-size:.92rem; color:var(--ink); opacity:.9; }
+  .ref-list li::before{ counter-increment:ref; content:"["counter(ref)"]"; position:absolute; left:0; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .ref-list a{ color:var(--teal); text-decoration:none; } .ref-list a:hover{ text-decoration:underline; }
+</style>
+</head>
+
+<body class="bg-slate-50 text-ink font-sans antialiased">
+
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 border-b border-rule bg-slate-100/90 backdrop-blur-sm">
+  <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
+    <a href="../index.html" class="font-display font-semibold text-lg text-ink hover:text-teal transition-colors">Marcos Treviso</a>
+    <div class="flex items-center gap-6 text-sm text-muted">
+      <a href="../index.html#publications" class="hover:text-ink transition-colors">Publications</a>
+      <a href="../blog.html" class="text-ink font-medium">Blog</a>
+      <a href="../CV.pdf" class="hover:text-ink transition-colors" target="_blank">CV</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Breadcrumb -->
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+  <nav class="breadcrumb">
+    <a href="../index.html">Home</a><span class="mx-2 text-rule">›</span>
+    <a href="../blog.html">Blog</a><span class="mx-2 text-rule">›</span>
+    <span class="text-ink">The Leap of Sparse Attention · Part I</span>
+  </nav>
+</div>
+
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
+  <!-- Header -->
+  <header class="mb-12">
+    <div class="text-sm mb-4" style="color:var(--muted)">
+      Essay · Part I of II · <span id="reading">~30 min read</span>
+    </div>
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight mb-5 leading-tight">
+      The Leap of Sparse Attention in Transformers
+    </h1>
+    <p class="font-display text-2xl italic mb-6" style="color:var(--teal)">Part I — The Principled Lineage</p>
+    <p class="text-lg leading-relaxed mb-6" style="color:var(--muted)">
+      Ask what “sparse attention” means today and you will mostly hear <em>top‑k</em> or <em>a block mask</em>.
+      That is the visible tip of a decade‑long research programme that modern work keeps re‑discovering — and
+      rarely cites. This first part rebuilds the lineage from the math up: how attention learned to output
+      <em>exact zeros</em>, why that turns out to be the right thing to do at long context, and how it all
+      collapses into a single old idea — <em>kernel regression</em>.
+    </p>
+    <div class="pill-row">
+      <span class="pill">sparsemax</span><span class="pill">Fenchel–Young</span><span class="pill">α‑entmax</span>
+      <span class="pill">dispersion</span><span class="pill">kernel regression</span>
+    </div>
+  </header>
+
+  <!-- TOC -->
+  <section class="mb-14">
+    <div class="toc">
+      <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
+      <ul>
+        <li><a href="#intro">1. What we talk about when we talk about sparse attention</a></li>
+        <li><a href="#dense">2. The dense default and its discontents</a></li>
+        <li><a href="#sparsemax">3. Differentiable zeros: <em>sparsemax</em> (2016)</a></li>
+        <li><a href="#fy">4. Sparsity as a family: regularized argmax &amp; Fenchel–Young</a></li>
+        <li><a href="#entmax">5. One knob: <em>α‑entmax</em> (2019)</a></li>
+        <li><a href="#shaping">6. Shaping the support: structured, constrained, learnable, stochastic</a></li>
+        <li><a href="#content">7. Letting content choose the support (2019–2020)</a></li>
+        <li><a href="#dispersion">8. Why dense softmax breaks at length (2024–2025)</a></li>
+        <li><a href="#kernels">9. The punchline: sparse attention <em>is</em> kernel regression</a></li>
+        <li><a href="#bridge">10. Bridge to Part II</a></li>
+        <li><a href="#refs">References</a></li>
+      </ul>
+    </div>
+    <p style="color:var(--muted); font-size:.9rem">
+      Notation: a query attends to \(n\) keys with scores \(s\in\mathbb R^n\); a normalizing map \(\pi\) turns
+      \(s\) into weights \(p\) on the probability simplex \(\triangle^{n}=\{p\ge 0,\ \mathbf 1^\top p=1\}\). Every
+      transformation below is a different choice of \(\pi\).
+    </p>
+  </section>
+
+  <!-- 1. INTRO -->
+  <section class="mb-16" id="intro">
+    <h2 class="font-display text-3xl font-semibold mb-8">1. What we talk about when we talk about sparse attention</h2>
+    <div class="narrative-section">
+      <p>
+        The transformer’s attention layer computes a weighted average of value vectors, where the weights come
+        from a <em>softmax</em> over query–key scores <a class="cite" href="https://arxiv.org/abs/1706.03762">(Vaswani et al., 2017)</a>.
+        Softmax has one stubborn property: it never assigns exactly zero weight to anything. Every token, however
+        irrelevant, gets a positive slice of the average.
+      </p>
+      <p>
+        Around 2023–2025, as context windows exploded, the community rediscovered that this is wasteful and
+        started bolting on <em>sparsity</em>: keep the top‑\(k\) scores, mask everything else, and call it sparse
+        attention. That works, but it treats sparsity as a post‑hoc heuristic applied to a fundamentally dense
+        model. It also quietly reinvents ideas that were worked out — with proofs — years earlier, under names
+        like <em>sparsemax</em>, <em>fusedmax</em>, and <em>α‑entmax</em>.
+      </p>
+      <p>
+        Below, four ways to turn the same score vector into attention weights. <code>softmax</code> spreads mass
+        everywhere; <code>top‑k</code> keeps \(k\) and renormalizes with a hard, non‑differentiable cut;
+        <code>sparsemax</code> and <code>α‑entmax</code> produce exact zeros too — but <em>differentiably</em>, and
+        they <em>choose</em> how many tokens to keep based on the scores themselves.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Four maps, one score vector</h4>
+      <p class="sub">The same query–key scores under four normalizers. Watch which tokens survive.</p>
+      <div id="viz-compare"></div>
+      <div class="series-legend" style="margin-top:10px">
+        <span><i style="background:var(--muted)"></i>softmax (dense)</span>
+        <span><i style="background:var(--sky)"></i>top‑k</span>
+        <span><i style="background:var(--teal)"></i>sparsemax</span>
+        <span><i style="background:var(--plum)"></i>α‑entmax (1.5)</span>
+      </div>
+      <div class="controls">
+        <div class="ctl" style="max-width:260px"><div class="row"><label>top‑k: k</label><span class="val" id="cmp-k">4</span></div>
+          <input type="range" id="cmp-k-slider" min="1" max="11" step="1" value="4"></div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 1.</span> softmax gives all 11 tokens nonzero weight.
+        top‑k keeps exactly \(k\) (you choose), then renormalizes — a hard, input‑independent count.
+        sparsemax and α‑entmax keep a <em>data‑dependent</em> number of tokens and send the rest to exact zero,
+        with no \(k\) to tune. The rest of this essay is about why that difference matters.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 2. DENSE DEFAULT -->
+  <section class="mb-16" id="dense">
+    <h2 class="font-display text-3xl font-semibold mb-8">2. The dense default and its discontents</h2>
+    <div class="narrative-section">
+      <p>Softmax turns scores into weights by exponentiating and normalizing:</p>
+      <div class="eqbox">
+        $$ \operatorname{softmax}(s)_i \;=\; \frac{e^{s_i}}{\sum_{j=1}^n e^{s_j}} \;=\; e^{\,s_i-\tau},
+        \qquad \tau \;=\; \log\!\sum_{j=1}^n e^{s_j}. $$
+      </div>
+      <p>
+        The normalizer \(\tau\) is just the log‑sum‑exp — a smooth, closed‑form quantity. This is exactly why
+        softmax is so friendly to GPU kernels: \(\tau\) is a single stable reduction along each row, computable in
+        one streaming pass. It is also why softmax is <em>dense</em>: because \(e^{x}>0\) for all \(x\), we have
+        \(\operatorname{softmax}(s)_i>0\) for every token \(i\), no matter how small its score
+        <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>.
+      </p>
+      <p>
+        For short sequences this is harmless. But as \(n\) grows, that guaranteed‑positive mass has to be shared
+        among more and more tokens. The weight on the single most relevant key shrinks, and the output average is
+        increasingly diluted by a long tail of near‑zero — but nonzero — contributions. Drag the context length
+        below and watch the peak weight collapse.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Softmax mass spreads thin</h4>
+      <p class="sub">One clearly-winning token among \(n-1\) distractors, under softmax. As \(n\) grows, the winner’s share falls.</p>
+      <div id="viz-disp"></div>
+      <div class="controls">
+        <div class="ctl" style="max-width:320px"><div class="row"><label>context length \(n\)</label><span class="val" id="disp-n">32</span></div>
+          <input type="range" id="disp-slider" min="8" max="512" step="4" value="32"></div>
+        <div class="stats">
+          <div class="stat"><div class="n" id="disp-peak" style="color:var(--teal)">—</div><div class="k">peak weight</div></div>
+          <div class="stat"><div class="n" id="disp-ent">—</div><div class="k">entropy (nats)</div></div>
+        </div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 2.</span> Even with a fixed score gap between the winner and
+        the field, softmax’s peak weight decays roughly like \(\mathcal O(1/n)\) and its entropy grows like
+        \(\log n\). Section 8 makes this precise — and shows it is not just wasteful but provably limiting.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 3. SPARSEMAX -->
+  <section class="mb-16" id="sparsemax">
+    <h2 class="font-display text-3xl font-semibold mb-8">3. Differentiable zeros: <span class="italic">sparsemax</span> (2016)</h2>
+    <div class="narrative-section">
+      <p>
+        The first crack in the dense default came from a beautifully simple idea
+        <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>: instead of
+        exponentiating, just take the Euclidean projection of the scores onto the probability simplex.
+      </p>
+      <div class="eqbox">
+        $$ \operatorname{sparsemax}(z) \;=\; \operatorname*{arg\,min}_{p\in\triangle^{n}} \; \lVert p - z\rVert_2^2 . $$
+      </div>
+      <p>
+        Projecting onto the simplex is a constrained least‑squares problem, and its solution is a
+        <em>soft‑threshold</em>: subtract a constant \(\tau(z)\) from every score and clip negatives to zero,
+      </p>
+      <div class="eqbox">
+        $$ \operatorname{sparsemax}(z)_i \;=\; \big[\,z_i - \tau(z)\,\big]_+ ,\qquad
+           [x]_+ = \max(0,x), $$
+      </div>
+      <p>
+        where \(\tau(z)\) is chosen so the surviving entries sum to one. Concretely, if \(S=\{i: z_i>\tau(z)\}\)
+        is the <em>support</em>, then summing the constraint gives a closed form for the threshold:
+      </p>
+      <div class="eqbox">
+        $$ \tau(z) \;=\; \frac{\big(\sum_{j\in S} z_j\big) - 1}{|S|}. $$
+      </div>
+      <p>
+        Everything below the waterline \(\tau(z)\) is set to <em>exactly</em> zero. Unlike top‑\(k\), the size of
+        \(S\) is not a hyperparameter — it falls out of the geometry of \(z\). And crucially, the map is
+        differentiable almost everywhere, with a cheap Jacobian supported only on \(S\):
+      </p>
+      <div class="eqbox">
+        $$ \frac{\partial \operatorname{sparsemax}(z)}{\partial z} \;=\; \operatorname{diag}(\mathbf s) -
+           \frac{\mathbf s\,\mathbf s^\top}{|S|}, \qquad \mathbf s_i = \mathbb 1[\,i\in S\,]. $$
+      </div>
+      <p>
+        Below: the same soft‑threshold picture. Raise the scores as lollipops, drop the waterline \(\tau\), and
+        read off the survivors. This is the whole mechanism.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>The soft‑threshold waterline</h4>
+      <p class="sub">sparsemax as projection: everything above \(\tau(z)\) survives (shifted down by \(\tau\)); everything below is zeroed.</p>
+      <div id="viz-thresh"></div>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><div class="n" id="th-tau" style="color:var(--rust)">—</div><div class="k">threshold τ(z)</div></div>
+        <div class="stat"><div class="n" id="th-support" style="color:var(--teal)">—</div><div class="k">support |S|</div></div>
+        <div class="stat"><div class="n" id="th-mass" style="color:var(--rose)">—</div><div class="k">tokens zeroed</div></div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 3.</span> The support \(S\) is exactly the set of scores poking
+        above the waterline. Slide the whole score vector up/down — the number of survivors changes with the data,
+        never by a fixed \(k\).</p>
+      <div class="controls">
+        <div class="ctl" style="max-width:320px"><div class="row"><label>shift all scores by</label><span class="val" id="th-shift">0.0</span></div>
+          <input type="range" id="th-shift-slider" min="-2" max="3" step="0.05" value="0"></div>
+      </div>
+    </div>
+
+    <div class="insight-box">
+      <p class="lab">Why the projection is exact and fast</p>
+      <p>
+        Finding \(\tau(z)\) means finding how many entries stay positive. Sorting \(z\) and scanning gives an
+        \(\mathcal O(n\log n)\) algorithm; <a class="cite" href="https://doi.org/10.1007/s10107-015-0946-6">Condat (2016)</a>
+        gives an exact, finite‑time projection by online variable‑fixing that empirically beats sort‑, heap‑,
+        partition‑, and bisection‑based competitors. This projection is the numerical backbone under every method
+        in this essay — it is how a network emits calibrated zeros without abandoning gradients.
+      </p>
+    </div>
+
+    <div class="narrative-section">
+      <p>
+        sparsemax also comes with its own loss for training classifiers — a piecewise‑quadratic that behaves like
+        a multi‑class Huber loss — but the attention story only needs the map itself. The deeper question is:
+        why <em>this</em> map? Is the Euclidean projection special, or one member of a family? That question is
+        what turned a clever trick into a theory.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 4. FENCHEL-YOUNG -->
+  <section class="mb-16" id="fy">
+    <h2 class="font-display text-3xl font-semibold mb-8">4. Sparsity as a family: regularized argmax &amp; Fenchel–Young</h2>
+    <div class="narrative-section">
+      <p>
+        Here is the unification <a class="cite" href="https://arxiv.org/abs/1705.07704">(Niculae &amp; Blondel, 2017)</a>.
+        Both softmax and sparsemax solve the <em>same</em> optimization problem — maximize expected score, minus a
+        regularizer \(\Omega\) that pulls the solution toward the interior of the simplex:
+      </p>
+      <div class="eqbox">
+        $$ \Pi_\Omega(s) \;=\; \operatorname*{arg\,max}_{p\in\triangle^{n}} \; \langle p, s\rangle \;-\; \Omega(p). $$
+      </div>
+      <p>The choice of \(\Omega\) is the whole design space:</p>
+      <ul class="list-disc pl-6 space-y-1" style="opacity:.88">
+        <li>Shannon negative entropy \(\Omega(p)=\sum_i p_i\log p_i\) recovers <strong>softmax</strong>.</li>
+        <li>The squared norm \(\Omega(p)=\tfrac12\lVert p\rVert_2^2\) recovers <strong>sparsemax</strong>.</li>
+        <li>A total‑variation penalty \(\Omega(p)=\tfrac12\lVert p\rVert^2 + \lambda\sum_i|p_{i+1}-p_i|\) yields
+          <strong>fusedmax</strong>, which produces contiguous, group‑sparse attention.</li>
+      </ul>
+      <p>
+        The reason softmax is dense and sparsemax is sparse is now visible: it is the <em>curvature of \(\Omega\)
+        at the boundary</em>. Shannon entropy has an infinite derivative as any \(p_i\to 0\), so the optimum is
+        pushed strictly inside the simplex (no zeros). The squared norm has a finite gradient at the boundary, so
+        the optimum can — and does — sit on a face where some \(p_i=0\).
+      </p>
+      <p>
+        <a class="cite" href="https://arxiv.org/abs/1805.09717">Blondel et al. (2020)</a> completed the picture with
+        <em>Fenchel–Young losses</em>. For any convex \(\Omega\) with convex conjugate \(\Omega^\ast\), define
+      </p>
+      <div class="eqbox">
+        $$ L_\Omega(s; y) \;=\; \Omega^\ast(s) + \Omega(y) - \langle s, y\rangle \;\ge\; 0, $$
+      </div>
+      <p>
+        which is zero exactly when \(y = \Pi_\Omega(s)=\nabla\Omega^\ast(s)\). This single template generates
+        softmax + cross‑entropy, sparsemax + sparsemax‑loss, and more, as special cases. And it delivers the
+        pivotal theorem: \(\Pi_\Omega\) produces <em>sparse</em> outputs if and only if the induced loss has a
+        <em>separation margin</em> — a finite score gap beyond which the loss is exactly zero. Sparsity in the
+        forward map and a margin in the loss are the same phenomenon.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>The transfer function: how \(\Omega\) makes zeros</h4>
+      <p class="sub">Two logits \((z_1,z_2)\). Plot the output weight \(p_1\) as the gap \(z_1-z_2\) varies.</p>
+      <div id="viz-transfer"></div>
+      <div class="series-legend">
+        <span><i style="background:var(--muted)"></i>softmax — smooth, never 0 or 1</span>
+        <span><i style="background:var(--teal)"></i>sparsemax — hits 0 / 1 at a finite gap</span>
+        <span><i style="background:var(--plum)"></i>α‑entmax (1.5) — in between</span>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 4.</span> softmax’s transfer curve is a logistic that only
+        <em>approaches</em> 0 and 1 asymptotically — full support forever. sparsemax saturates to exactly \(0\) and
+        \(1\) once the score gap exceeds a finite <em>margin</em>; α‑entmax sits between them. That flat region
+        where \(p_1=0\) is a token being ignored — differentiably.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 5. ENTMAX -->
+  <section class="mb-16" id="entmax">
+    <h2 class="font-display text-3xl font-semibold mb-8">5. One knob: <span class="italic">α‑entmax</span> (2019)</h2>
+    <div class="narrative-section">
+      <p>
+        If \(\Omega\) is a dial, why stop at two settings? <a class="cite" href="https://arxiv.org/abs/1905.05702">Peters et al. (2019)</a>
+        instantiated the family with <em>Tsallis</em> \(\alpha\)-entropies, a one‑parameter generalization of
+        Shannon entropy:
+      </p>
+      <div class="eqbox">
+        $$ H^{\mathsf T}_\alpha(p) \;=\; \frac{1}{\alpha(\alpha-1)}\Big(1 - \sum_i p_i^{\alpha}\Big),\qquad \alpha>1, $$
+      </div>
+      <p>
+        which recovers Shannon entropy as \(\alpha\to1\). Plugging \(\Omega = -H^{\mathsf T}_\alpha\) into the
+        regularized‑argmax gives the <strong>α‑entmax</strong> transformation, with the same threshold structure as
+        sparsemax but a tunable exponent:
+      </p>
+      <div class="eqbox">
+        $$ \alpha\text{-entmax}(z)_i \;=\; \big[(\alpha-1)\,z_i - \tau\big]_+^{\,1/(\alpha-1)}, $$
+      </div>
+      <p>with \(\tau\) again set so the weights sum to one. The knob \(\alpha\) interpolates a whole spectrum:</p>
+      <ul class="list-disc pl-6 space-y-1" style="opacity:.88">
+        <li>\(\alpha=1\): the exponent blows up into an exponential — <strong>softmax</strong> (dense).</li>
+        <li>\(\alpha=2\): the exponent is \(1\) — \([z_i-\tau]_+\), i.e. <strong>sparsemax</strong>.</li>
+        <li>\(1<\alpha<2\): sparse for <em>all</em> \(\alpha>1\), with heavier or lighter tails in between.
+          \(\alpha=1.5\) is the popular middle ground and admits an exact \(\mathcal O(n\log n)\) sorting algorithm.</li>
+      </ul>
+      <p>
+        Its Jacobian is as cheap as sparsemax’s (supported on the survivors), so it drops into a transformer with
+        no change to backprop. Slide \(\alpha\) below and watch the support tighten from “everything” (softmax) to
+        a handful (sparsemax).
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>The α dial</h4>
+      <p class="sub">One parameter from dense to sparse, on the same 11 tokens.</p>
+      <div id="viz-alpha"></div>
+      <div class="controls">
+        <div class="ctl" style="flex:2; min-width:280px"><div class="row"><label>α</label><span class="val" id="al-alpha">1.50</span></div>
+          <input type="range" id="al-slider" min="1.0" max="2.0" step="0.01" value="1.5">
+          <div style="display:flex; justify-content:space-between; font-size:.78rem; color:var(--muted); margin-top:-2px">
+            <span>1.0 · softmax</span><span>1.5 · entmax‑1.5</span><span>2.0 · sparsemax</span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n" id="al-support" style="color:var(--teal)">—</div><div class="k">tokens kept</div></div>
+          <div class="stat"><div class="n" id="al-ent">—</div><div class="k">entropy</div></div>
+        </div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 5.</span> α‑entmax is the backbone of the rest of this story:
+        a differentiable, input‑adaptive sparse attention with a single interpretable knob. Everything downstream —
+        learnable sparsity, the dispersion cure, the kernel view, and the fast kernels of Part II — is built on it.</p>
+    </div>
+
+    <div class="insight-box">
+      <p class="lab">The through-line so far</p>
+      <p>
+        A regularizer \(\Omega\) determines a normalizing map; its boundary curvature decides dense vs. sparse; a
+        margin in the matching Fenchel–Young loss is the same thing as zeros in the map; and Tsallis entropy makes
+        the whole spectrum a single knob \(\alpha\). None of this needed a large language model to motivate it —
+        it was all in place by 2019. The next sections show what you can <em>do</em> with the knob.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 6. SHAPING -->
+  <section class="mb-16" id="shaping">
+    <h2 class="font-display text-3xl font-semibold mb-8">6. Shaping the support: structured, constrained, learnable, stochastic</h2>
+    <div class="narrative-section">
+      <p>
+        Once sparsity is a differentiable design choice, you can ask for more than “some tokens are zero.” You can
+        control <em>which</em> tokens, <em>how many</em>, and even make the shape <em>learnable</em>. Four
+        directions, all pre‑LLM, all with closed‑form gradients.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Structured — contiguous attention (fusedmax)</h3>
+      <p>
+        Add a total‑variation penalty to sparsemax’s regularizer to reward <em>contiguous</em> supports
+        <a class="cite" href="https://arxiv.org/abs/1705.07704">(Niculae &amp; Blondel, 2017)</a>:
+      </p>
+      <div class="eqbox">
+        $$ \operatorname{fusedmax}(z) = \operatorname*{arg\,max}_{p\in\triangle^{n}}\ \langle p,z\rangle
+           - \tfrac12\lVert p\rVert_2^2 - \lambda\!\sum_{i} |p_{i+1}-p_i|. $$
+      </div>
+      <p>
+        The TV term glues neighboring weights into flat plateaus, so attention selects <em>segments</em>
+        (phrases, spans) rather than scattered tokens — with a group‑averaging Jacobian that is still cheap.
+        Increase the fusion strength \(\lambda\) below and watch adjacent tokens merge.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>fusedmax: sparsity with contiguity</h4>
+      <p class="sub">sparsemax gives scattered zeros; adding a TV penalty fuses neighbors into contiguous groups.</p>
+      <div id="viz-fused"></div>
+      <div class="controls">
+        <div class="ctl" style="max-width:340px"><div class="row"><label>fusion strength \(\lambda\)</label><span class="val" id="fu-lam">0.30</span></div>
+          <input type="range" id="fu-slider" min="0" max="0.4" step="0.005" value="0.1"></div>
+        <div class="stats"><div class="stat"><div class="n" id="fu-groups" style="color:var(--teal)">—</div><div class="k">distinct groups</div></div></div>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 6.</span> At \(\lambda=0\) this is plain sparsemax. As
+        \(\lambda\) grows, contiguous tokens are forced to share a weight, collapsing the support into a few
+        segments — a structured prior baked into the normalizer itself.</p>
+    </div>
+
+    <div class="narrative-section">
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Constrained — budgeted attention</h3>
+      <p>
+        You can also cap how much any single token receives. <em>Constrained sparsemax</em>
+        <a class="cite" href="https://arxiv.org/abs/1805.08241">(Malaviya et al., 2018)</a> solves the projection
+        under an extra upper bound, \(p_i \le u_i\):
+      </p>
+      <div class="eqbox">
+        $$ \operatorname*{arg\,min}_{p\in\triangle^{n}}\ \tfrac12\lVert p - z\rVert_2^2 \quad\text{s.t.}\quad
+           \mathbf 0 \le p \le u, $$
+      </div>
+      <p>
+        solvable in \(\mathcal O(n)\) by the Pardalos–Kovoor algorithm. In machine translation the bound acts as a
+        <em>fertility</em> budget: it stops the model from dumping all its attention on one source word, curing the
+        classic coverage failures (source words dropped, target words repeated) directly in the attention map.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Learnable — a different \(\alpha\) per head</h3>
+      <p>
+        Why fix \(\alpha\) at all? <em>Adaptively Sparse Transformers</em>
+        <a class="cite" href="https://arxiv.org/abs/1909.00015">(Correia et al., 2019)</a> make \(\alpha\) a
+        learned parameter <em>per attention head</em>. Because \(\partial\,\alpha\text{-entmax}/\partial\alpha\) has
+        a closed form, each head slides along the dense↔sparse spectrum by gradient descent — some heads stay near
+        softmax to integrate broadly, others sharpen toward argmax to point at a single token, all “at no cost in
+        accuracy,” improving head diversity and interpretability.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Stochastic — the other road to zero</h3>
+      <p>
+        There is a parallel, older lineage that reaches sparsity by <em>sampling</em> rather than projection. Soft
+        vs. <em>hard</em> attention appeared in image captioning <a class="cite" href="https://arxiv.org/abs/1502.03044">(Xu et al., 2015)</a>:
+        soft attention is the deterministic expected glimpse; hard attention samples a single location and trains
+        with REINFORCE. Later, reparameterized discrete gates —
+        <em>HardKuma</em> <a class="cite" href="https://arxiv.org/abs/1905.08160">(Bastings et al., 2019)</a>,
+        built on the Gumbel‑softmax <a class="cite" href="https://arxiv.org/abs/1611.01144">(Jang et al., 2017)</a>
+        and \(L_0\) relaxations <a class="cite" href="https://arxiv.org/abs/1712.01312">(Louizos et al., 2018)</a> —
+        place probability mass on <em>exact</em> 0 and 1, giving stochastic sparse selection under a Lagrangian
+        budget on the expected number of active tokens. The same machinery resurfaces years later inside KV‑cache
+        gating (Part II).
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 7. CONTENT -->
+  <section class="mb-16" id="content">
+    <h2 class="font-display text-3xl font-semibold mb-8">7. Letting content choose the support (2019–2020)</h2>
+    <div class="narrative-section">
+      <p>
+        Everything so far decides sparsity <em>after</em> computing all the scores. But if most tokens will be
+        zeroed anyway, why compute their scores at all? The pre‑LLM efficient‑attention era — the one modern
+        long‑context papers rarely cite — is precisely about deciding connectivity <em>from content, before</em>
+        the full \(QK^\top\). Two philosophies emerged.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Fixed patterns</h3>
+      <p>
+        Hard‑wire a sparse graph with \(\mathcal O(n\sqrt n)\) or \(\mathcal O(n)\) edges.
+        <em>Sparse Transformers</em> <a class="cite" href="https://arxiv.org/abs/1904.10509">(Child et al., 2019)</a>
+        factorize attention into strided + local patterns with \(|A_i|\!\sim\!\sqrt n\). <em>Longformer</em>
+        <a class="cite" href="https://arxiv.org/abs/2004.05150">(Beltagy et al., 2020)</a> combines a sliding window
+        with a few global tokens; <em>Big Bird</em> <a class="cite" href="https://arxiv.org/abs/2007.14062">(Zaheer et al., 2020)</a>
+        adds random edges and proves the result is a universal approximator and Turing‑complete. Robust and
+        kernel‑friendly — but the graph is chosen a priori, blind to the data.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Content‑based routing</h3>
+      <p>
+        Let the tokens cluster themselves. The <em>Reformer</em>
+        <a class="cite" href="https://arxiv.org/abs/2001.04451">(Kitaev et al., 2020)</a> hashes queries and keys with
+        angular LSH, \(h(x)=\arg\max\big([\,xR;\,-xR\,]\big)\) for a random projection \(R\), so a query only attends
+        within its bucket — \(\mathcal O(n\log n)\), plus reversible layers for depth‑independent memory. The
+        <em>Routing Transformer</em> <a class="cite" href="https://arxiv.org/abs/2003.05997">(Roy et al., 2021)</a>
+        runs online spherical \(k\)‑means on \(\ell_2\)‑normalized queries/keys, so “each query attends only to keys
+        assigned to the same centroid,” an \(\mathcal O(n^{1.5}d)\) approximation of maximum‑inner‑product search.
+      </p>
+
+      <div class="insight-box">
+        <p class="lab">The sparse‑attention connection people miss</p>
+        <p>
+          <em>Sparsefinder</em> <a class="cite" href="https://arxiv.org/abs/2109.12188">(Treviso et al., 2022)</a>
+          closes the loop between this section and the last one. α‑entmax has a <em>sparse‑consistency</em>
+          property: masking entries that are already provably zero leaves the entmax output <em>unchanged</em>. So
+          you can learn to <em>predict</em> the entmax support from cheap low‑dimensional projections of the
+          queries and keys — routing, but supervised by the exact sparse pattern the model would have produced
+          anyway. Content‑based efficiency and principled sparsity turn out to be the same problem.
+        </p>
+      </div>
+
+      <p>
+        Below, the zoo of connectivity patterns as \(n\times n\) masks: which keys (columns) each query (rows)
+        is allowed to see. This is the vocabulary Part II’s “native sparse attention” methods inherit.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>A gallery of sparse connectivity</h4>
+      <p class="sub">Rows = queries, columns = keys. Teal = an edge that is computed; blank = skipped.</p>
+      <div class="seg" id="pat-seg" style="margin-bottom:12px">
+        <button data-pat="local" class="on">Local window</button>
+        <button data-pat="strided">Strided</button>
+        <button data-pat="global">Global + local</button>
+        <button data-pat="random">Big Bird (random)</button>
+        <button data-pat="cluster">Content cluster</button>
+      </div>
+      <div style="max-width:440px; margin:0 auto"><div id="viz-patterns"></div></div>
+      <div class="stats" style="justify-content:center"><div class="stat"><div class="n" id="pat-density" style="color:var(--teal)">—</div><div class="k">edges computed</div></div></div>
+      <p class="fig-caption"><span class="fnum">Fig. 7.</span> Fixed patterns (local, strided, global, random) fix
+        the graph regardless of input; content clustering (right) groups tokens by what they <em>are</em>. Density
+        is what turns into wall‑clock savings — <em>if</em> the kernel can skip the blanks, which is exactly the
+        hardware problem Part II solves.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 8. DISPERSION -->
+  <section class="mb-16" id="dispersion">
+    <h2 class="font-display text-3xl font-semibold mb-8">8. Why dense softmax breaks at length (2024–2025)</h2>
+    <div class="narrative-section">
+      <p>
+        For years, sparse attention was sold on <em>efficiency</em>. Then a wave of theory reframed it as a matter
+        of <em>capability</em>: dense softmax does not just waste compute at long context — it is provably unable to
+        do certain things. This is the intellectual turn that vindicated the whole 2016–2019 lineage.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Dispersion</h3>
+      <p>
+        With logits bounded in \([m,M]\), every softmax weight is squeezed toward uniform as the sequence grows
+        <a class="cite" href="https://arxiv.org/abs/2410.01104">(Veličković et al., 2025)</a>:
+      </p>
+      <div class="eqbox">
+        $$ \operatorname{softmax}(s)_k \;=\; \Theta\!\left(\tfrac1n\right)
+           \quad\text{whenever } s_k\in[m,M]. $$
+      </div>
+      <p>
+        The consequence is stark: “even for a task as simple as finding the maximum key, any learned circuitry must
+        disperse as the number of items grows.” A model that must stay sharp at length <em>cannot</em>, if its
+        weights are forced to be everywhere‑positive.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Collapse &amp; over‑squashing</h3>
+      <p>
+        Relatedly, <a class="cite" href="https://arxiv.org/abs/2406.04267">Barbero et al. (2024)</a> prove
+        <em>representational collapse</em>: the attention distributions of two long sequences that differ only in a
+        repeated final token have total variation that “tends to \(0\) as length \(n\) grows,” eventually below
+        floating‑point precision — the model literally cannot tell them apart. They also formalize
+        <em>over‑squashing</em>: sensitivity of an output to a distant input decays as a sum over causal attention
+        paths. And <a class="cite" href="https://arxiv.org/abs/2303.06296">Zhai et al. (2023)</a> identify
+        <em>attention entropy collapse</em> as a training‑instability mode. All three are pathologies of a
+        distribution that is not allowed to be zero anywhere.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Patch the softmax, or replace it?</h3>
+      <p>
+        One camp keeps softmax and rescales: <em>Scalable‑Softmax</em> uses
+        \(\operatorname{softmax}(s\log n\cdot z)\) <a class="cite" href="https://arxiv.org/abs/2501.19399">(Nakanishi, 2025)</a>,
+        others tune an adaptive temperature <a class="cite" href="https://arxiv.org/abs/2410.01104">(Veličković et al., 2025)</a>
+        or make attention scale‑invariant <a class="cite" href="https://arxiv.org/abs/2505.17083">(Anonymous, 2025)</a>.
+        The other camp argues these treat a symptom. With α‑entmax, irrelevant tokens get <em>exact</em> zeros, so
+        the entropy of attention is bounded by the <em>support</em> size \(s\), not the sequence length:
+        \(\mathcal O(\log s)\) instead of \(\mathcal O(\log n)\), and gradient paths shrink from \(\mathcal O(n^L)\)
+        to \(\mathcal O(s^L)\) <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2025)</a>.
+        The payoff is dramatic length extrapolation — up to \(1000\times\) — from models trained on short contexts.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Bounded support beats \(\log n\)</h4>
+      <p class="sub">Attention entropy and peak weight as context grows, for softmax vs. α‑entmax, on the same scores.</p>
+      <div id="viz-length"></div>
+      <div class="series-legend">
+        <span><i style="background:var(--muted)"></i>softmax — entropy ~ \(\log n\), peak → 0</span>
+        <span><i style="background:var(--teal)"></i>α‑entmax (1.5) — entropy ~ \(\log s\), peak stays up</span>
+      </div>
+      <div class="seg" id="len-seg" style="margin-top:12px">
+        <button data-metric="entropy" class="on">Entropy</button>
+        <button data-metric="peak">Peak weight</button>
+      </div>
+      <p class="fig-caption"><span class="fnum">Fig. 8.</span> As \(n\) grows, softmax’s entropy climbs without
+        bound and its peak weight decays toward zero — dispersion. α‑entmax saturates: once the support stabilizes,
+        adding more irrelevant tokens changes nothing, because they get exact zero. This is the theoretical case
+        for sparsity, independent of any speed argument.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 9. KERNELS -->
+  <section class="mb-16" id="kernels">
+    <h2 class="font-display text-3xl font-semibold mb-8">9. The punchline: sparse attention <span class="italic">is</span> kernel regression</h2>
+    <div class="narrative-section">
+      <p>
+        Here is the reframing that ties the whole essay together
+        <a class="cite" href="https://arxiv.org/abs/2601.22766">(Santos et al., 2026)</a>. A single attention output
+        is a <em>Nadaraya–Watson</em> kernel‑regression estimate — the classic nonparametric regressor from 1964:
+      </p>
+      <div class="eqbox">
+        $$ o \;=\; \sum_{i=1}^n w_i\, v_i, \qquad
+           w_i \;=\; \frac{K\!\big((q-k_i)/h\big)}{\sum_{j} K\!\big((q-k_j)/h\big)}. $$
+      </div>
+      <p>
+        The choice of <em>kernel</em> \(K\) is the choice of normalizer. Softmax is the Gaussian kernel
+        \(K(u)\propto e^{-\lVert u\rVert^2/2}\) — which has infinite support, so every value contributes: that is
+        dispersion, restated in the language of statistics. And α‑entmax? Setting \(\alpha = 1 + \tfrac1r\) makes it
+        exactly Nadaraya–Watson with a <em>compact</em>, bounded‑support kernel:
+      </p>
+      <div class="eqbox">
+        $$ K_r(u) \;\propto\; \big[\,1 - \lVert u\rVert^2\,\big]_+^{\,r}, \qquad
+           \alpha = 1 + \tfrac1r . $$
+      </div>
+      <ul class="list-disc pl-6 space-y-1" style="opacity:.88">
+        <li>\(r=1\) → the <strong>Epanechnikov</strong> kernel → \(\alpha=2\) → <strong>sparsemax</strong>;</li>
+        <li>\(r=2\) → the <strong>biweight</strong> kernel → \(\alpha=1.5\) → <strong>entmax‑1.5</strong>;</li>
+        <li>\(r=3\) → the <strong>triweight</strong> kernel → \(\alpha=\tfrac43\).</li>
+      </ul>
+      <p>
+        Compact kernels are exactly the ones statisticians reach for when they want a <em>local</em> estimate: they
+        ignore data outside a bandwidth. The exact zeros of α‑entmax are not a hack — they are the finite support of
+        a textbook kernel. And the softmax/Gaussian relationship emerges as the \(n\to\infty\) limit, so even
+        top‑\(k\) attention can be read as a (crude) compact‑kernel choice rather than a heuristic.
+      </p>
+    </div>
+
+    <div class="viz-card">
+      <h4>Dense vs. compact kernels</h4>
+      <p class="sub">The kernel shape (left) decides how far attention reaches; the regression fit (right) shows the effect.</p>
+      <div class="seg" id="ker-seg" style="margin-bottom:12px">
+        <button data-ker="gauss" class="on">Gaussian (softmax)</button>
+        <button data-ker="epan">Epanechnikov (sparsemax)</button>
+        <button data-ker="biweight">Biweight (entmax‑1.5)</button>
+        <button data-ker="triweight">Triweight</button>
+      </div>
+      <div class="grid" style="display:grid; gap:16px; grid-template-columns:1fr;"><div id="viz-kernel"></div><div id="viz-regress"></div></div>
+      <p class="fig-caption"><span class="fnum">Fig. 9.</span> The Gaussian never quite reaches zero, so distant
+        keys always leak into the average (dispersion). Compact kernels vanish outside a bandwidth: the fit becomes
+        <em>local</em>, driven only by nearby keys, and far tokens receive exact zero weight — bounded support, in
+        one picture. This is the same object as sparsemax, entmax, the dispersion cure, and — in Part II — the
+        blocks a GPU gets to skip.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 10. BRIDGE -->
+  <section class="mb-16" id="bridge">
+    <h2 class="font-display text-3xl font-semibold mb-8">10. Bridge to Part II</h2>
+    <div class="narrative-section">
+      <p>
+        Part I made a single argument from five directions. A regularizer decides dense vs. sparse; a margin is the
+        same as a zero; one knob \(\alpha\) spans the family; exact zeros cure the dispersion that provably cripples
+        dense softmax at length; and all of it is compact‑kernel regression wearing different clothes. The math says
+        the right object is <em>bounded support</em>.
+      </p>
+      <p>
+        The objection was always practical: <em>“exact, data‑dependent zeros are pretty, but GPUs want dense
+        blocks, and computing that entmax threshold needs iterative root‑finding — it will never match
+        FlashAttention.”</em> Part II is the story of dismantling that objection: IO‑aware exact kernels, entmax made
+        hardware‑efficient (AdaSplash → AdaSplash‑2), sparsity <em>trained in</em> natively (NSA, MoBA), and the
+        sprawling modern KV‑cache and long‑context literature — which, read through Part I, is largely a
+        rediscovery of <em>support recovery</em>.
+      </p>
+      <div class="part-nav">
+        <a href="sparse-attention-part2.html">
+          <div class="lab">Continue →</div>
+          <div class="ttl">Part II — The Efficiency Era</div>
+        </a>
+        <a href="../entmax-demo/adasplash.html">
+          <div class="lab">Interactive companion →</div>
+          <div class="ttl">α‑entmax → AdaSplash, hands‑on</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- REFERENCES -->
+  <section class="mb-16" id="refs">
+    <h2 class="font-display text-3xl font-semibold mb-8">References</h2>
+    <p style="color:var(--muted); font-size:.9rem; margin-bottom:1rem">In order of appearance. Links go to arXiv or the publisher.</p>
+    <ol class="ref-list">
+      <li>Vaswani et al. <a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a>. NeurIPS 2017.</li>
+      <li>Martins &amp; Astudillo. <a href="https://arxiv.org/abs/1602.02068">From Softmax to Sparsemax</a>. ICML 2016.</li>
+      <li>Condat. <a href="https://doi.org/10.1007/s10107-015-0946-6">Fast Projection onto the Simplex and the \(\ell_1\) Ball</a>. Math. Programming 2016.</li>
+      <li>Niculae &amp; Blondel. <a href="https://arxiv.org/abs/1705.07704">A Regularized Framework for Sparse and Structured Neural Attention</a>. NeurIPS 2017.</li>
+      <li>Blondel, Martins &amp; Niculae. <a href="https://arxiv.org/abs/1805.09717">Learning with Fenchel–Young Losses</a>. JMLR 2020.</li>
+      <li>Peters, Niculae &amp; Martins. <a href="https://arxiv.org/abs/1905.05702">Sparse Sequence‑to‑Sequence Models</a> (α‑entmax). ACL 2019.</li>
+      <li>Malaviya, Ferreira &amp; Martins. <a href="https://arxiv.org/abs/1805.08241">Sparse and Constrained Attention for Neural Machine Translation</a>. ACL 2018.</li>
+      <li>Correia, Niculae &amp; Martins. <a href="https://arxiv.org/abs/1909.00015">Adaptively Sparse Transformers</a>. EMNLP 2019.</li>
+      <li>Xu et al. <a href="https://arxiv.org/abs/1502.03044">Show, Attend and Tell</a>. ICML 2015.</li>
+      <li>Bastings, Aziz &amp; Titov. <a href="https://arxiv.org/abs/1905.08160">Interpretable Neural Predictions with Differentiable Binary Variables</a> (HardKuma). ACL 2019.</li>
+      <li>Jang, Gu &amp; Poole. <a href="https://arxiv.org/abs/1611.01144">Categorical Reparameterization with Gumbel‑Softmax</a>. ICLR 2017.</li>
+      <li>Louizos, Welling &amp; Kingma. <a href="https://arxiv.org/abs/1712.01312">Learning Sparse Neural Networks through \(L_0\) Regularization</a>. ICLR 2018.</li>
+      <li>Child et al. <a href="https://arxiv.org/abs/1904.10509">Generating Long Sequences with Sparse Transformers</a>. 2019.</li>
+      <li>Beltagy, Peters &amp; Cohan. <a href="https://arxiv.org/abs/2004.05150">Longformer</a>. 2020.</li>
+      <li>Zaheer et al. <a href="https://arxiv.org/abs/2007.14062">Big Bird</a>. NeurIPS 2020.</li>
+      <li>Kitaev, Kaiser &amp; Levskaya. <a href="https://arxiv.org/abs/2001.04451">Reformer: The Efficient Transformer</a>. ICLR 2020.</li>
+      <li>Roy et al. <a href="https://arxiv.org/abs/2003.05997">Efficient Content‑Based Sparse Attention with Routing Transformers</a>. TACL 2021.</li>
+      <li>Treviso et al. <a href="https://arxiv.org/abs/2109.12188">Predicting Attention Sparsity in Transformers</a> (Sparsefinder). 2022.</li>
+      <li>Veličković et al. <a href="https://arxiv.org/abs/2410.01104">Softmax Is Not Enough (for Sharp Out‑of‑Distribution)</a>. 2025.</li>
+      <li>Barbero et al. <a href="https://arxiv.org/abs/2406.04267">Transformers Need Glasses!</a>. NeurIPS 2024.</li>
+      <li>Zhai et al. <a href="https://arxiv.org/abs/2303.06296">Stabilizing Transformer Training by Preventing Attention Entropy Collapse</a>. ICML 2023.</li>
+      <li>Nakanishi. <a href="https://arxiv.org/abs/2501.19399">Scalable‑Softmax Is Superior for Attention</a>. 2025.</li>
+      <li>Vasylenko, Pitorro, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2506.16640">Long‑Context Generalization with Sparse Attention</a>. 2025.</li>
+      <li>Santos, Gonçalves, McNamee, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2601.22766">Sparse Attention as Compact Kernel Regression</a>. 2026.</li>
+    </ol>
+  </section>
+
+  <!-- PART1-CONTINUES -->
+
+  <div class="section-divider"></div>
+
+  <!-- FOOTER -->
+  <footer class="mt-8">
+    <hr class="border-rule mb-8"/>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm" style="color:var(--muted)">
+      <p class="font-display italic">Lisbon, Portugal — <span id="year"></span></p>
+      <div class="flex gap-4">
+        <a href="mailto:marcos.treviso@tecnico.ulisboa.pt" class="hover:text-teal"><i class="fas fa-envelope"></i></a>
+        <a href="https://github.com/mtreviso" target="_blank" class="hover:text-teal"><i class="fab fa-github"></i></a>
+        <a href="https://twitter.com/MarcosTreviso" target="_blank" class="hover:text-teal"><i class="fab fa-twitter"></i></a>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<!-- ===================== LIBS ===================== -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+<script>
+/* ================= CORE MATH (shared with the entmax demos) ================= */
+function softmax(s){ const m=Math.max(...s); const e=s.map(x=>Math.exp(x-m)); const z=e.reduce((a,b)=>a+b,0); return e.map(x=>x/z); }
+function entmaxFull(scores, alpha, nIter=60){
+  if (Math.abs(alpha-1)<1e-6) return {p:softmax(scores), tau:null, thresh:null};
+  const n=scores.length, am1=alpha-1;
+  const X=scores.map(s=>s*am1); const maxVal=Math.max(...X);
+  let lo=maxVal-1, hi=maxVal-Math.pow(1/n,am1), p=null;
+  for(let it=0; it<nIter; it++){ const t=(lo+hi)/2;
+    p=X.map(x=>{const d=x-t; return d>0?Math.pow(d,1/am1):0;});
+    (p.reduce((a,b)=>a+b,0)>1)? lo=t : hi=t; }
+  const tau=(lo+hi)/2; const sum=p.reduce((a,b)=>a+b,0); if(sum>0) p=p.map(x=>x/sum);
+  return {p, tau, thresh:tau/am1};
+}
+function entmax(s,a){ return entmaxFull(s,a).p; }
+function sparsemax(s){ return entmax(s,2); }
+function sparsemaxThresh(z){ // returns {p, tau, S}
+  const srt=[...z].sort((a,b)=>b-a); let tau=0, k=0;
+  for(let i=0;i<srt.length;i++){ const t=(srt.slice(0,i+1).reduce((a,b)=>a+b,0)-1)/(i+1);
+    if(srt[i]-t>0){ tau=t; k=i+1; } }
+  const p=z.map(v=>Math.max(0,v-tau)); const s=p.reduce((a,b)=>a+b,0);
+  return {p:p.map(x=>s>0?x/s:0), tau, S:k, raw:p};
+}
+function topk(scores,k){ const K=Math.min(k,scores.length);
+  const idx=scores.map((s,i)=>({s,i})).sort((a,b)=>b.s-a.s);
+  const masked=new Array(scores.length).fill(-Infinity);
+  for(let i=0;i<K;i++) masked[idx[i].i]=scores[idx[i].i];
+  const m=Math.max(...masked); const ex=masked.map(v=>v===-Infinity?0:Math.exp(v-m));
+  const z=ex.reduce((a,b)=>a+b,0)||1; return ex.map(v=>v/z); }
+function entropy(p){ let h=0; for(const x of p) if(x>1e-12) h-=x*Math.log(x); return h; }
+function support(p,eps=1e-6){ return p.reduce((c,x)=>c+(x>eps?1:0),0); }
+
+const C={ ink:'#0E1F1C', teal:'#0A7C6A', tealL:'#12A68E', muted:'#6B7C79', rule:'#D5CFC3',
+          warm:'#E8D5B0', rust:'#B45309', rose:'#B91C1C', sky:'#0369A1', plum:'#6D28D9' };
+
+const TOKENS=["The","cat","sat","quietly","on","the","warm","mat","by","the","fire"];
+const SCORES=[2.9,3.6,1.4,2.2,0.5,0.9,1.9,3.1,0.2,0.7,2.6];
+// Dedicated vector for fusedmax: a contiguous salient span ("red fire truck") to fuse.
+const FUSED_TOKENS=["the","big","red","fire","truck","raced","past","the","old","house"];
+const FUSED_SCORES=[0.6,1.8,3.0,3.2,2.9,2.1,0.7,0.5,0.9,1.2];
+
+/* ================= 1. COMPARE ================= */
+function vizCompare(){
+  const el=document.getElementById('viz-compare'); if(!el) return;
+  const W=el.clientWidth||860, H=300, m={t:16,r:10,b:44,l:10}, n=SCORES.length;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.34);
+  const groups=x.bandwidth();
+  svg.selectAll('text.tk').data(TOKENS).join('text').attr('class','tk tokenlabel')
+    .attr('x',(d,i)=>x(i)+groups/2).attr('y',H-m.b+18).attr('text-anchor','middle')
+    .attr('transform',(d,i)=>`rotate(20 ${x(i)+groups/2} ${H-m.b+18})`).text(d=>d);
+  const gline=svg.append('g');
+  function update(k){
+    const series=[ [softmax(SCORES),C.muted,'sm'], [topk(SCORES,k),C.sky,'tk'],
+                   [sparsemax(SCORES),C.teal,'sp'], [entmax(SCORES,1.5),C.plum,'en'] ];
+    const mx=Math.max(...series.flatMap(s=>s[0]));
+    const y=d3.scaleLinear().domain([0,mx*1.1]).range([H-m.b,m.t]);
+    const bw=groups/4;
+    series.forEach((ser,si)=>{
+      svg.selectAll(`rect.${ser[2]}`).data(ser[0]).join('rect').attr('class',ser[2])
+        .attr('x',(d,i)=>x(i)+si*bw).attr('width',bw-1).attr('rx',2)
+        .attr('fill',ser[1])
+        .transition().duration(160)
+        .attr('y',d=> d>1e-6? Math.min(y(d),H-m.b-2):H-m.b).attr('height',d=> d>1e-6? Math.max(2,H-m.b-y(d)):0)
+        .attr('opacity',.92);
+    });
+    document.getElementById('cmp-k').textContent=k;
+  }
+  document.getElementById('cmp-k-slider').addEventListener('input',e=>update(+e.target.value));
+  update(4);
+}
+
+/* ================= 2. DISPERSION ================= */
+function vizDisp(){
+  const el=document.getElementById('viz-disp'); if(!el) return;
+  const W=el.clientWidth||820, H=230, m={t:14,r:10,b:24,l:10};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const defs=svg.append('defs').append('linearGradient').attr('id','dg').attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',1);
+  defs.append('stop').attr('offset','0%').attr('stop-color',C.tealL); defs.append('stop').attr('offset','100%').attr('stop-color',C.teal);
+  function scoresFor(n){ const a=[]; for(let i=0;i<n;i++){ const r=Math.abs(Math.sin(i*12.9898)*43758.5453%1); a.push(r*2.0);} a[Math.floor(n*0.3)]+=2.8; return a; }
+  function update(n){
+    const s=scoresFor(n), p=softmax(s);
+    const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(n>64?0.06:0.28);
+    const mx=Math.max(...p); const y=d3.scaleLinear().domain([0,mx*1.06]).range([H-m.b,m.t]);
+    const bw=Math.max(1,x.bandwidth());
+    svg.selectAll('rect.d').data(p).join(
+      e=>e.append('rect').attr('class','d').attr('fill','url(#dg)').attr('y',H-m.b).attr('height',0),
+      u=>u, ex=>ex.remove())
+      .attr('x',(d,i)=>x(i)).attr('width',bw).attr('rx',Math.min(3,bw/2))
+      .transition().duration(200).attr('y',d=>y(d)).attr('height',d=>H-m.b-y(d)).attr('opacity',d=>.4+.6*(d/mx));
+    document.getElementById('disp-n').textContent=n;
+    document.getElementById('disp-peak').textContent=(mx*100).toFixed(1)+'%';
+    document.getElementById('disp-ent').textContent=entropy(p).toFixed(2);
+  }
+  document.getElementById('disp-slider').addEventListener('input',e=>update(+e.target.value));
+  update(32);
+}
+
+/* ================= 3. THRESHOLD (sparsemax) ================= */
+function vizThresh(){
+  const el=document.getElementById('viz-thresh'); if(!el) return;
+  const W=el.clientWidth||820, H=320, m={t:20,r:16,b:46,l:40}, n=SCORES.length;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.5);
+  const y=d3.scaleLinear().domain([0,Math.max(...SCORES)+3]).range([H-m.b,m.t]);
+  const yAxis=svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-6},0)`);
+  svg.selectAll('text.tk').data(TOKENS).join('text').attr('class','tk tokenlabel')
+    .attr('x',(d,i)=>x(i)+x.bandwidth()/2).attr('y',H-m.b+18).attr('text-anchor','middle')
+    .attr('transform',(d,i)=>`rotate(20 ${x(i)+x.bandwidth()/2} ${H-m.b+18})`).text(d=>d);
+  const gst=svg.append('g'), gdt=svg.append('g');
+  const line=svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('stroke',C.rust).attr('stroke-width',2.5).attr('stroke-dasharray','7 5');
+  const lbl=svg.append('text').attr('x',W-m.r).attr('text-anchor','end').style('font','600 12px Outfit').style('fill',C.rust);
+  function update(shift){
+    const z=SCORES.map(v=>v+shift);
+    const {tau,S,raw}=sparsemaxThresh(z);
+    y.domain([0,Math.max(...z)+0.6]); yAxis.transition().duration(120).call(d3.axisLeft(y).ticks(4));
+    gst.selectAll('line').data(z).join('line')
+      .attr('x1',(d,i)=>x(i)+x.bandwidth()/2).attr('x2',(d,i)=>x(i)+x.bandwidth()/2).attr('stroke-width',3).attr('stroke-linecap','round')
+      .transition().duration(140).attr('y1',H-m.b).attr('y2',d=>y(d)).attr('stroke',(d,i)=>raw[i]>1e-9?C.teal:C.rule);
+    gdt.selectAll('circle').data(z).join('circle')
+      .attr('cx',(d,i)=>x(i)+x.bandwidth()/2)
+      .transition().duration(140).attr('cy',d=>y(d)).attr('r',(d,i)=>raw[i]>1e-9?7:5)
+      .attr('fill',(d,i)=>raw[i]>1e-9?C.teal:'#fff').attr('stroke',(d,i)=>raw[i]>1e-9?C.teal:C.rule).attr('stroke-width',2);
+    const yt=y(Math.max(0,tau));
+    line.transition().duration(140).attr('y1',yt).attr('y2',yt);
+    lbl.transition().duration(140).attr('y',yt-8).text('τ(z) waterline');
+    document.getElementById('th-shift').textContent=shift.toFixed(1);
+    document.getElementById('th-tau').textContent=tau.toFixed(2);
+    document.getElementById('th-support').textContent=S;
+    document.getElementById('th-mass').textContent=(SCORES.length - S);
+  }
+  document.getElementById('th-shift-slider').addEventListener('input',e=>update(+e.target.value));
+  update(0);
+}
+
+/* ================= 4. TRANSFER FUNCTION ================= */
+function vizTransfer(){
+  const el=document.getElementById('viz-transfer'); if(!el) return;
+  const W=el.clientWidth||820, H=300, m={t:18,r:18,b:42,l:48};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([-5,5]).range([m.l,W-m.r]);
+  const y=d3.scaleLinear().domain([0,1]).range([H-m.b,m.t]);
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(6));
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5));
+  svg.append('text').attr('x',(m.l+W-m.r)/2).attr('y',H-6).attr('text-anchor','middle').attr('class','tokenlabel').text('score gap  z₁ − z₂');
+  svg.append('text').attr('transform',`translate(14,${(m.t+H-m.b)/2}) rotate(-90)`).attr('text-anchor','middle').attr('class','tokenlabel').text('weight p₁');
+  const gaps=d3.range(-5,5.01,0.1);
+  function curve(fn){ return gaps.map(g=>({g, p:fn([g/2,-g/2])[0]})); }
+  const L=d3.line().x(d=>x(d.g)).y(d=>y(d.p)).curve(d3.curveMonotoneX);
+  [[softmax,C.muted],[s=>sparsemax(s),C.teal],[s=>entmax(s,1.5),C.plum]].forEach(([fn,c])=>{
+    svg.append('path').datum(curve(fn)).attr('fill','none').attr('stroke',c).attr('stroke-width',3).attr('d',L);
+  });
+  // mark the sparsemax margin (|gap|>=2 => saturated for two logits)
+  [-2,2].forEach(g=>svg.append('line').attr('x1',x(g)).attr('x2',x(g)).attr('y1',m.t).attr('y2',H-m.b)
+    .attr('stroke',C.rule).attr('stroke-dasharray','3 4'));
+  svg.append('text').attr('x',x(2)+5).attr('y',m.t+12).attr('class','tokenlabel').style('fill',C.rust).text('margin');
+}
+
+/* ================= 5. ALPHA ================= */
+function vizAlpha(){
+  const el=document.getElementById('viz-alpha'); if(!el) return;
+  const W=el.clientWidth||820, H=290, m={t:18,r:12,b:46,l:12}, n=SCORES.length;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const g=svg.append('defs').append('linearGradient').attr('id','ag').attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',1);
+  g.append('stop').attr('offset','0%').attr('stop-color',C.tealL); g.append('stop').attr('offset','100%').attr('stop-color',C.teal);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.34); const bw=x.bandwidth();
+  const bars=svg.selectAll('rect.e').data(d3.range(n)).join('rect').attr('class','e')
+    .attr('x',i=>x(i)).attr('width',bw).attr('rx',Math.min(6,bw/2)).attr('y',H-m.b).attr('height',0);
+  const pct=svg.selectAll('text.p').data(d3.range(n)).join('text').attr('class','p')
+    .attr('x',i=>x(i)+bw/2).attr('text-anchor','middle').style('font','600 12px Fraunces').style('fill',C.teal);
+  svg.selectAll('text.tk').data(TOKENS).join('text').attr('class','tk tokenlabel')
+    .attr('x',(d,i)=>x(i)+bw/2).attr('y',H-m.b+18).attr('text-anchor','middle')
+    .attr('transform',(d,i)=>`rotate(20 ${x(i)+bw/2} ${H-m.b+18})`).text(d=>d);
+  function update(alpha){
+    const p=entmax(SCORES,alpha), mx=Math.max(...p);
+    const y=d3.scaleLinear().domain([0,mx*1.12]).range([H-m.b,m.t]);
+    bars.data(p).transition().duration(140)
+      .attr('y',d=>d>1e-6?Math.min(y(d),H-m.b-4):y(d)).attr('height',d=>d>1e-6?Math.max(4,H-m.b-y(d)):Math.max(0,H-m.b-y(d)))
+      .attr('fill',d=>d>1e-6?'url(#ag)':C.rule).attr('opacity',d=>d>1e-6?1:.5);
+    pct.data(p).transition().duration(140).attr('y',d=>d>1e-6?Math.min(y(d),H-m.b-4)-7:H-m.b-6)
+      .style('fill',d=>d>1e-6?C.teal:C.rose).text(d=>d>1e-6?(d*100>=0.5?Math.round(d*100)+'%':'<1%'):'0');
+    document.getElementById('al-alpha').textContent=alpha.toFixed(2);
+    document.getElementById('al-support').textContent=support(p);
+    document.getElementById('al-ent').textContent=entropy(p).toFixed(2);
+  }
+  document.getElementById('al-slider').addEventListener('input',e=>update(+e.target.value));
+  update(1.5);
+}
+
+/* ================= 6. FUSEDMAX =================
+   fusedmax(z) = sparsemax(prox_TV(z)).  prox_TV via Chambolle's dual projected
+   gradient (exact 1D total-variation / fused-lasso prox). */
+function tvprox(z, lam, iters=800){
+  const n=z.length; if(n<2) return z.slice();
+  let p=new Array(n-1).fill(0); const tau=0.24; const x=new Array(n);
+  const recon=()=>{ for(let j=0;j<n;j++){ let d; if(j===0)d=-p[0]; else if(j===n-1)d=p[n-2]; else d=p[j-1]-p[j]; x[j]=z[j]-d; } };
+  for(let t=0;t<iters;t++){ recon();
+    for(let i=0;i<n-1;i++){ let v=p[i]+tau*(x[i+1]-x[i]); p[i]=Math.max(-lam,Math.min(lam,v)); } }
+  recon(); return x.slice();
+}
+function fusedmax(z, lam){ return sparsemax(tvprox(z, lam)); }
+function vizFused(){
+  const el=document.getElementById('viz-fused'); if(!el) return;
+  const W=el.clientWidth||820, H=260, m={t:16,r:12,b:46,l:12}, n=FUSED_SCORES.length;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(.18); const bw=x.bandwidth();
+  const bars=svg.selectAll('rect.f').data(d3.range(n)).join('rect').attr('class','f')
+    .attr('x',i=>x(i)).attr('width',bw).attr('rx',2).attr('y',H-m.b).attr('height',0);
+  svg.selectAll('text.tk').data(FUSED_TOKENS).join('text').attr('class','tk tokenlabel')
+    .attr('x',(d,i)=>x(i)+bw/2).attr('y',H-m.b+18).attr('text-anchor','middle')
+    .attr('transform',(d,i)=>`rotate(20 ${x(i)+bw/2} ${H-m.b+18})`).text(d=>d);
+  const palette=[C.teal,C.plum,C.sky,C.rust,'#0f766e','#9333ea'];
+  function update(lam){
+    const p=fusedmax(FUSED_SCORES,lam), mx=Math.max(...p,1e-6);
+    const y=d3.scaleLinear().domain([0,mx*1.1]).range([H-m.b,m.t]);
+    // group id by equal (rounded) nonzero value among contiguous runs
+    let gid=[], g=0; for(let i=0;i<n;i++){ if(p[i]<1e-6){gid.push(-1); continue;}
+      if(i>0 && p[i-1]>1e-6 && Math.abs(p[i]-p[i-1])<1e-4) gid.push(g); else gid.push(++g); }
+    bars.data(p).transition().duration(160)
+      .attr('y',d=>d>1e-6?Math.min(y(d),H-m.b-3):y(d)).attr('height',d=>d>1e-6?Math.max(3,H-m.b-y(d)):0)
+      .attr('fill',(d,i)=>d>1e-6?palette[(gid[i])%palette.length]:C.rule).attr('opacity',d=>d>1e-6?.9:.5);
+    const groups=new Set(gid.filter(v=>v>0)).size;
+    document.getElementById('fu-lam').textContent=lam.toFixed(2);
+    document.getElementById('fu-groups').textContent=groups;
+  }
+  document.getElementById('fu-slider').addEventListener('input',e=>update(+e.target.value));
+  update(0.1);
+}
+
+/* ================= 7. PATTERNS ================= */
+function vizPatterns(){
+  const el=document.getElementById('viz-patterns'); if(!el) return;
+  const n=24, W=el.clientWidth||420, cell=Math.floor((W-1)/n), G=cell*n;
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${G} ${G}`);
+  const rnd=(i,j)=>Math.abs(Math.sin((i*37.1+j*17.3))*1e4%1);
+  const cl=(i)=>Math.floor(rnd(i,i)*4);
+  const patterns={
+    local:(i,j)=>Math.abs(i-j)<=1,
+    strided:(i,j)=>Math.abs(i-j)<=1 || (j%4===0),
+    global:(i,j)=>Math.abs(i-j)<=1 || i<2 || j<2,
+    random:(i,j)=>Math.abs(i-j)<=1 || j<1 || i<1 || rnd(i,j)>0.86,
+    cluster:(i,j)=>cl(i)===cl(j) || i===j
+  };
+  const data=[]; for(let i=0;i<n;i++)for(let j=0;j<n;j++)data.push({i,j});
+  const rects=svg.selectAll('rect').data(data).join('rect')
+    .attr('x',d=>d.j*cell).attr('y',d=>d.i*cell).attr('width',cell-0.5).attr('height',cell-0.5).attr('rx',1);
+  function update(pat){
+    const f=patterns[pat]; let on=0;
+    rects.transition().duration(180).attr('fill',d=>{ const a=f(d.i,d.j); if(a)on++; return a?C.teal:'rgba(10,124,106,0.05)'; })
+      .attr('opacity',d=>f(d.i,d.j)?.9:1);
+    document.getElementById('pat-density').textContent=Math.round(100*on/(n*n))+'%';
+    d3.selectAll('#pat-seg button').classed('on',function(){return this.getAttribute('data-pat')===pat;});
+  }
+  d3.selectAll('#pat-seg button').on('click',function(){ update(this.getAttribute('data-pat')); });
+  update('local');
+}
+
+/* ================= 8. LENGTH (softmax vs entmax) ================= */
+function vizLength(){
+  const el=document.getElementById('viz-length'); if(!el) return;
+  const W=el.clientWidth||820, H=300, m={t:18,r:20,b:40,l:52};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const ns=d3.range(8,520,8);
+  function scoresFor(nn){ const a=[]; for(let i=0;i<nn;i++){ a.push(Math.abs(Math.sin(i*12.9898)*43758.5)%1*2.0);} a[Math.floor(nn*0.3)]+=2.8; return a; }
+  const rows=ns.map(nn=>{ const s=scoresFor(nn); const ps=softmax(s), pe=entmax(s,1.5);
+    return {n:nn, smE:entropy(ps), enE:entropy(pe), smP:Math.max(...ps), enP:Math.max(...pe)}; });
+  const x=d3.scaleLog().domain([8,512]).range([m.l,W-m.r]);
+  const xa=svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(5,'d'));
+  svg.append('text').attr('x',(m.l+W-m.r)/2).attr('y',H-4).attr('text-anchor','middle').attr('class','tokenlabel').text('context length n (log)');
+  const yg=svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`);
+  const gsm=svg.append('path').attr('fill','none').attr('stroke',C.muted).attr('stroke-width',3);
+  const gen=svg.append('path').attr('fill','none').attr('stroke',C.teal).attr('stroke-width',3);
+  const ylab=svg.append('text').attr('transform',`translate(14,${(m.t+H-m.b)/2}) rotate(-90)`).attr('text-anchor','middle').attr('class','tokenlabel');
+  function update(metric){
+    const sm=metric==='entropy'?'smE':'smP', en=metric==='entropy'?'enE':'enP';
+    const y=d3.scaleLinear().domain(metric==='entropy'?[0, d3.max(rows,d=>d.smE)*1.05]:[0,1]).range([H-m.b,m.t]);
+    yg.transition().duration(150).call(d3.axisLeft(y).ticks(5));
+    const L=d3.line().x(d=>x(d.n)).y(d=>y(d[metric==='entropy'?sm:sm]));
+    gsm.datum(rows).transition().duration(200).attr('d',d3.line().x(d=>x(d.n)).y(d=>y(d[sm])));
+    gen.datum(rows).transition().duration(200).attr('d',d3.line().x(d=>x(d.n)).y(d=>y(d[en])));
+    ylab.text(metric==='entropy'?'attention entropy (nats)':'peak weight');
+    d3.selectAll('#len-seg button').classed('on',function(){return this.getAttribute('data-metric')===metric;});
+  }
+  d3.selectAll('#len-seg button').on('click',function(){ update(this.getAttribute('data-metric')); });
+  update('entropy');
+}
+
+/* ================= 9. KERNELS + REGRESSION ================= */
+function kern(name,u2){ switch(name){
+  case 'gauss': return Math.exp(-u2/(2*0.34*0.34));
+  case 'epan': return Math.max(0,1-u2);
+  case 'biweight': return Math.pow(Math.max(0,1-u2),2);
+  case 'triweight': return Math.pow(Math.max(0,1-u2),3);
+  default: return 0; } }
+let KERNEL='gauss';
+function vizKernel(){
+  const el=document.getElementById('viz-kernel'); if(!el) return;
+  const W=el.clientWidth||820, H=170, m={t:14,r:16,b:30,l:40};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([-1.6,1.6]).range([m.l,W-m.r]);
+  const y=d3.scaleLinear().domain([0,1.05]).range([H-m.b,m.t]);
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(5));
+  svg.append('text').attr('x',W-m.r).attr('y',H-6).attr('text-anchor','end').attr('class','tokenlabel').text('distance  u = (q−kᵢ)/h');
+  const us=d3.range(-1.6,1.601,0.02);
+  const path=svg.append('path').attr('fill','rgba(10,124,106,0.10)').attr('stroke',C.teal).attr('stroke-width',2.5);
+  const ref=svg.append('path').attr('fill','none').attr('stroke',C.rule).attr('stroke-width',1.5).attr('stroke-dasharray','3 3');
+  function update(){
+    const raw=us.map(u=>kern(KERNEL,u*u)); const mx=Math.max(...raw);
+    const pts=us.map((u,i)=>({u,k:raw[i]/mx}));
+    const area=d3.area().x(d=>x(d.u)).y0(y(0)).y1(d=>y(d.k)).curve(d3.curveMonotoneX);
+    path.datum(pts).transition().duration(200).attr('d',area);
+    // reference Gaussian (faint) for contrast
+    const g=us.map(u=>({u,k:kern('gauss',u*u)}));
+    ref.datum(g).attr('d',d3.line().x(d=>x(d.u)).y(d=>y(d.k)).curve(d3.curveMonotoneX)).attr('opacity',KERNEL==='gauss'?0:.8);
+  }
+  vizKernel._update=update; update();
+}
+function vizRegress(){
+  const el=document.getElementById('viz-regress'); if(!el) return;
+  const W=el.clientWidth||820, H=250, m={t:16,r:16,b:34,l:40};
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  // deterministic noisy data on [0,1]
+  const N=16, xs=[], ys=[];
+  for(let i=0;i<N;i++){ const xi=i/(N-1); const noise=(Math.sin(i*91.7)*0.5); ys.push(Math.sin(xi*6.0)*1.0 + 0.28*noise); xs.push(xi); }
+  const x=d3.scaleLinear().domain([-0.02,1.02]).range([m.l,W-m.r]);
+  const y=d3.scaleLinear().domain([d3.min(ys)-0.4,d3.max(ys)+0.4]).range([H-m.b,m.t]);
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(5));
+  const h=0.13;
+  const grid=d3.range(0,1.0001,0.01);
+  const fit=svg.append('path').attr('fill','none').attr('stroke',C.teal).attr('stroke-width',3);
+  svg.selectAll('circle.dp').data(xs).join('circle').attr('class','dp')
+    .attr('cx',(d)=>x(d)).attr('cy',(d,i)=>y(ys[i])).attr('r',4).attr('fill',C.ink).attr('opacity',.55);
+  function nw(x0){ let sw=0, swy=0; for(let i=0;i<N;i++){ const u2=((x0-xs[i])/h)**2; const w=kern(KERNEL,u2); sw+=w; swy+=w*ys[i]; } return sw>1e-9?swy/sw:null; }
+  function update(){
+    const pts=grid.map(g=>({g, v:nw(g)})).filter(d=>d.v!=null);
+    fit.datum(pts).transition().duration(200).attr('d',d3.line().x(d=>x(d.g)).y(d=>y(d.v)).curve(d3.curveMonotoneX));
+  }
+  vizRegress._update=update; update();
+}
+function initKernelToggle(){
+  d3.selectAll('#ker-seg button').on('click',function(){
+    KERNEL=this.getAttribute('data-ker');
+    d3.selectAll('#ker-seg button').classed('on',false); d3.select(this).classed('on',true);
+    if(vizKernel._update) vizKernel._update(); if(vizRegress._update) vizRegress._update();
+  });
+}
+
+/* ================= boot ================= */
+function boot(){
+  vizCompare(); vizDisp(); vizThresh(); vizTransfer(); vizAlpha();
+  vizFused(); vizPatterns(); vizLength(); vizKernel(); vizRegress(); initKernelToggle();
+  document.getElementById('year').textContent=new Date().getFullYear();
+}
+function renderMath(){ if(window.renderMathInElement) renderMathInElement(document.body,{
+  delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}], throwOnError:false }); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60)); else setTimeout(boot,60);
+window.addEventListener('load', renderMath);
+</script>
+</body>
+</html>
