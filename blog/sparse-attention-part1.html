@@ -141,7 +141,7 @@
   <!-- Header -->
   <header class="mb-12">
     <div class="text-sm mb-4" style="color:var(--muted)">
-      Essay · Part I of II · <span id="reading">~30 min read</span>
+      Essay · Part I of II · <span id="reading">~35 min read</span>
     </div>
     <h1 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight mb-5 leading-tight">
       The Leap of Sparse Attention in Transformers
@@ -343,8 +343,9 @@
         Finding \(\tau(z)\) means finding how many entries stay positive. Sorting \(z\) and scanning gives an
         \(\mathcal O(n\log n)\) algorithm; <a class="cite" href="https://doi.org/10.1007/s10107-015-0946-6">Condat (2016)</a>
         gives an exact, finite‑time projection by online variable‑fixing that empirically beats sort‑, heap‑,
-        partition‑, and bisection‑based competitors. This projection is the numerical backbone under every method
-        in this essay — it is how a network emits calibrated zeros without abandoning gradients.
+        partition‑, and bisection‑based competitors. This projection is the workhorse under sparsemax — and, via
+        its cousins (an exact sort for \(\alpha=1.5\), bisection for general \(\alpha\), Part II’s GPU solvers),
+        under everything else in this essay: it is how a network emits calibrated zeros without abandoning gradients.
       </p>
     </div>
 
@@ -380,23 +381,26 @@
           <strong>fusedmax</strong>, which produces contiguous, group‑sparse attention.</li>
       </ul>
       <p>
-        The reason softmax is dense and sparsemax is sparse is now visible: it is the <em>curvature of \(\Omega\)
-        at the boundary</em>. Shannon entropy has an infinite derivative as any \(p_i\to 0\), so the optimum is
+        The reason softmax is dense and sparsemax is sparse is now visible: it is the <em>behaviour of
+        \(\Omega\)’s gradient at the boundary</em>. Shannon entropy’s derivative, \(\log p_i + 1\), blows up to
+        \(-\infty\) as any \(p_i\to 0\), so moving off a face always improves the objective — the optimum is
         pushed strictly inside the simplex (no zeros). The squared norm has a finite gradient at the boundary, so
         the optimum can — and does — sit on a face where some \(p_i=0\).
       </p>
       <p>
-        <a class="cite" href="https://arxiv.org/abs/1805.09717">Blondel et al. (2020)</a> completed the picture with
+        <a class="cite" href="https://arxiv.org/abs/1901.02324">Blondel et al. (2020)</a> completed the picture with
         <em>Fenchel–Young losses</em>. For any convex \(\Omega\) with convex conjugate \(\Omega^\ast\), define
       </p>
       <div class="eqbox">
         $$ L_\Omega(s; y) \;=\; \Omega^\ast(s) + \Omega(y) - \langle s, y\rangle \;\ge\; 0, $$
       </div>
       <p>
-        which is zero exactly when \(y = \Pi_\Omega(s)=\nabla\Omega^\ast(s)\). This single template generates
-        softmax + cross‑entropy, sparsemax + sparsemax‑loss, and more, as special cases. And it delivers the
-        pivotal theorem: \(\Pi_\Omega\) produces <em>sparse</em> outputs if and only if the induced loss has a
-        <em>separation margin</em> — a finite score gap beyond which the loss is exactly zero. Sparsity in the
+        which, for strictly convex \(\Omega\), is zero exactly when \(y = \Pi_\Omega(s)=\nabla\Omega^\ast(s)\).
+        This single template generates softmax + cross‑entropy, sparsemax + sparsemax‑loss, and more, as special
+        cases. And it delivers the pivotal theorem: for the separable entropies used throughout this essay (the
+        whole Tsallis family), \(\Pi_\Omega\) can produce <em>sparse</em> outputs if and only if the induced loss
+        has a <em>separation margin</em> — a finite score gap beyond which the loss is exactly zero, and for
+        α‑entmax that margin is exactly \(1/(\alpha-1)\). Sparsity in the
         forward map and a margin in the loss are the same phenomenon.
       </p>
     </div>
@@ -412,8 +416,9 @@
       </div>
       <p class="fig-caption"><span class="fnum">Fig. 4.</span> softmax’s transfer curve is a logistic that only
         <em>approaches</em> 0 and 1 asymptotically — full support forever. sparsemax saturates to exactly \(0\) and
-        \(1\) once the score gap exceeds a finite <em>margin</em>; α‑entmax sits between them. That flat region
-        where \(p_1=0\) is a token being ignored — differentiably.</p>
+        \(1\) once the score gap exceeds a finite <em>margin</em>, equal to \(1/(\alpha-1)\): gap \(1\) for
+        sparsemax, gap \(2\) for α‑entmax‑1.5 (dashed lines); α‑entmax sits between softmax and sparsemax. That flat
+        region where \(p_1=0\) is a token being ignored — differentiably.</p>
     </div>
   </section>
 
@@ -443,8 +448,9 @@
       <ul class="list-disc pl-6 space-y-1" style="opacity:.88">
         <li>\(\alpha=1\): the exponent blows up into an exponential — <strong>softmax</strong> (dense).</li>
         <li>\(\alpha=2\): the exponent is \(1\) — \([z_i-\tau]_+\), i.e. <strong>sparsemax</strong>.</li>
-        <li>\(1<\alpha<2\): sparse for <em>all</em> \(\alpha>1\), with heavier or lighter tails in between.
-          \(\alpha=1.5\) is the popular middle ground and admits an exact \(\mathcal O(n\log n)\) sorting algorithm.</li>
+        <li>any \(\alpha>1\) is sparse — heavier tails as \(\alpha\downarrow 1\), harsher selection beyond \(2\).
+          \(\alpha=1.5\) is the popular middle ground and admits an exact \(\mathcal O(n\log n)\) sorting
+          algorithm; general \(\alpha\) uses bisection on \(\tau\).</li>
       </ul>
       <p>
         Its Jacobian is as cheap as sparsemax’s (supported on the survivors), so it drops into a transformer with
@@ -476,7 +482,7 @@
     <div class="insight-box">
       <p class="lab">The through-line so far</p>
       <p>
-        A regularizer \(\Omega\) determines a normalizing map; its boundary curvature decides dense vs. sparse; a
+        A regularizer \(\Omega\) determines a normalizing map; its boundary gradient decides dense vs. sparse; a
         margin in the matching Fenchel–Young loss is the same thing as zeros in the map; and Tsallis entropy makes
         the whole spectrum a single knob \(\alpha\). None of this needed a large language model to motivate it —
         it was all in place by 2019. The next sections show what you can <em>do</em> with the knob.
@@ -600,8 +606,9 @@
         angular LSH, \(h(x)=\arg\max\big([\,xR;\,-xR\,]\big)\) for a random projection \(R\), so a query only attends
         within its bucket — \(\mathcal O(n\log n)\), plus reversible layers for depth‑independent memory. The
         <em>Routing Transformer</em> <a class="cite" href="https://arxiv.org/abs/2003.05997">(Roy et al., 2021)</a>
-        runs online spherical \(k\)‑means on \(\ell_2\)‑normalized queries/keys, so “each query attends only to keys
-        assigned to the same centroid,” an \(\mathcal O(n^{1.5}d)\) approximation of maximum‑inner‑product search.
+        runs online spherical \(k\)‑means on \(\ell_2\)‑normalized queries/keys, so that “only queries and keys
+        from the same cluster are considered for attention” — an \(\mathcal O(n^{1.5}d)\) approximation of
+        maximum‑inner‑product search.
       </p>
 
       <div class="insight-box">
@@ -655,48 +662,92 @@
 
       <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Dispersion</h3>
       <p>
-        With logits bounded in \([m,M]\), every softmax weight is squeezed toward uniform as the sequence grows
-        <a class="cite" href="https://arxiv.org/abs/2410.01104">(Veličković et al., 2025)</a>:
+        With <em>all</em> logits bounded in \([m,M]\), every softmax weight is squeezed toward uniform as the
+        sequence grows <a class="cite" href="https://arxiv.org/abs/2410.01104">(Veličković et al., 2025)</a>:
       </p>
       <div class="eqbox">
-        $$ \operatorname{softmax}(s)_k \;=\; \Theta\!\left(\tfrac1n\right)
-           \quad\text{whenever } s_k\in[m,M]. $$
+        $$ \tfrac1n\,e^{\,m-M} \;\le\; \operatorname{softmax}(s)_k \;\le\; \tfrac1n\,e^{\,M-m},
+           \qquad\text{i.e.}\qquad \operatorname{softmax}(s)_k = \Theta\!\left(\tfrac1n\right). $$
       </div>
       <p>
-        The consequence is stark: “even for a task as simple as finding the maximum key, any learned circuitry must
-        disperse as the number of items grows.” A model that must stay sharp at length <em>cannot</em>, if its
-        weights are forced to be everywhere‑positive.
+        And boundedness is not an assumption you can train away: with inputs from a finite vocabulary, every layer
+        maps compact sets to compact sets, so the logits <em>are</em> bounded. The consequence is stark: “even for
+        tasks as simple as finding the maximum key, any learned circuitry must disperse as the number of items
+        grows at test time.” A model that must stay sharp at length <em>cannot</em>, if its weights are forced to
+        be everywhere‑positive. Push the limit further and the pathology deepens: as the prompt grows, softmax
+        attention provably converges to a <em>linear</em> attention operator — not just blunted, but with its
+        nonlinearity washed out <a class="cite" href="https://openreview.net/forum?id=MvuCgK0Qns">(Boursier &amp; Boyer, 2026)</a>.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Collapse &amp; over‑squashing</h3>
       <p>
         Relatedly, <a class="cite" href="https://arxiv.org/abs/2406.04267">Barbero et al. (2024)</a> prove
-        <em>representational collapse</em>: the attention distributions of two long sequences that differ only in a
-        repeated final token have total variation that “tends to \(0\) as length \(n\) grows,” eventually below
-        floating‑point precision — the model literally cannot tell them apart. They also formalize
-        <em>over‑squashing</em>: sensitivity of an output to a distant input decays as a sum over causal attention
-        paths. And <a class="cite" href="https://arxiv.org/abs/2303.06296">Zhai et al. (2023)</a> identify
-        <em>attention entropy collapse</em> as a training‑instability mode. All three are pathologies of a
-        distribution that is not allowed to be zero anywhere.
+        <em>representational collapse</em>: take a long sequence and the same sequence with its final token
+        repeated, and their final‑token <em>representations</em> become arbitrarily close as length grows —
+        eventually indistinguishable at floating‑point precision, so the model provably cannot respond to them
+        differently. The engine is softmax itself: the total‑variation distance between the two attention
+        distributions tends to zero as the sequence grows (their Lemma 4.1); decaying positional information does
+        the rest. They also formalize <em>over‑squashing</em>: the sensitivity of an output to a distant input is
+        bounded by a sum over weighted causal attention paths, which thins out with distance and depth. Both are
+        pathologies of a distribution that is not allowed to be zero anywhere.
+      </p>
+      <p>
+        There is a documented failure at the opposite end, too.
+        <a class="cite" href="https://arxiv.org/abs/2303.06296">Zhai et al. (2023)</a> show that <em>too‑sharp</em>
+        attention — “entropy collapse” — travels with training instability, and their remedy (σReparam) works by
+        capping the spectral norm of the logits. Read the two results together and softmax is squeezed from both
+        sides: its attention entropy is lower‑bounded in terms of the logit scale, so the <em>only</em> way it can
+        be sharp is through extreme logits — precisely the regime that destabilizes training — while at bounded
+        logits it must disperse. α‑entmax dissolves the dilemma: it reaches exact sharpness — even one‑hot — at
+        finite, moderate logits, the margin of §4 made kinetic.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mb-4 mt-8">Patch the softmax, or replace it?</h3>
       <p>
-        One camp keeps softmax and rescales: <em>Scalable‑Softmax</em> uses
-        \(\operatorname{softmax}(s\log n\cdot z)\) <a class="cite" href="https://arxiv.org/abs/2501.19399">(Nakanishi, 2025)</a>,
-        others tune an adaptive temperature <a class="cite" href="https://arxiv.org/abs/2410.01104">(Veličković et al., 2025)</a>
-        or make attention scale‑invariant <a class="cite" href="https://arxiv.org/abs/2505.17083">(Anonymous, 2025)</a>.
-        The other camp argues these treat a symptom. With α‑entmax, irrelevant tokens get <em>exact</em> zeros, so
-        the entropy of attention is bounded by the <em>support</em> size \(s\), not the sequence length:
-        \(\mathcal O(\log s)\) instead of \(\mathcal O(\log n)\), and gradient paths shrink from \(\mathcal O(n^L)\)
-        to \(\mathcal O(s^L)\) <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2025)</a>.
-        The payoff is dramatic length extrapolation — up to \(1000\times\) — from models trained on short contexts.
+        One camp keeps softmax and rescales. <em>Scalable‑Softmax</em> multiplies the logits by \(s\log n\)
+        <a class="cite" href="https://arxiv.org/abs/2501.19399">(Nakanishi, 2025)</a>; Veličković et al. tune an
+        adaptive temperature at inference <a class="cite" href="https://arxiv.org/abs/2410.01104">(2025)</a>;
+        scale‑invariant attention derives a position‑dependent logit transform
+        <a class="cite" href="https://arxiv.org/abs/2505.17083">(Anson et al., 2025)</a>; entropy‑invariance
+        reaches the same place from an information‑theoretic argument
+        <a class="cite" href="https://arxiv.org/abs/2501.08570">(Li et al., 2025)</a>. Four papers, four
+        principles, one medicine — a length‑dependent temperature. That convergence says the diagnosis is right;
+        it also says the treatment is palliative, because a colder softmax thins the tail without ever removing it.
+      </p>
+      <p>
+        The model’s own coping strategy points the same way. <em>Attention sinks</em> — the notorious pile of mass
+        on the first token — turn out to be softmax’s pressure valve: heads park probability they are forced to
+        spend <em>somewhere</em> on a semantically useless token, which provably slows the over‑mixing of
+        everything else <a class="cite" href="https://arxiv.org/abs/2504.02732">(Barbero et al., 2025)</a>. The
+        folk remedy of adding \(1\) to softmax’s denominator so heads can attend to nothing — “softmax‑1”
+        <a class="cite" href="https://www.evanmiller.org/attention-is-off-by-one.html">(Miller, 2023)</a> — is the
+        same escape hatch built by hand, and OpenAI’s gpt‑oss now ships <em>learned</em> per‑head sink logits
+        <a class="cite" href="https://arxiv.org/abs/2508.10925">(OpenAI, 2025)</a>. A model that invents a place to
+        dump unwanted probability is a model asking for zeros. Some do abandon the simplex altogether — sigmoid
+        attention drops normalization <a class="cite" href="https://arxiv.org/abs/2409.04431">(Ramapuram et al., 2025)</a>,
+        Softpick rectifies softmax so sinks vanish <a class="cite" href="https://arxiv.org/abs/2504.20966">(Zuhri et al., 2025)</a>,
+        stick‑breaking replaces it with a recency‑biased cascade
+        <a class="cite" href="https://arxiv.org/abs/2410.17980">(Yang et al., 2025)</a> — a genuine
+        “replace” camp, though one that gives up the convex‑duality toolbox of §4 along with the simplex.
+      </p>
+      <p>
+        Our camp keeps the simplex and fixes the support. With α‑entmax, irrelevant tokens get <em>exact</em>
+        zeros, so the entropy of attention is bounded by the <em>support</em> size \(s\), not the sequence length —
+        \(\mathcal O(\log s)\) instead of \(\mathcal O(\log n)\) — and the number of effective gradient paths
+        shrinks from \(\mathcal O(n^L)\) to \(\mathcal O(s^L)\)
+        <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2025)</a>. The payoff is
+        dramatic length extrapolation — up to \(1000\times\) on synthetic recall — from models trained on short
+        contexts. One honest caveat: that result also needs position encodings that cooperate (NoPE
+        <a class="cite" href="https://arxiv.org/abs/2305.19466">(Kazemnejad et al., 2023)</a> mixed with ALiBi
+        <a class="cite" href="https://arxiv.org/abs/2108.12409">(Press et al., 2022)</a>) and a learnable
+        temperature inside entmax — the positional side of length generalization is part of the cure, not a rival
+        to it.
       </p>
     </div>
 
     <div class="viz-card">
       <h4>Bounded support beats \(\log n\)</h4>
-      <p class="sub">Attention entropy and peak weight as context grows, for softmax vs. α‑entmax, on the same scores.</p>
+      <p class="sub">Attention entropy and peak weight as context grows: three relevant tokens amid ever more distractors, softmax vs. α‑entmax on the same scores.</p>
       <div id="viz-length"></div>
       <div class="series-legend">
         <span><i style="background:var(--muted)"></i>softmax — entropy ~ \(\log n\), peak → 0</span>
@@ -706,10 +757,14 @@
         <button data-metric="entropy" class="on">Entropy</button>
         <button data-metric="peak">Peak weight</button>
       </div>
-      <p class="fig-caption"><span class="fnum">Fig. 8.</span> As \(n\) grows, softmax’s entropy climbs without
-        bound and its peak weight decays toward zero — dispersion. α‑entmax saturates: once the support stabilizes,
-        adding more irrelevant tokens changes nothing, because they get exact zero. This is the theoretical case
-        for sparsity, independent of any speed argument.</p>
+      <p class="fig-caption"><span class="fnum">Fig. 8.</span> As \(n\) grows, softmax’s entropy climbs like
+        \(\log n\) and its peak weight decays toward zero — dispersion. α‑entmax is flat: the three relevant scores
+        clear the distractor ceiling by more than the entmax margin, so the threshold \(\tau\) sits above every
+        distractor and the support is pinned at those three tokens — adding more irrelevant tokens changes
+        <em>nothing</em>, they get exact zero. The condition matters: if the relevant scores did <em>not</em> clear
+        the margin, the entmax support would grow too (sublinearly, with the peak still bounded away from zero) —
+        sparsity concentrates attention exactly when something is worth concentrating on. This is the theoretical
+        case for sparsity, independent of any speed argument.</p>
     </div>
   </section>
 
@@ -729,9 +784,11 @@
            w_i \;=\; \frac{K\!\big((q-k_i)/h\big)}{\sum_{j} K\!\big((q-k_j)/h\big)}. $$
       </div>
       <p>
-        The choice of <em>kernel</em> \(K\) is the choice of normalizer. Softmax is the Gaussian kernel
-        \(K(u)\propto e^{-\lVert u\rVert^2/2}\) — which has infinite support, so every value contributes: that is
-        dispersion, restated in the language of statistics. And α‑entmax? Setting \(\alpha = 1 + \tfrac1r\) makes it
+        The choice of <em>kernel</em> \(K\) is the choice of normalizer. With \(\ell_2\)‑normalized queries and
+        keys, \(\lVert q-k_i\rVert^2 = 2 - 2\,q^\top k_i\), so the Gaussian kernel
+        \(K(u)\propto e^{-\lVert u\rVert^2/2}\) is exactly softmax over dot‑product scores — and its infinite
+        support means every value contributes: that is dispersion, restated in the language of statistics. And
+        α‑entmax? Setting \(\alpha = 1 + \tfrac1r\) makes it
         exactly Nadaraya–Watson with a <em>compact</em>, bounded‑support kernel:
       </p>
       <div class="eqbox">
@@ -745,9 +802,18 @@
       </ul>
       <p>
         Compact kernels are exactly the ones statisticians reach for when they want a <em>local</em> estimate: they
-        ignore data outside a bandwidth. The exact zeros of α‑entmax are not a hack — they are the finite support of
-        a textbook kernel. And the softmax/Gaussian relationship emerges as the \(n\to\infty\) limit, so even
-        top‑\(k\) attention can be read as a (crude) compact‑kernel choice rather than a heuristic.
+        ignore data outside a bandwidth. One precision matters. With a <em>fixed</em> bandwidth \(h\), the
+        Epanechnikov estimator above is <em>normalized‑ReLU</em> attention; sparsemax and its entmax siblings
+        correspond to an <em>adaptive</em> bandwidth, chosen per query so the truncated kernel weights sum to one
+        on their own — that adaptive normalization <em>is</em> the threshold \(\tau\) of §3, wearing statistician’s
+        clothes. So the exact zeros of α‑entmax are not a hack: they are the finite support of a textbook kernel,
+        with the entmax exponent \(1/(\alpha-1)\) as the kernel’s polynomial degree. The softmax/Gaussian pair
+        emerges in the \(r\to\infty\) limit, and even top‑\(k\) attention finds a place in the same frame — it is
+        Nadaraya–Watson with a truncated‑Gaussian kernel, i.e. \(k\)‑nearest‑neighbour regression: a crude compact
+        kernel rather than a lawless heuristic. This regression reading is not an isolated trick, either — it is
+        the same lens under which attention is a modern Hopfield update and a fast‑weight memory
+        <a class="cite" href="https://arxiv.org/abs/2008.02217">(Ramsauer et al., 2021)</a>: attention as
+        test‑time regression over the keys it has seen.
       </p>
     </div>
 
@@ -764,8 +830,9 @@
       <p class="fig-caption"><span class="fnum">Fig. 9.</span> The Gaussian never quite reaches zero, so distant
         keys always leak into the average (dispersion). Compact kernels vanish outside a bandwidth: the fit becomes
         <em>local</em>, driven only by nearby keys, and far tokens receive exact zero weight — bounded support, in
-        one picture. This is the same object as sparsemax, entmax, the dispersion cure, and — in Part II — the
-        blocks a GPU gets to skip.</p>
+        one picture. (Shown with a fixed bandwidth for clarity; the exact sparsemax/entmax correspondence uses the
+        per‑query <em>adaptive</em> bandwidth of the text, which shares the same compact support.) This is the same
+        object as sparsemax, entmax, the dispersion cure, and — in Part II — the blocks a GPU gets to skip.</p>
     </div>
   </section>
 
@@ -813,7 +880,7 @@
       <li>Martins &amp; Astudillo. <a href="https://arxiv.org/abs/1602.02068">From Softmax to Sparsemax</a>. ICML 2016.</li>
       <li>Condat. <a href="https://doi.org/10.1007/s10107-015-0946-6">Fast Projection onto the Simplex and the \(\ell_1\) Ball</a>. Math. Programming 2016.</li>
       <li>Niculae &amp; Blondel. <a href="https://arxiv.org/abs/1705.07704">A Regularized Framework for Sparse and Structured Neural Attention</a>. NeurIPS 2017.</li>
-      <li>Blondel, Martins &amp; Niculae. <a href="https://arxiv.org/abs/1805.09717">Learning with Fenchel–Young Losses</a>. JMLR 2020.</li>
+      <li>Blondel, Martins &amp; Niculae. <a href="https://arxiv.org/abs/1901.02324">Learning with Fenchel–Young Losses</a>. JMLR 2020. (Margins: <a href="https://arxiv.org/abs/1805.09717">the AISTATS 2019 companion</a>.)</li>
       <li>Peters, Niculae &amp; Martins. <a href="https://arxiv.org/abs/1905.05702">Sparse Sequence‑to‑Sequence Models</a> (α‑entmax). ACL 2019.</li>
       <li>Malaviya, Ferreira &amp; Martins. <a href="https://arxiv.org/abs/1805.08241">Sparse and Constrained Attention for Neural Machine Translation</a>. ACL 2018.</li>
       <li>Correia, Niculae &amp; Martins. <a href="https://arxiv.org/abs/1909.00015">Adaptively Sparse Transformers</a>. EMNLP 2019.</li>
@@ -826,13 +893,25 @@
       <li>Zaheer et al. <a href="https://arxiv.org/abs/2007.14062">Big Bird</a>. NeurIPS 2020.</li>
       <li>Kitaev, Kaiser &amp; Levskaya. <a href="https://arxiv.org/abs/2001.04451">Reformer: The Efficient Transformer</a>. ICLR 2020.</li>
       <li>Roy et al. <a href="https://arxiv.org/abs/2003.05997">Efficient Content‑Based Sparse Attention with Routing Transformers</a>. TACL 2021.</li>
-      <li>Treviso et al. <a href="https://arxiv.org/abs/2109.12188">Predicting Attention Sparsity in Transformers</a> (Sparsefinder). 2022.</li>
-      <li>Veličković et al. <a href="https://arxiv.org/abs/2410.01104">Softmax Is Not Enough (for Sharp Out‑of‑Distribution)</a>. 2025.</li>
-      <li>Barbero et al. <a href="https://arxiv.org/abs/2406.04267">Transformers Need Glasses!</a>. NeurIPS 2024.</li>
+      <li>Treviso et al. <a href="https://arxiv.org/abs/2109.12188">Predicting Attention Sparsity in Transformers</a> (Sparsefinder). SPNLP @ ACL 2022.</li>
+      <li>Veličković, Perivolaropoulos, Barbero &amp; Pascanu. <a href="https://arxiv.org/abs/2410.01104">Softmax Is Not Enough (for Sharp Size Generalisation)</a>. ICML 2025.</li>
+      <li>Boursier &amp; Boyer. <a href="https://openreview.net/forum?id=MvuCgK0Qns">Softmax as Linear Attention in the Large‑Prompt Regime</a>. ICML 2026.</li>
+      <li>Barbero et al. <a href="https://arxiv.org/abs/2406.04267">Transformers Need Glasses! Information Over‑squashing in Language Tasks</a>. NeurIPS 2024.</li>
       <li>Zhai et al. <a href="https://arxiv.org/abs/2303.06296">Stabilizing Transformer Training by Preventing Attention Entropy Collapse</a>. ICML 2023.</li>
       <li>Nakanishi. <a href="https://arxiv.org/abs/2501.19399">Scalable‑Softmax Is Superior for Attention</a>. 2025.</li>
-      <li>Vasylenko, Pitorro, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2506.16640">Long‑Context Generalization with Sparse Attention</a>. 2025.</li>
-      <li>Santos, Gonçalves, McNamee, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2601.22766">Sparse Attention as Compact Kernel Regression</a>. 2026.</li>
+      <li>Anson, Wang &amp; Aitchison. <a href="https://arxiv.org/abs/2505.17083">Scale‑Invariant Attention</a>. NeurIPS 2025.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2501.08570">Information Entropy Invariance: Enhancing Length Extrapolation in Attention Mechanisms</a>. 2025.</li>
+      <li>Barbero et al. <a href="https://arxiv.org/abs/2504.02732">Why Do LLMs Attend to the First Token?</a>. COLM 2025.</li>
+      <li>Miller. <a href="https://www.evanmiller.org/attention-is-off-by-one.html">Attention Is Off By One</a>. Blog, 2023.</li>
+      <li>OpenAI. <a href="https://arxiv.org/abs/2508.10925">gpt‑oss‑120b &amp; gpt‑oss‑20b Model Card</a>. 2025.</li>
+      <li>Ramapuram et al. <a href="https://arxiv.org/abs/2409.04431">Theory, Analysis, and Best Practices for Sigmoid Self‑Attention</a>. ICLR 2025.</li>
+      <li>Zuhri, Fuadi &amp; Aji. <a href="https://arxiv.org/abs/2504.20966">Softpick: No Attention Sink, No Massive Activations with Rectified Softmax</a>. 2025.</li>
+      <li>Yang, Tan, Courville, Panda &amp; Shen. <a href="https://arxiv.org/abs/2410.17980">Scaling Stick‑Breaking Attention</a>. ICLR 2025.</li>
+      <li>Vasylenko, Pitorro, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2506.16640">Long‑Context Generalization with Sparse Attention</a>. ICLR 2026.</li>
+      <li>Kazemnejad et al. <a href="https://arxiv.org/abs/2305.19466">The Impact of Positional Encoding on Length Generalization in Transformers</a> (NoPE). NeurIPS 2023.</li>
+      <li>Press, Smith &amp; Lewis. <a href="https://arxiv.org/abs/2108.12409">Train Short, Test Long: Attention with Linear Biases</a> (ALiBi). ICLR 2022.</li>
+      <li>Santos, Gonçalves, McNamee, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2601.22766">Sparse Attention as Compact Kernel Regression</a>. ICLR 2026.</li>
+      <li>Ramsauer et al. <a href="https://arxiv.org/abs/2008.02217">Hopfield Networks Is All You Need</a>. ICLR 2021.</li>
     </ol>
   </section>
 
@@ -940,7 +1019,8 @@ function vizDisp(){
   const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const defs=svg.append('defs').append('linearGradient').attr('id','dg').attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',1);
   defs.append('stop').attr('offset','0%').attr('stop-color',C.tealL); defs.append('stop').attr('offset','100%').attr('stop-color',C.teal);
-  function scoresFor(n){ const a=[]; for(let i=0;i<n;i++){ const r=Math.abs(Math.sin(i*12.9898)*43758.5453%1); a.push(r*2.0);} a[Math.floor(n*0.3)]+=2.8; return a; }
+  // distractors ~ U[0,2); the winner's score is FIXED so the gap to the field stays constant as n grows
+  function scoresFor(n){ const a=[]; for(let i=0;i<n;i++){ const r=Math.abs(Math.sin(i*12.9898)*43758.5453%1); a.push(r*2.0);} a[Math.floor(n*0.3)]=4.2; return a; }
   function update(n){
     const s=scoresFor(n), p=softmax(s);
     const x=d3.scaleBand().domain(d3.range(n)).range([m.l,W-m.r]).padding(n>64?0.06:0.28);
@@ -1013,10 +1093,13 @@ function vizTransfer(){
   [[softmax,C.muted],[s=>sparsemax(s),C.teal],[s=>entmax(s,1.5),C.plum]].forEach(([fn,c])=>{
     svg.append('path').datum(curve(fn)).attr('fill','none').attr('stroke',c).attr('stroke-width',3).attr('d',L);
   });
-  // mark the sparsemax margin (|gap|>=2 => saturated for two logits)
+  // FY margin of α-entmax is 1/(α−1): sparsemax saturates at |gap|=1, entmax-1.5 at |gap|=2
+  [-1,1].forEach(g=>svg.append('line').attr('x1',x(g)).attr('x2',x(g)).attr('y1',m.t).attr('y2',H-m.b)
+    .attr('stroke',C.teal).attr('stroke-dasharray','3 4').attr('opacity',.6));
   [-2,2].forEach(g=>svg.append('line').attr('x1',x(g)).attr('x2',x(g)).attr('y1',m.t).attr('y2',H-m.b)
-    .attr('stroke',C.rule).attr('stroke-dasharray','3 4'));
-  svg.append('text').attr('x',x(2)+5).attr('y',m.t+12).attr('class','tokenlabel').style('fill',C.rust).text('margin');
+    .attr('stroke',C.plum).attr('stroke-dasharray','3 4').attr('opacity',.6));
+  svg.append('text').attr('x',x(1)+5).attr('y',H-m.b-34).attr('class','tokenlabel').style('fill',C.teal).text('margin (α=2)');
+  svg.append('text').attr('x',x(2)+5).attr('y',H-m.b-14).attr('class','tokenlabel').style('fill',C.plum).text('margin (α=1.5)');
 }
 
 /* ================= 5. ALPHA ================= */
@@ -1124,7 +1207,11 @@ function vizLength(){
   const W=el.clientWidth||820, H=300, m={t:18,r:20,b:40,l:52};
   const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const ns=d3.range(8,520,8);
-  function scoresFor(nn){ const a=[]; for(let i=0;i<nn;i++){ a.push(Math.abs(Math.sin(i*12.9898)*43758.5)%1*2.0);} a[Math.floor(nn*0.3)]+=2.8; return a; }
+  // distractors ~ U[0,2); three RELEVANT tokens with fixed scores that clear the distractor
+  // ceiling (2.0) by more than the entmax-1.5 margin, so the entmax support is pinned at 3:
+  // sum_r ((z_r - 2)/2)^2 = 0.64+0.36+0.16 = 1.16 >= 1  =>  tau sits above every distractor.
+  function scoresFor(nn){ const a=[]; for(let i=0;i<nn;i++){ a.push(Math.abs(Math.sin(i*12.9898)*43758.5)%1*2.0);}
+    a[Math.floor(nn*0.2)]=3.6; a[Math.floor(nn*0.5)]=3.2; a[Math.floor(nn*0.8)]=2.8; return a; }
   const rows=ns.map(nn=>{ const s=scoresFor(nn); const ps=softmax(s), pe=entmax(s,1.5);
     return {n:nn, smE:entropy(ps), enE:entropy(pe), smP:Math.max(...ps), enP:Math.max(...pe)}; });
   const x=d3.scaleLog().domain([8,512]).range([m.l,W-m.r]);

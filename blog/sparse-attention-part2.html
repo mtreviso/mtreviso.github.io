@@ -128,7 +128,7 @@
 <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
 
   <header class="mb-12">
-    <div class="text-sm mb-4" style="color:var(--muted)">Essay · Part II of II · ~45 min read</div>
+    <div class="text-sm mb-4" style="color:var(--muted)">Essay · Part II of II · ~55 min read</div>
     <h1 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight mb-5 leading-tight">
       The Leap of Sparse Attention in Transformers
     </h1>
@@ -207,9 +207,13 @@
         $$ \Theta\!\left(\frac{n^2 d^2}{M}\right)\ \text{HBM accesses}, \qquad M=\text{SRAM size}, $$
       </div>
       <p>
-        far below the \(\Theta(n^2)\) of the naïve algorithm. The trick that makes a single pass possible is
-        <em>online softmax</em>: as each new key-block arrives, keep a running maximum \(m\) and running
-        denominator \(\ell\), and rescale the partial output \(O\) by the correction factor when the max changes:
+        far below the naïve algorithm’s \(\Theta(nd + n^2)\), for any SRAM size \(d \le M \le nd\). The trick that
+        makes a single pass possible is <em>online softmax</em> — a running-max, running-denominator reformulation
+        that predates FlashAttention <a class="cite" href="https://arxiv.org/abs/1805.02867">(Milakov &amp; Gimelshein, 2018)</a>,
+        whose memory-saving consequence Rabe &amp; Staats had also worked out
+        <a class="cite" href="https://arxiv.org/abs/2112.05682">(2021)</a>: as each new key-block arrives, keep a
+        running maximum \(m\) and running denominator \(\ell\), and rescale the partial output \(O\) by the
+        correction factor when the max changes:
       </p>
       <div class="eqbox">
         $$ m^{\text{new}} = \max(m, \tilde m),\quad
@@ -220,7 +224,9 @@
         The successors form a ladder tracking GPU generations: <em>FlashAttention-2</em> parallelizes over the
         sequence and cuts non-matmul work <a class="cite" href="https://arxiv.org/abs/2307.08691">(Dao, 2023)</a>;
         <em>FA-3</em> exploits Hopper asynchrony and FP8 <a class="cite" href="https://arxiv.org/abs/2407.08608">(Shah et al., 2024)</a>;
-        <em>FA-4</em> targets Blackwell. Crucially, FlashAttention already shipped a <em>block-sparse</em> variant
+        <em>FA-4</em> co-designs the pipeline for Blackwell — asynchronous MMA, a software-emulated exponential,
+        conditional rescaling — reaching ~1.6 PFLOPs/s in BF16
+        <a class="cite" href="https://arxiv.org/abs/2603.05451">(Zadouri et al., 2026)</a>. Crucially, FlashAttention already shipped a <em>block-sparse</em> variant
         “faster than any existing approximate attention method” — the door through which principled sparsity would
         eventually walk. Step through the online-softmax accumulation below.
       </p>
@@ -262,9 +268,10 @@
         attention and, at inference time, skip or evict part of the computation. They need no retraining, which is
         their great practical appeal. But it comes with a hard constraint: the model they run on assigns
         <em>strictly positive</em> weight to every token, so any sparse shortcut is an <em>approximation</em> of a
-        dense distribution — and truncating a distribution that is nonzero everywhere <em>always</em> throws away
-        some real probability mass. Their output error is bounded below by that discarded tail; it can be made small,
-        but never zero.
+        dense distribution — and truncating a distribution that is nonzero everywhere <em>always</em> discards some
+        probability mass \(\delta>0\). The output error that mass induces is at most \(2B\delta\) for values bounded
+        by \(B\) — a tight bound — and generically nonzero whenever \(\delta\) is. Bigger budgets shrink it; no
+        budget short of the full cache makes it provably zero.
       </p>
       <p>
         <strong>Trainable</strong> methods instead make sparsity part of the model — present during training, so
@@ -280,9 +287,19 @@
         <tr><td><strong>Retraining</strong></td><td>None — drop-in</td><td>Pretrain or finetune with the sparse operator</td></tr>
         <tr><td><strong>Attention it runs on</strong></td><td>Dense softmax (positive everywhere)</td><td>Sparse by construction</td></tr>
         <tr><td><strong>Best-case error</strong></td><td><code>δ &gt; 0</code> — a dense tail is always discarded</td><td><code>δ = 0</code> — exact once the support is recovered</td></tr>
-        <tr><td><strong>Examples</strong></td><td>H2O, StreamingLLM, Quest, SnapKV, PyramidKV, MInference, FlexPrefill, XAttention</td><td>NSA, MoBA, InfLLM-V2, NOSA; entmax-native: AdaSplash, DashAttention, EntmaxKV</td></tr>
+        <tr><td><strong>Examples</strong></td><td>H2O, StreamingLLM, Quest, SnapKV, PyramidKV, MInference, FlexPrefill, XAttention</td><td>NSA, MoBA, InfLLM-V2, NOSA, DSA; entmax-native: AdaSplash, DashAttention, EntmaxKV</td></tr>
       </table>
       </div>
+      <p>
+        One honest wrinkle before the tour: a thin middle band <em>retrofits trained components</em> onto a frozen
+        or lightly-tuned backbone. SeerAttention distills block gates from the model’s own attention maps
+        <a class="cite" href="https://arxiv.org/abs/2410.13276">(Gao et al., 2025)</a>; Dynamic Memory Compression
+        retrofit-trains per-head eviction decisions <a class="cite" href="https://arxiv.org/abs/2403.09636">(Nawrot et al., 2024)</a>;
+        DuoAttention learns which heads deserve a full cache <a class="cite" href="https://arxiv.org/abs/2410.10819">(Xiao et al., 2025)</a>.
+        They buy accuracy with a little training — but the target they are trained to imitate is still the dense
+        softmax model, so for the question that organizes this essay they sit with the training-free family, under
+        the same ceiling.
+      </p>
       <div class="warning-box">
         <p class="lab">The ceiling, stated once</p>
         <p>
@@ -318,13 +335,16 @@
         <em>FlexPrefill</em> <a class="cite" href="https://arxiv.org/abs/2502.20766">(Lai et al., 2025)</a> switches
         patterns by a JS-divergence test; <em>XAttention</em> <a class="cite" href="https://arxiv.org/abs/2503.16428">(Xu et al., 2025)</a>
         scores blocks by an antidiagonal sum; <em>MMInference</em> <a class="cite" href="https://arxiv.org/abs/2504.16083">(Li et al., 2025)</a>
-        adds modality-aware permutation.
+        adds modality-aware permutation; <em>SpargeAttention</em> makes the recipe model-agnostic — a two-stage
+        online filter over quantized attention that carries the same trick to language, image, and video models
+        <a class="cite" href="https://arxiv.org/abs/2502.18137">(Zhang et al., 2025)</a>.
       </p>
       <p>
         The programmable substrate underneath is <em>FlexAttention</em>
         <a class="cite" href="https://arxiv.org/abs/2412.05496">(Dong et al., 2024)</a>, which compiles arbitrary
         <code>score_mod</code> / <code>mask_mod</code> functions plus a <code>BlockMask</code> into a fused kernel —
-        turning “which blocks to skip” into a first-class, differentiable knob. The move from Part I’s
+        turning “which blocks to skip” into a first-class, compiler-supported knob (with autograd through the fused
+        kernel; the discrete skip decision itself is not differentiated). The move from Part I’s
         <em>fixed</em> patterns (Longformer, Big Bird) to these <em>content-estimated</em> patterns is the same
         static→dynamic transition, now at block granularity and hardware-aligned.
       </p>
@@ -338,32 +358,65 @@
     <h2 class="font-display text-3xl font-semibold mb-8">5. Training-free II: the KV cache</h2>
     <div class="narrative-section">
       <p>
-        Training sparsity is about the \(n\times n\) score matrix. <em>Decoding</em> sparsity is about a different
+        Prefill sparsity is about the \(n\times n\) score matrix. <em>Decoding</em> sparsity is about a different
         object: the <em>KV cache</em>, the stored keys and values of all past tokens, which grows linearly with
         sequence length and batch size and quickly dominates memory bandwidth
         <a class="cite" href="https://arxiv.org/abs/2306.14048">(Zhang et al., 2023)</a>. The serving substrate is
         <em>PagedAttention</em> <a class="cite" href="https://arxiv.org/abs/2309.06180">(Kwon et al., 2023)</a>,
-        which stores the cache as OS-style non-contiguous pages with copy-on-write sharing. On top of it, two
-        philosophies compete.
+        which stores the cache as OS-style non-contiguous pages with copy-on-write sharing. (Sparsity is one axis of
+        three, for the record: you can also store the cache <em>smaller</em> —
+        <a class="cite" href="https://arxiv.org/abs/2402.02750">KIVI</a> and
+        <a class="cite" href="https://arxiv.org/abs/2401.18079">KVQuant</a> quantize it to 2–3 bits — or share it
+        structurally across heads and layers, from MQA/GQA/MLA to
+        <a class="cite" href="https://arxiv.org/abs/2405.05254">YOCO</a>; the surveys of
+        <a class="cite" href="https://arxiv.org/abs/2407.18003">Shi et al. (2024)</a> and
+        <a class="cite" href="https://arxiv.org/abs/2412.19442">Li et al. (2025)</a> map those orthogonal axes.
+        This essay stays on the sparsity axis.) On top of the paged substrate, two philosophies compete.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mb-4 mt-8">(a) Eviction — bounded, irreversible state</h3>
       <p>
         Permanently drop tokens to cap memory. <em>H2O</em> <a class="cite" href="https://arxiv.org/abs/2306.14048">(Zhang et al., 2023)</a>
         keeps recent tokens plus “Heavy Hitters” (high accumulated attention), framing eviction as
-        <em>dynamic submodular</em> maximization with a
+        <em>dynamic submodular</em> maximization: <em>assuming</em> the attention scheme is submodular, greedy
+        heavy-hitter retention is near-optimal,
       </p>
       <div class="eqbox">
-        $$ (1-\alpha)\big(1-\tfrac1e\big)\ \text{competitive guarantee} $$
+        $$ f(\tilde S) \;\ge\; (1-\varepsilon)\big(1-\tfrac1e\big)\,\max_{|S|=k} f(S)\;-\;\beta, $$
       </div>
       <p>
-        against the best fixed retained set. <em>StreamingLLM</em> <a class="cite" href="https://arxiv.org/abs/2309.17453">(Xiao et al., 2023)</a>
+        for assumption-dependent constants \(\varepsilon,\beta>0\) (their Theorem 4.4; \(\varepsilon\) is the
+        paper’s \(\alpha\), renamed here to keep entmax’s \(\alpha\) sacred). Note what is and is not proven: the
+        submodularity is itself an assumption, the bound concerns a surrogate utility \(f\), and accumulated
+        attention is a proxy for future attention nobody can see — caveats most citations of H2O quietly drop.
+        <em>StreamingLLM</em> <a class="cite" href="https://arxiv.org/abs/2309.17453">(Xiao et al., 2024)</a>
         found that a few <em>initial</em> tokens act as <em>attention sinks</em> — they soak up the excess mass
-        softmax is forced to assign somewhere — so keeping the first few tokens plus a recent window preserves
-        quality at unbounded length. <em>TOVA</em> <a class="cite" href="https://arxiv.org/abs/2401.06104">(Oren et al., 2024)</a>
-        views decoders as “multi-state RNNs” and drops the single lowest-attention token per step; others evict by
-        per-head policy <a class="cite" href="https://arxiv.org/abs/2310.01801">(Ge et al., 2024)</a> or by key
-        \(\ell_2\)-norm <a class="cite" href="https://arxiv.org/abs/2406.11430">(Devoto et al., 2024)</a>.
+        softmax is forced to assign somewhere (Part I’s pressure valve) — so keeping the first few tokens plus a
+        recent window preserves quality at unbounded length. <em>TOVA</em>
+        <a class="cite" href="https://arxiv.org/abs/2401.06104">(Oren et al., 2024)</a>
+        views decoders as “multi-state RNNs” and drops the single lowest-attention token per step; <em>FastGen</em>
+        picks the cheapest adequate eviction policy per head <a class="cite" href="https://arxiv.org/abs/2310.01801">(Ge et al., 2024)</a>;
+        and keys with a <em>small</em> \(\ell_2\)-norm turn out to attract high attention, so you evict the
+        large-norm ones <a class="cite" href="https://arxiv.org/abs/2406.11430">(Devoto et al., 2024)</a>. Notice
+        that these importance proxies — accumulated attention, last-query attention, per-head structure, key norm —
+        are <em>mutually inconsistent</em>. That they all “work” says the benchmarks are forgiving, not that token
+        importance is solved.
+      </p>
+      <p>
+        Eviction’s deeper trouble is what it does to the model class. Dropping state turns the transformer into a
+        bounded-memory model, and bounded-memory models provably cannot copy or retrieve beyond their state size —
+        the very theorem that separates transformers from state-space models
+        <a class="cite" href="https://arxiv.org/abs/2402.01032">(Jelassi et al., 2024)</a>. And the failure shows up
+        where the theory says it should: eviction rests on a <em>stability assumption</em> — that yesterday’s
+        importance predicts tomorrow’s — which breaks badly on shifted or multi-query workloads
+        <a class="cite" href="https://arxiv.org/abs/2510.13334">(Feng et al., 2025)</a>. (To be honest about the
+        state of theory: nobody has proved a clean impossibility theorem for eviction — the case is folklore plus
+        mounting empirics.) The retrofit-trained corner does better: <em>Dynamic Memory Compression</em> teaches the
+        model itself to decide, per head, whether to append or merge each incoming KV entry
+        <a class="cite" href="https://arxiv.org/abs/2403.09636">(Nawrot et al., 2024)</a>, and its successor spends
+        the freed memory on <em>longer reasoning at the same compute</em>
+        <a class="cite" href="https://arxiv.org/abs/2506.05345">(Łańcucki et al., 2025)</a> — a preview of the
+        trainable family’s answer.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mb-4 mt-8">(b) Selection — full state, chosen per query</h3>
@@ -377,12 +430,17 @@
         $$ \text{score}(p) \;=\; \sum_{d} \max\!\big(Q_d\, m^p_d,\ Q_d\, M^p_d\big) \;\ge\; \max_{k\in p} Q^\top k, $$
       </div>
       <p>
-        then loads only the top-\(K\) pages. Because the score is a provable upper bound, high-relevance pages are
-        never wrongly skipped. <em>SnapKV</em> <a class="cite" href="https://arxiv.org/abs/2404.14469">(Li et al., 2024)</a>
+        then loads only the top-\(K\) pages. The bound guarantees no page is skipped for <em>scoring too low</em> —
+        an inflated estimate can only waste budget, never hide a page from the estimator. It is not a recall
+        guarantee, though: under a top-\(K\) rule, other pages’ inflated bounds can still crowd out the true best
+        page. (A <em>threshold</em> rule on the same bounds would give the no-miss guarantee — a point EntmaxKV
+        later makes precise; §7.) <em>SnapKV</em> <a class="cite" href="https://arxiv.org/abs/2404.14469">(Li et al., 2024)</a>
         votes with an end-of-prompt window; <em>PyramidKV</em> <a class="cite" href="https://arxiv.org/abs/2406.02069">(Cai et al., 2024)</a>
-        allocates <em>non-uniform per-layer budgets</em>; <em>Loki</em> <a class="cite" href="https://arxiv.org/abs/2406.02542">(Singhania et al., 2024)</a>
-        ranks in a PCA subspace; <em>ShadowKV</em> <a class="cite" href="https://arxiv.org/abs/2410.21465">(Sun et al., 2024)</a>
-        offloads values to the CPU.
+        allocates <em>non-uniform per-layer budgets</em> — more where lower layers scatter, less where upper layers
+        focus; <em>Loki</em> <a class="cite" href="https://arxiv.org/abs/2406.02542">(Singhania et al., 2024)</a>
+        scores every key against the current query in a PCA subspace; <em>ShadowKV</em>
+        <a class="cite" href="https://arxiv.org/abs/2410.21465">(Sun et al., 2025)</a> keeps low-rank pre-RoPE keys
+        on the GPU, offloads the values to CPU, and re-selects chunks each step.
       </p>
     </div>
 
@@ -401,7 +459,8 @@
       </div>
       <p class="fig-caption"><span class="fnum">Fig. 2.</span> Eviction permanently frees memory but can throw away
         a token a later query needs (note the always-kept <em>sink</em> tokens on the far left). Selection keeps the
-        full cache and re-picks per query, so it never loses the true top token — at the cost of storing everything.
+        full cache and re-picks per query — with this demo’s oracle scores it never loses the true top token; real
+        estimators (Quest-style bounds) can still miss, just far more rarely. The price is storing everything.
         Both are <em>heuristics on a dense model</em>; §7 asks whether that is the right framing at all.</p>
     </div>
   </section>
@@ -429,9 +488,21 @@
       <p>
         so easy queries spend little and hard queries spend more. <em>Twilight</em>
         <a class="cite" href="https://arxiv.org/abs/2502.02770">(Lin et al., 2025)</a>, <em>Tactic</em>
-        <a class="cite" href="https://arxiv.org/abs/2502.12216">(Zhu et al., 2025)</a>, and <em>Double-Sparse</em>-style
-        top-\(p\) selection <a class="cite" href="https://arxiv.org/abs/2602.05191">(2026)</a> all make the budget
-        data-dependent. If that “keep the smallest set covering mass \(p\)” rule sounds familiar, it should: it is a
+        <a class="cite" href="https://arxiv.org/abs/2502.12216">(Zhu et al., 2025)</a>, and <em>Double-P</em>
+        <a class="cite" href="https://arxiv.org/abs/2602.05191">(Ni et al., 2026)</a> all make the budget
+        data-dependent.
+      </p>
+      <p>
+        Two further axes complete the training-free toolbox. Budgets can live at the level of <em>heads</em>: a
+        small set of “retrieval heads” does the long-range lookups
+        <a class="cite" href="https://arxiv.org/abs/2404.15574">(Wu et al., 2024)</a>, so <em>DuoAttention</em>
+        hands those a full cache and starves the rest down to sinks-plus-recency
+        <a class="cite" href="https://arxiv.org/abs/2410.10819">(Xiao et al., 2025)</a>. And selection itself can be
+        swapped for <em>sampling</em>: <em>MagicPIG</em> observes that top-\(k\) is a <em>biased</em> estimator of
+        the attention output — it fails precisely on aggregation-style queries whose mass is spread wide — and
+        instead samples keys with LSH to get a near-unbiased estimate
+        <a class="cite" href="https://arxiv.org/abs/2410.16179">(Chen et al., 2025)</a>. If the adaptive rule —
+        “keep the smallest set covering mass \(p\)” — sounds familiar, it should: it is a
         thresholding heuristic reaching for exactly what α-entmax computes <em>exactly</em>. Which is the point of
         the next section.
       </p>
@@ -456,28 +527,33 @@
       <p>
         Now make the §3 warning quantitative — this is the hinge of the whole part. Every training-free method in
         §4–§6, however clever its scoring, is approximating a <em>dense</em> softmax distribution with a truncated
-        one. And a truncated softmax <em>always discards nonzero probability mass</em>, so its output carries an
-        error \(\delta>0\) that you can shrink with a bigger budget but never eliminate. That floor is the ceiling
-        on the entire training-free family. <em>EntmaxKV</em>
+        one. Write \(\delta\) for the attention mass the truncation discards. For softmax, \(\delta>0\) under
+        <em>every</em> strict subset of the cache, and the output error it induces obeys
+        \(\lVert o_{\mathcal C}-o_{\text{full}}\rVert \le 2B\delta\) for values bounded by \(B\) — a tight bound,
+        generically nonzero whenever \(\delta\) is (EntmaxKV’s Proposition 1). A bigger budget shrinks the floor;
+        nothing eliminates it. That is the ceiling over the entire training-free family. <em>EntmaxKV</em>
         <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a> reframes the problem to
         remove it: with α-entmax, most keys have <em>exactly</em> zero weight, so an entmax decoder does not need to
-        approximate anything —
+        approximate anything (Proposition 2) —
       </p>
       <div class="eqbox">
-        $$ \text{support}(p)\subseteq \mathcal C \;\Longrightarrow\; \delta \;=\;
-           \big\lVert o_{\mathcal C} - o_{\text{full}}\big\rVert \;=\; 0. $$
+        $$ \operatorname{support}(p)\subseteq \mathcal C \;\Longrightarrow\; \delta = 0
+           \;\;\text{and}\;\; o_{\mathcal C} = o_{\text{full}}\ \text{exactly}. $$
       </div>
       <p>
         Once the cache \(\mathcal C\) contains the (small) nonzero support, the decoder’s output is
         <em>exactly equal</em> to full-cache attention. The task changes from lossy approximation to lossless
         <strong>support recovery</strong>: find the handful of tokens with nonzero weight, and you are done — no
-        budget to tune, no discarded tail. Compare the two regimes below.
+        budget to tune, no discarded tail. In paged Triton kernels this runs at up to \(5.4\times\) over full-cache
+        attention at 1M context; and the same paper shows that <em>threshold</em>-based page bounds admit no false
+        negatives (its Proposition 4) — the recall guarantee Quest’s top-\(K\) rule cannot offer. Compare the two
+        regimes below.
       </p>
     </div>
 
     <div class="viz-card">
       <h4>Truncation error vs. support recovery</h4>
-      <p class="sub">Output error \(\delta\) as the KV budget grows, for a softmax decoder (truncate the tail) vs. an α-entmax decoder (recover the support).</p>
+      <p class="sub">Discarded attention mass \(\delta\) as the KV budget grows, for a softmax decoder (truncate the tail) vs. an α-entmax decoder (recover the support). Output error is at most \(2B\delta\).</p>
       <div id="viz-support"></div>
       <div class="series-legend">
         <span><i style="background:var(--muted)"></i>softmax — truncated: \(\delta>0\) always</span>
@@ -509,10 +585,15 @@
         — so training and inference compute the same sparse operation and the kernel is co-designed with the
         pattern. These methods escape the §7 ceiling in principle, because the model they run is genuinely sparse.
         Most of them, though, are sparse at <em>block</em> granularity (which suits GPUs) rather than at the level of
-        individual tokens. <em>Native Sparse Attention (NSA)</em>
-        <a class="cite" href="https://arxiv.org/abs/2502.11089">(Yuan et al., 2025)</a> runs three branches per
-        query — a coarse <em>compressed</em> stream, a <em>selected</em> set of blocks, and a local
-        <em>sliding window</em> — combined by a learned gate, with a block layout aligned to GPU tensor cores.
+        individual tokens. The idea has an ancestor the new wave rarely cites — <em>Landmark Attention</em> trained
+        block retrieval into the model back in 2023, via landmark tokens and a grouped softmax
+        <a class="cite" href="https://arxiv.org/abs/2305.16300">(Mohtashami &amp; Jaggi, 2023)</a> — but the moment
+        the mainstream noticed was <em>Native Sparse Attention (NSA)</em>
+        <a class="cite" href="https://arxiv.org/abs/2502.11089">(Yuan et al., 2025)</a>, DeepSeek’s ACL 2025
+        Best-Paper: three branches per query — a coarse <em>compressed</em> stream, a <em>selected</em> set of
+        blocks, and a local <em>sliding window</em> — combined by learned gates, with a block layout aligned to GPU
+        tensor cores, pretrained from scratch at 27B and <em>matching or beating</em> full attention on their
+        benchmarks.
       </p>
       <p>
         <em>MoBA</em> <a class="cite" href="https://arxiv.org/abs/2502.13189">(Lu et al., 2025)</a> makes the
@@ -525,11 +606,41 @@
       </div>
       <p>
         explicitly adopting a “less structure” principle: let the model decide where to attend rather than imposing
-        a fixed pattern. <em>InfLLM-V2</em> <a class="cite" href="https://arxiv.org/abs/2509.24663">(2025)</a>
-        switches smoothly between dense and sparse; <em>NOSA</em> <a class="cite" href="https://arxiv.org/abs/2510.13602">(2025)</a>
-        splits the budget into query-aware and query-agnostic parts with a proven locality lower bound. Sparsity has
+        a fixed pattern. <em>InfLLM-V2</em> <a class="cite" href="https://arxiv.org/abs/2509.24663">(Zhao et al., 2025)</a>
+        switches smoothly between dense and sparse while <em>reusing the dense-attention parameters</em> — no extra
+        modules, unlike NSA — preserving the pretrain-short/finetune-long workflow; <em>NOSA</em>
+        <a class="cite" href="https://arxiv.org/abs/2510.13602">(Huang et al., 2025)</a>
+        splits the selection into query-aware and query-agnostic parts with a proven locality lower bound, so the
+        CPU↔GPU traffic of an offloaded cache stays bounded. The wave keeps widening: <em>SeerAttention-R</em>
+        adapts self-distilled gates to long reasoning decodes
+        <a class="cite" href="https://arxiv.org/abs/2506.08889">(Gao et al., 2025)</a>; <em>HSA</em> learns
+        chunk-level retrieval inside a recurrent hybrid and reads 64M-token passkeys after training at 4K
+        <a class="cite" href="https://arxiv.org/abs/2504.16795">(Hu et al., 2025)</a>; <em>FSA</em> re-engineers
+        NSA’s kernel for the small GQA groups where the original layout underperforms
+        <a class="cite" href="https://arxiv.org/abs/2508.18224">(Yan et al., 2025)</a>; <em>MTraining</em> takes
+        dynamic sparse attention distributed, training at 512K context
+        <a class="cite" href="https://arxiv.org/abs/2510.18830">(Li et al., 2025)</a>. Sparsity has
         become an architectural primitive, not a post-hoc filter — the same destination Part I reached from the
         theory side.
+      </p>
+      <p>
+        And it shipped. DeepSeek-V3.2 put <em>trained</em> fine-grained sparse attention into a frontier production
+        model — a lightning indexer scores tokens in FP8, a top-\(k\) selector feeds the attention — and the cost
+        drop headlined the release <a class="cite" href="https://arxiv.org/abs/2512.02556">(DeepSeek-AI, 2025)</a>;
+        GLM-5 then adopted DSA wholesale <a class="cite" href="https://arxiv.org/abs/2602.15763">(GLM-5 Team, 2026)</a>,
+        and MoBA serves Kimi’s long-context traffic. The most telling arc is MiniMax’s: hybrid-linear at 456B
+        <a class="cite" href="https://arxiv.org/abs/2501.08313">(MiniMax, 2025)</a>, then <em>back</em> to full
+        attention in M2 when the hybrid degraded multi-hop reasoning at scale, then <em>trained block-sparse</em>
+        attention shipped in M3 <a class="cite" href="https://arxiv.org/abs/2606.13392">(Lai et al., 2026)</a> —
+        linear → full → sparse. Meanwhile Kimi’s 1T-parameter K2 stayed dense-full
+        <a class="cite" href="https://arxiv.org/abs/2507.20534">(Kimi Team, 2025)</a> even as its research line
+        probes linear hybrids (<a class="cite" href="https://arxiv.org/abs/2510.26692">Kimi Linear, 2025</a>), and
+        the quiet incumbents — sliding windows in Mistral
+        <a class="cite" href="https://arxiv.org/abs/2310.06825">(Jiang et al., 2023)</a> and Gemma
+        <a class="cite" href="https://arxiv.org/abs/2503.19786">(Gemma Team, 2025)</a>, gpt-oss’s
+        banded-window-plus-learned-sink layers <a class="cite" href="https://arxiv.org/abs/2508.10925">(OpenAI, 2025)</a> —
+        have shipped <em>static</em> sparsity all along. Nobody agrees on the attention layer anymore; what is no
+        longer in dispute is that sparsity can be trained in at production scale.
       </p>
       <p>
         One thing these block-native methods do <em>not</em> quite give you is exactness. They learn <em>which
@@ -589,10 +700,11 @@
       <h3 class="subhead">AdaSplash: a safeguarded Halley–bisection solve</h3>
       <p>
         AdaSplash’s <code>_get_tau</code> kernel keeps \(f\) monotone and brackets the root in \([\tau_{\text{lo}},
-        \tau_{\text{hi}}]\), then takes second‑order <em>Halley</em> steps that fall back to bisection whenever a step
+        \tau_{\text{hi}}]\), then takes <em>Halley</em> steps that fall back to bisection whenever a step
         would leave the bracket. Because a single tiled pass over the scores can accumulate \(f,f',f''\) at once
-        (three running moments), each iteration is cheap, and the quadratic‑convergence of Halley cuts the iteration
-        count by roughly \(7\times\) versus plain bisection.
+        (three running moments), each iteration is cheap, and the <em>cubic</em> convergence of Halley cuts the
+        iteration count by roughly \(7\times\) versus plain bisection — about \(3\) iterations where bisection
+        needs \(23\) at the same precision.
       </p>
       <div class="code-hd"><span>adasplash_block_mask.py · halley_bisect_update (simplified)</span><a href="https://github.com/deep-spin/adasplash/blob/main/adasplash/adasplash_block_mask.py" target="_blank" rel="noopener">source ↗</a></div>
 <div class="codeblk"><span class="cmt"># f(τ)=Σ_i [(α−1)s_i − τ]_+^{1/(α−1)} − 1 ; acc_* are tiled running moments</span>
@@ -603,35 +715,38 @@ new_t = t - (<span class="op">2</span>*f*df) / (<span class="op">2</span>*df*df 
 ok    = (new_t &gt; t_lo - EPS) &amp; (new_t &lt; t_hi + EPS)  <span class="cmt"># still bracketed?</span>
 t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_lo + t_hi))    <span class="cmt"># else: bisection step</span></div>
       <p>
-        The solver runs inside the tiled Q×K loop (block sizes like \(B_r{=}64,\,B_c{=}16\) for the \(\tau\) phase),
-        so it reuses scores already staged in SRAM rather than re‑reading them from HBM.
+        The solver runs inside the tiled Q×K loop (\(B_r{=}64,\,B_c{=}16\) for the \(\tau\) phase in the released
+        kernels), so it reuses scores already staged in SRAM rather than re‑reading them from HBM.
       </p>
 
       <h3 class="subhead">AdaSplash‑2: a histogram that brackets τ before you solve</h3>
       <p>
-        AdaSplash‑2’s insight is to spend the <em>first</em> streaming pass building a coarse <strong>histogram of
-        the scores in SRAM</strong>, then read a provable bound on \(\tau\) straight off the bin counts — so the
-        root‑finder starts from a tight bracket and converges in one or two steps. The figure shows the forward
-        kernel: as each key tile \(K_j\) streams through, the score tile \(Z_{ij}\) updates the per‑query histogram
-        \(\mathcal H_{ij}\); a reverse sweep over bins gives \(\tau_i \le \tau_i^\star\), which is stored and handed
-        to the solver.
+        AdaSplash‑2’s insight is to spend a streaming pass — right after the running‑max pass — building a coarse
+        <strong>histogram of the scores in SRAM</strong>, then read provable bounds on \(\tau\) straight off the bin
+        counts, so the root‑finder starts from a tight bracket and typically converges in one or two steps. The
+        figure shows the forward kernel: as each key tile \(K_j\) streams through, the score tile \(Z_{ij}\) updates
+        the per‑query histogram \(\mathcal H_{ij}\); a descending sweep over bins gives \(\tau_h \le \tau^\star\),
+        which is stored and handed to the solver.
       </p>
       <div class="figc">
         <img src="figs/grid_view_kernel_as2.png" alt="AdaSplash-2 forward kernel: Q grid-loop and K inner-loop stream score tiles Z_ij that update a per-query histogram H_ij in SRAM; a reverse sweep yields a lower bound on the threshold tau, stored to tau_h."/>
       </div>
       <p class="fig-caption"><span class="fnum">Fig. 5.</span> The AdaSplash‑2 forward pass. Query blocks
         \(Q_i\) (grid loop) and key blocks \(K_j\) (inner loop) stream through SRAM; each score tile \(Z_{ij}\)
-        updates a compact histogram \(\mathcal H_{ij}\) held on‑chip. To keep it free, the bin counts are
-        <em>bit‑packed</em> into a single 64‑bit word (the kernel picks \(\text{BINS}\in\{8,4,2\}\) so every counter
-        fits in \(64/\text{BINS}\) bits and cannot overflow). A reverse sweep accumulates \(\sum z,\ \sum 1,\ \sum
-        z^2\) and stops at the first bin where the quadratic constraint \(n\,\tau^2-2z\,\tau+\sum z^2<1\) holds,
-        yielding a lower bound \(\tau_i \le \tau_i^\star\) — a tight initialization that needs no dense
-        intermediates.</p>
+        updates a compact histogram \(\mathcal H_{ij}\) held on‑chip. To keep it nearly free, the bin counts are
+        <em>bit‑packed</em> into a single machine word — \(B\in\{4,8,16\}\) bins in a <code>uint64</code>, \(64/B\)
+        bits per counter, with the per‑bin capacity \(2^{64/B}-1\) budgeted explicitly against the tile size. A
+        descending sweep over bins accumulates the prefix moments \(S_0,S_1,S_2\) and stops at the first bin whose
+        inclusion pushes \(f(\tau)\) positive — for \(\alpha=1.5\), where \(S_0\tau^2-2S_1\tau+S_2 \ge 1\) — then
+        solves that bin’s quadratic exactly; with left‑edge binning this yields a lower bound
+        \(\tau_h \le \tau^\star\) (so the estimated support always contains the true one) — a tight initialization
+        that needs no dense intermediates.</p>
 
       <h3 class="subhead">Skipping the zeros: from boolean masks to bit‑packing</h3>
       <p>
         A threshold is only half the win; the other half is <em>not computing</em> the blocks that end up all‑zero.
-        AdaSplash marks each \(64\times 64\) tile with a boolean <code>bmask</code> — a block is skippable when every
+        AdaSplash marks each score tile (\(16\times 16\) at output granularity in the released kernels) with a
+        boolean <code>bmask</code> — a block is skippable when every
         score in it falls below \(\tau\) (a row‑wise OR reduction) — then <code>compute_bidxs_and_cubcounts</code>
         turns that into a list of surviving block indices, so the output kernel iterates only over
         <code>good_nblocks</code> per query.
@@ -641,7 +756,7 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
         32 blocks to an <code>int32</code> (a 32× smaller mask), building it on the fly as
         <code>bmask &lt;&lt;= 1; bmask += (Σ&nbsp;qk_mask &gt; 0)</code> and flushing every 32 blocks. The output
         kernel then walks only the set bits using the GPU’s native <em>find‑next‑set</em> instruction
-        (<code>fns.b32</code>), jumping straight from one nonzero block to the next with no per‑block branch. Small
+        (PTX <code>fns</code>), jumping straight from one nonzero block to the next with no per‑block branch. Small
         mask, branch‑free traversal, less HBM traffic.
       </p>
 
@@ -656,12 +771,16 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
       </div>
       <p>
         So gradients touch only the surviving tokens. AdaSplash splits the backward into separate kernels for
-        \(dQ\) and for \(dK,dV\) (plus a small pre‑pass computing \(\delta=\sum_i o_i\,\mathrm{d}o_i\)), recomputes
-        \(\tau\) and the activations from the saved threshold rather than storing the \(n\times n\) matrix, and
-        reuses the very same block mask to skip null blocks. AdaSplash‑2 goes further and
-        <em>transposes</em> the block mask (<code>transpose_bmask</code>) so the \(dK,dV\) kernel — which must loop
-        over query blocks per key block — also iterates only over active blocks. At high sparsity this turns the
-        backward pass from the dominant cost into an order‑of‑magnitude speedup.
+        \(dQ\) and for \(dK,dV\), plus a small pre‑pass — the entmax analogue of FlashAttention’s
+        \(D=\mathrm{rowsum}(\mathrm dO\odot O)\), which here needs a stored second output moment \(O^{(2)}\). It
+        saves each row’s \(\tau\) and recomputes scores and probabilities from it rather than storing the
+        \(n\times n\) matrix, and
+        reuses the very same block mask to skip null blocks. AdaSplash‑2 goes further and also uses the
+        <em>transposed</em> block mask \(M^\top\) so the \(dK,dV\) kernel — which must loop
+        over query blocks per key block — likewise iterates only over active blocks. At high sparsity this turns
+        the backward pass from the dominant cost into an order‑of‑magnitude speedup; end to end, AdaSplash‑2
+        matches FlashAttention‑2’s training step time at moderate block sparsity (≳60%) and passes \(2\times\)
+        beyond it.
       </p>
 
       <div class="insight-box">
@@ -681,11 +800,15 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
 
       <p>
         Two more systems close the loop. <strong>DashAttention</strong>
-        <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026)</a> fuses differentiable,
-        adaptive entmax <em>routing</em> with FlashAttention stages; and <strong>EntmaxKV</strong>
+        <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026)</a> lifts entmax one level up:
+        an α‑entmax router selects a <em>variable</em> number of KV blocks per query — where NSA and InfLLM‑V2 fix a
+        top‑\(k\), assuming every query needs the same amount of context — with the whole hierarchy differentiable
+        end to end and fused kernels up to \(3.3\times\) faster than FlashAttention‑3 at inference. And
+        <strong>EntmaxKV</strong>
         <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a> is the decode‑time answer
-        to §7’s ceiling — <em>exact support recovery</em> (\(\delta=0\), not \(\delta>0\)) in paged Triton kernels.
-        Together the four show that exact, adaptive, trainable sparsity is now competitive with the most optimized
+        to §7’s ceiling — <em>exact support recovery</em> (\(\delta=0\), not \(\delta>0\)) in paged Triton kernels,
+        up to \(5.4\times\) over full‑cache entmax attention at 1M tokens. Together with AdaSplash‑2 — an ICML 2026
+        paper — they show that exact, adaptive, trainable sparsity is now competitive with the most optimized
         dense kernels: you do not have to choose between exactness and speed.
       </p>
 
@@ -693,7 +816,8 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
         <p class="lab">Play with it</p>
         <p>
           I built an interactive, touch-friendly companion to this section for ICML — drag α to watch tokens snap to
-          zero, step the τ solver from bisection to histogram (11 → 2 → 1 iterations), and watch the attention map
+          zero, step the τ solver from plain bisection through Halley steps to the histogram initialization (in the
+          papers: 23 → 3 → 1–2 iterations), and watch the attention map
           dissolve into skippable blocks:
           <a class="prose-link" href="../entmax-demo/adasplash.html">α-entmax → AdaSplash, hands-on →</a>
         </p>
@@ -710,9 +834,27 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
       <p>
         Efficiency claims are easy to overstate, so it is worth ending on discipline.
         <em>The Sparse Frontier</em> <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2025)</a>
-        evaluates training-free sparse attention across a four-axis taxonomy and finds it genuinely shifts the
-        accuracy–efficiency Pareto frontier — while warning that fixed-budget methods are suboptimal in production
-        and that gains are task-dependent. The live disagreements that will shape the next few years:
+        evaluates training-free sparse attention across a four-axis taxonomy (unit of sparsification, importance
+        estimation, budget allocation, cache management) and finds it genuinely shifts the accuracy–efficiency
+        Pareto frontier — larger-but-sparse beats smaller-but-dense at equal cost — while warning that
+        “fixed-budget methods in production are suboptimal” and that safe sparsity levels are task-dependent:
+        budgets that are harmless for retrieval break aggregation and multi-hop reasoning.
+      </p>
+      <p>
+        Three more doses of discipline. <em>SCBench</em> stress-tests the KV <em>lifecycle</em> — multi-turn,
+        shared-context serving — and finds that methods holding sub-\(\mathcal O(n)\) memory collapse there, while
+        \(\mathcal O(n)\)-memory dynamic sparsity holds up
+        <a class="cite" href="https://arxiv.org/abs/2412.10319">(Li et al., 2025)</a>. Passkey-style benchmarks sit
+        in the easiest quadrant of the difficulty map — low dispersion, low scope — so headline needle numbers
+        systematically flatter every method on this page
+        <a class="cite" href="https://arxiv.org/abs/2407.00402">(Goldman et al., 2024)</a>. And our own family has
+        an open front to declare: as of mid-2026, nobody has pretrained a \(>\)1B-parameter entmax LLM — the
+        entmax-native results above are academic-budget scale, a gap to state rather than paper over. The field is
+        not waiting: at ICML 2026 alone, learned and adaptive sparsity is everywhere — online sparsity prediction,
+        feature-space alignment of sparse to full attention, test-time adaptive sparsity ratios, cross-head unified
+        selection for reasoning <a class="cite" href="https://arxiv.org/abs/2508.07101">(Yang et al., 2026)</a>,
+        sparse attention inside diffusion LMs. The two-family map holds; the territory inside it is redrawn every
+        conference cycle. The live disagreements that will shape the next few years:
       </p>
       <div class="tbl-wrap">
       <table class="taxo">
@@ -721,6 +863,7 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
         <tr><td>Granularity</td><td>Token-exact zeros (sparsemax/entmax)</td><td>Hardware-aligned blocks (NSA, XAttention)</td></tr>
         <tr><td>Importance</td><td>Query-agnostic scores (H2O, key-norm)</td><td>Query-aware selection (Quest, NOSA)</td></tr>
         <tr><td>Cache policy</td><td>Eviction — bounded, irreversible (H2O, TOVA)</td><td>Selection — full state, reversible (Quest, ShadowKV)</td></tr>
+        <tr><td>Estimator</td><td>Biased top-\(k\) / top-\(K\) bounds (Quest, SnapKV)</td><td>Sampling or thresholds (MagicPIG, Twilight, EntmaxKV)</td></tr>
         <tr><td>Length generalization</td><td>Patch softmax (Scalable-Softmax, temperature)</td><td>Replace softmax (α-entmax, exact zeros)</td></tr>
         <tr><td>Approximation</td><td>Truncate a dense tail (δ &gt; 0)</td><td>Recover an exact support (δ = 0, EntmaxKV)</td></tr>
       </table>
@@ -763,19 +906,26 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
         </tr>
         <tr class="grp"><td colspan="8">Training-free — retrofit sparsity onto a frozen softmax model (no retraining)</td></tr>
         <tr><td class="m">StreamingLLM</td><td>training-free</td><td>decode</td><td>token</td><td>first tokens + recent window</td><td>no</td><td class="ap">approximates</td><td>“attention sinks” absorb overflow mass</td></tr>
-        <tr><td class="m">H2O</td><td>training-free</td><td>decode</td><td>token</td><td>accumulated attention (heavy hitters)</td><td>no</td><td class="ap">approximates</td><td>submodular eviction, (1−α)(1−1/e) bound</td></tr>
-        <tr><td class="m">TOVA</td><td>training-free</td><td>decode</td><td>token</td><td>lowest current attention</td><td>partly</td><td class="ap">approximates</td><td>decoder as a multi-state RNN</td></tr>
-        <tr><td class="m">FastGen</td><td>training-free</td><td>decode</td><td>token / head</td><td>per-head structure profile</td><td>partly</td><td class="ap">approximates</td><td>cheapest eviction policy per head</td></tr>
+        <tr><td class="m">H2O</td><td>training-free</td><td>decode</td><td>token</td><td>accumulated attention (heavy hitters)</td><td>no</td><td class="ap">approximates</td><td>greedy heavy-hitter eviction (near-optimal <em>if</em> attention is submodular)</td></tr>
+        <tr><td class="m">TOVA</td><td>training-free</td><td>decode</td><td>token</td><td>lowest current attention</td><td>yes (at eviction)</td><td class="ap">approximates</td><td>decoder as a multi-state RNN</td></tr>
+        <tr><td class="m">FastGen</td><td>training-free</td><td>prefill→decode</td><td>token / head</td><td>per-head structure profile</td><td>partly</td><td class="ap">approximates</td><td>cheapest eviction policy per head</td></tr>
         <tr><td class="m">SnapKV</td><td>training-free</td><td>prefill→decode</td><td>token</td><td>end-of-prompt voting window</td><td>yes</td><td class="ap">approximates</td><td>observation window picks key tokens</td></tr>
         <tr><td class="m">PyramidKV</td><td>training-free</td><td>prefill</td><td>token</td><td>attention, non-uniform layer budget</td><td>yes</td><td class="ap">approximates</td><td>pyramidal per-layer budget allocation</td></tr>
         <tr><td class="m">Quest</td><td>training-free</td><td>decode</td><td>page</td><td>page min/max upper bound on Q·K</td><td>yes</td><td class="ap">approximates</td><td>query-aware page selection, top-K pages</td></tr>
-        <tr><td class="m">Loki</td><td>training-free</td><td>decode</td><td>token</td><td>PCA-subspace key ranking</td><td>partly</td><td class="ap">approximates</td><td>score keys in a low-rank subspace</td></tr>
-        <tr><td class="m">ShadowKV</td><td>training-free</td><td>decode</td><td>token</td><td>low-rank keys, CPU-offloaded values</td><td>yes</td><td class="ap">approximates</td><td>keep everything, re-select per step</td></tr>
+        <tr><td class="m">Loki</td><td>training-free</td><td>decode</td><td>token</td><td>PCA-subspace key ranking</td><td>yes</td><td class="ap">approximates</td><td>score keys in a low-rank subspace</td></tr>
+        <tr><td class="m">ShadowKV</td><td>training-free</td><td>decode</td><td>chunk (8)</td><td>low-rank keys, CPU-offloaded values</td><td>yes</td><td class="ap">approximates</td><td>keep everything, re-select per step</td></tr>
         <tr><td class="m">MInference</td><td>training-free</td><td>prefill</td><td>block</td><td>offline head pattern + online index</td><td>yes</td><td class="ap">approximates</td><td>A-shape / Vertical-Slash / Block-Sparse</td></tr>
         <tr><td class="m">FlexPrefill</td><td>training-free</td><td>prefill</td><td>block</td><td>JS-divergence pattern switch</td><td>yes</td><td class="ap">approximates</td><td>choose the pattern per input</td></tr>
         <tr><td class="m">XAttention</td><td>training-free</td><td>prefill</td><td>block</td><td>antidiagonal block score</td><td>yes</td><td class="ap">approximates</td><td>cheap block-importance estimate</td></tr>
-        <tr><td class="m">Twilight / Tactic</td><td>training-free</td><td>decode</td><td>token / block</td><td>adaptive top-p budget</td><td>yes</td><td class="ap">approximates</td><td>data-dependent budget, not fixed k</td></tr>
+        <tr><td class="m">Twilight / Tactic / Double-P</td><td>training-free</td><td>decode</td><td>token / block</td><td>adaptive top-p budget</td><td>yes</td><td class="ap">approximates</td><td>data-dependent budget, not fixed k</td></tr>
+        <tr><td class="m">SpargeAttention</td><td>training-free</td><td>prefill + decode</td><td>block</td><td>two-stage online filter (8-bit)</td><td>yes</td><td class="ap">approximates</td><td>model-agnostic — language, image, video</td></tr>
+        <tr><td class="m">MagicPIG</td><td>training-free</td><td>decode</td><td>token (sampled)</td><td>LSH importance sampling</td><td>yes</td><td class="ap">approximates</td><td>sample, don’t select — near-unbiased estimate</td></tr>
+        <tr class="grp"><td colspan="8">Trainable retrofit — small trained components on a frozen softmax backbone (still approximating softmax)</td></tr>
+        <tr><td class="m">SeerAttention (-R)</td><td>retrofit</td><td>prefill (R: decode)</td><td>block</td><td>self-distilled learned gates</td><td>yes</td><td class="ap">approximates</td><td>learn the model’s own sparsity, backbone frozen</td></tr>
+        <tr><td class="m">DuoAttention</td><td>retrofit</td><td>decode</td><td>head</td><td>learned retrieval/streaming split</td><td>partly</td><td class="ap">approximates</td><td>full cache only for retrieval heads</td></tr>
+        <tr><td class="m">DMC</td><td>retrofit</td><td>decode</td><td>token</td><td>learned append-vs-merge</td><td>partly</td><td class="ap">approximates</td><td>retrofit-trained eviction/merging</td></tr>
         <tr class="grp"><td colspan="8">Trainable — sparsity is part of the model; training and inference match</td></tr>
+        <tr><td class="m">Landmark Attention</td><td>trainable</td><td>train</td><td>block</td><td>landmark tokens + grouped softmax</td><td>yes</td><td class="fx">block-native</td><td>trained block retrieval — the 2023 ancestor</td></tr>
         <tr><td class="m">Sparse Transformer</td><td>trainable</td><td>train</td><td>block</td><td>fixed strided + local</td><td>no</td><td class="fx">fixed pattern</td><td>O(n·√n) factorized attention</td></tr>
         <tr><td class="m">Longformer / Big Bird</td><td>trainable</td><td>train</td><td>block</td><td>window + global (+ random)</td><td>no</td><td class="fx">fixed pattern</td><td>O(n); Big Bird is a universal approx.</td></tr>
         <tr><td class="m">Reformer</td><td>trainable</td><td>train</td><td>bucket</td><td>angular LSH hashing</td><td>yes</td><td class="ap">approximates</td><td>attend within a hash bucket</td></tr>
@@ -783,18 +933,22 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
         <tr><td class="m">NSA</td><td>trainable</td><td>train</td><td>block</td><td>compress + select + slide, gated</td><td>yes</td><td class="fx">block-native</td><td>hardware-aligned 3-branch attention</td></tr>
         <tr><td class="m">MoBA</td><td>trainable</td><td>train</td><td>block</td><td>MoE top-k over KV blocks</td><td>yes</td><td class="fx">block-native</td><td>attention = expert routing</td></tr>
         <tr><td class="m">InfLLM-V2</td><td>trainable</td><td>train</td><td>block</td><td>dense↔sparse switch</td><td>yes</td><td class="fx">block-native</td><td>smooth dense-to-sparse transition</td></tr>
-        <tr><td class="m">NOSA</td><td>trainable</td><td>train</td><td>block</td><td>query-aware + query-agnostic split</td><td>yes</td><td class="fx">block-native</td><td>proven locality lower bound</td></tr>
+        <tr><td class="m">NOSA</td><td>trainable</td><td>train</td><td>block</td><td>query-aware + query-agnostic split</td><td>yes</td><td class="fx">block-native</td><td>proven locality lower bound (offloading)</td></tr>
+        <tr><td class="m">DSA (DeepSeek-V3.2)</td><td>trainable</td><td>train</td><td>token (top-k)</td><td>FP8 lightning indexer</td><td>yes</td><td class="fx">native top-k</td><td>trained sparse attention in a frontier production model</td></tr>
+        <tr><td class="m">MSA (MiniMax M3)</td><td>trainable</td><td>train</td><td>block</td><td>trained block scoring on GQA</td><td>yes</td><td class="fx">block-native</td><td>production block-sparse, after linear→full detour</td></tr>
+        <tr><td class="m">HSA / RAMba</td><td>trainable</td><td>train</td><td>chunk</td><td>learned chunk retrieval</td><td>yes</td><td class="fx">block-native</td><td>64M-token passkey from 4K training</td></tr>
         <tr class="win"><td class="m">sparsemax / α-entmax</td><td>trainable</td><td>train</td><td><strong>token</strong></td><td>learned threshold τ (exact zeros)</td><td>yes</td><td class="ex">exact (δ=0)</td><td>differentiable, input-adaptive sparsity</td></tr>
         <tr class="win"><td class="m">AdaSplash / AdaSplash-2</td><td>trainable</td><td>train</td><td>token → block-skip</td><td>entmax support + null-block skip</td><td>yes</td><td class="ex">exact (δ=0)</td><td>fast entmax: Halley/histogram τ, bitmask</td></tr>
-        <tr class="win"><td class="m">DashAttention</td><td>trainable</td><td>train</td><td>block</td><td>differentiable entmax routing</td><td>yes</td><td class="ex">exact-native</td><td>entmax routing fused with FlashAttention</td></tr>
+        <tr class="win"><td class="m">DashAttention</td><td>trainable</td><td>train</td><td>block (variable #)</td><td>differentiable entmax routing</td><td>yes</td><td class="ex">native, entmax-routed</td><td>entmax picks how many blocks, per query</td></tr>
         <tr class="win"><td class="m">EntmaxKV</td><td>trainable</td><td>decode</td><td>token</td><td>exact support recovery</td><td>yes</td><td class="ex">exact (δ=0)</td><td>recover the support, don’t approximate</td></tr>
       </table>
     </div>
-    <p class="fig-caption"><span class="fnum">Table.</span> “Approximates” = the method runs on a dense softmax model
-      and discards nonzero mass, so its error has a floor (§7). “Fixed pattern” / “block-native” = trainable but sparse
-      only at block granularity. “Exact (δ=0)” = the model is genuinely sparse at the token level, so inference can
-      match full attention exactly. The bottom four rows — token-exact <em>and</em> trainable — are the corner our
-      own work lives in.</p>
+    <p class="fig-caption"><span class="fnum">Table.</span> “Approximates” = the method targets a dense softmax model
+      and discards nonzero mass, so its error has a floor (§7) — this includes the retrofit group, whose trained
+      components imitate a softmax target. “Fixed pattern” / “block-native” = trainable but sparse
+      only at block or chunk granularity. “Exact (δ=0)” = the model is genuinely sparse at the token level, so
+      inference can match full attention exactly. The last rows — trainable <em>and</em> native, three of them
+      token-exact (DashAttention routes blocks with entmax) — are the corner our own work lives in.</p>
   </section>
 
   <div class="section-divider"></div>
@@ -805,35 +959,70 @@ t     = <span class="fn">where</span>(ok, new_t, <span class="op">0.5</span>*(t_
     <p style="color:var(--muted); font-size:.9rem; margin-bottom:1rem">In order of appearance. Links go to arXiv.</p>
     <ol class="ref-list">
       <li>Dao et al. <a href="https://arxiv.org/abs/2205.14135">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a>. NeurIPS 2022.</li>
-      <li>Dao. <a href="https://arxiv.org/abs/2307.08691">FlashAttention-2</a>. 2023.</li>
-      <li>Shah et al. <a href="https://arxiv.org/abs/2407.08608">FlashAttention-3</a>. NeurIPS 2024.</li>
-      <li>Jiang et al. <a href="https://arxiv.org/abs/2407.02490">MInference: Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention</a>. NeurIPS 2024.</li>
-      <li>Lai et al. <a href="https://arxiv.org/abs/2502.20766">FlexPrefill</a>. ICLR 2025.</li>
-      <li>Xu et al. <a href="https://arxiv.org/abs/2503.16428">XAttention: Block Sparse Attention with Antidiagonal Scoring</a>. 2025.</li>
-      <li>Li et al. <a href="https://arxiv.org/abs/2504.16083">MMInference</a>. 2025.</li>
-      <li>Dong et al. <a href="https://arxiv.org/abs/2412.05496">Flex Attention</a>. 2024.</li>
+      <li>Milakov &amp; Gimelshein. <a href="https://arxiv.org/abs/1805.02867">Online Normalizer Calculation for Softmax</a>. 2018.</li>
+      <li>Rabe &amp; Staats. <a href="https://arxiv.org/abs/2112.05682">Self-Attention Does Not Need \(O(n^2)\) Memory</a>. 2021.</li>
+      <li>Dao. <a href="https://arxiv.org/abs/2307.08691">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a>. ICLR 2024.</li>
+      <li>Shah et al. <a href="https://arxiv.org/abs/2407.08608">FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-Precision</a>. NeurIPS 2024.</li>
+      <li>Zadouri, Hoehnerbach, Shah, Liu, Thakkar &amp; Dao. <a href="https://arxiv.org/abs/2603.05451">FlashAttention-4: Algorithm and Kernel Pipelining Co-Design for Asymmetric Hardware Scaling</a>. 2026.</li>
+      <li>Gao et al. <a href="https://arxiv.org/abs/2410.13276">SeerAttention: Self-Distilled Attention Gating for Efficient Long-Context Prefilling</a>. NeurIPS 2025.</li>
+      <li>Nawrot et al. <a href="https://arxiv.org/abs/2403.09636">Dynamic Memory Compression: Retrofitting LLMs for Accelerated Inference</a> (DMC). ICML 2024.</li>
+      <li>Xiao et al. <a href="https://arxiv.org/abs/2410.10819">DuoAttention: Efficient Long-Context Inference with Retrieval and Streaming Heads</a>. ICLR 2025.</li>
+      <li>Duarte, Couceiro &amp; Treviso. <a href="https://arxiv.org/abs/2605.21649">EntmaxKV: Support-Aware Decoding for Entmax Attention</a>. 2026.</li>
+      <li>Jiang et al. <a href="https://arxiv.org/abs/2407.02490">MInference 1.0: Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention</a>. NeurIPS 2024 (Spotlight).</li>
+      <li>Lai et al. <a href="https://arxiv.org/abs/2502.20766">FlexPrefill: A Context-Aware Sparse Attention Mechanism</a>. ICLR 2025 (Oral).</li>
+      <li>Xu et al. <a href="https://arxiv.org/abs/2503.16428">XAttention: Block Sparse Attention with Antidiagonal Scoring</a>. ICML 2025.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2504.16083">MMInference: Modality-Aware Permutation Sparse Attention</a>. ICML 2025.</li>
+      <li>Zhang et al. <a href="https://arxiv.org/abs/2502.18137">SpargeAttention: Accurate and Training-Free Sparse Attention</a>. ICML 2025.</li>
+      <li>Dong et al. <a href="https://arxiv.org/abs/2412.05496">FlexAttention: A Programming Model for Generating Fused Attention Variants</a>. MLSys 2025.</li>
       <li>Zhang et al. <a href="https://arxiv.org/abs/2306.14048">H2O: Heavy-Hitter Oracle for Efficient Generative Inference</a>. NeurIPS 2023.</li>
       <li>Kwon et al. <a href="https://arxiv.org/abs/2309.06180">Efficient Memory Management for LLM Serving with PagedAttention</a>. SOSP 2023.</li>
-      <li>Xiao et al. <a href="https://arxiv.org/abs/2309.17453">Efficient Streaming Language Models with Attention Sinks</a>. ICLR 2024.</li>
-      <li>Oren et al. <a href="https://arxiv.org/abs/2401.06104">Transformers are Multi-State RNNs</a> (TOVA). 2024.</li>
-      <li>Ge et al. <a href="https://arxiv.org/abs/2310.01801">Model Tells You What to Discard</a> (FastGen). ICLR 2024.</li>
-      <li>Devoto et al. <a href="https://arxiv.org/abs/2406.11430">A Simple and Effective \(L_2\) Norm-Based KV Cache Compression</a>. 2024.</li>
+      <li>Liu et al. <a href="https://arxiv.org/abs/2402.02750">KIVI: A Tuning-Free Asymmetric 2-bit Quantization for KV Cache</a>. ICML 2024.</li>
+      <li>Hooper et al. <a href="https://arxiv.org/abs/2401.18079">KVQuant: Towards 10 Million Context Length LLM Inference</a>. NeurIPS 2024.</li>
+      <li>Sun et al. <a href="https://arxiv.org/abs/2405.05254">You Only Cache Once: Decoder-Decoder Architectures</a> (YOCO). 2024.</li>
+      <li>Shi et al. <a href="https://arxiv.org/abs/2407.18003">Keep the Cost Down: A Review on Methods to Optimize LLM’s KV-Cache Consumption</a>. COLM 2024.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2412.19442">A Survey on LLM Acceleration Based on KV Cache Management</a>. TMLR 2025.</li>
+      <li>Xiao et al. <a href="https://arxiv.org/abs/2309.17453">Efficient Streaming Language Models with Attention Sinks</a> (StreamingLLM). ICLR 2024.</li>
+      <li>Oren et al. <a href="https://arxiv.org/abs/2401.06104">Transformers are Multi-State RNNs</a> (TOVA). EMNLP 2024.</li>
+      <li>Ge et al. <a href="https://arxiv.org/abs/2310.01801">Model Tells You What to Discard</a> (FastGen). ICLR 2024 (Oral).</li>
+      <li>Devoto et al. <a href="https://arxiv.org/abs/2406.11430">A Simple and Effective \(L_2\) Norm-Based Strategy for KV Cache Compression</a>. EMNLP 2024.</li>
+      <li>Jelassi et al. <a href="https://arxiv.org/abs/2402.01032">Repeat After Me: Transformers are Better than State Space Models at Copying</a>. ICML 2024.</li>
+      <li>Feng et al. <a href="https://arxiv.org/abs/2510.13334">Taming the Fragility of KV Cache Eviction in LLM Inference</a>. 2025.</li>
+      <li>Łańcucki et al. <a href="https://arxiv.org/abs/2506.05345">Inference-Time Hyper-Scaling with KV Cache Compression</a>. NeurIPS 2025.</li>
       <li>Tang et al. <a href="https://arxiv.org/abs/2406.10774">Quest: Query-Aware Sparsity for Efficient Long-Context Inference</a>. ICML 2024.</li>
-      <li>Li et al. <a href="https://arxiv.org/abs/2404.14469">SnapKV</a>. NeurIPS 2024.</li>
-      <li>Cai et al. <a href="https://arxiv.org/abs/2406.02069">PyramidKV</a>. 2024.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2404.14469">SnapKV: LLM Knows What You Are Looking for Before Generation</a>. NeurIPS 2024.</li>
+      <li>Cai et al. <a href="https://arxiv.org/abs/2406.02069">PyramidKV: Dynamic KV Cache Compression Based on Pyramidal Information Funneling</a>. COLM 2025.</li>
       <li>Singhania et al. <a href="https://arxiv.org/abs/2406.02542">Loki: Low-Rank Keys for Efficient Sparse Attention</a>. NeurIPS 2024.</li>
-      <li>Sun et al. <a href="https://arxiv.org/abs/2410.21465">ShadowKV</a>. 2024.</li>
-      <li>Lin et al. <a href="https://arxiv.org/abs/2502.02770">Twilight: Adaptive Top-p Sparse Attention</a>. 2025.</li>
+      <li>Sun et al. <a href="https://arxiv.org/abs/2410.21465">ShadowKV: KV Cache in Shadows for High-Throughput Long-Context LLM Inference</a>. ICML 2025 (Spotlight).</li>
+      <li>Lin et al. <a href="https://arxiv.org/abs/2502.02770">Twilight: Adaptive Attention Sparsity with Hierarchical Top-p Pruning</a>. NeurIPS 2025 (Spotlight).</li>
       <li>Zhu et al. <a href="https://arxiv.org/abs/2502.12216">Tactic: Adaptive Sparse Attention with Clustering and Distribution Fitting</a>. 2025.</li>
-      <li>Yuan et al. <a href="https://arxiv.org/abs/2502.11089">Native Sparse Attention (NSA)</a>. 2025.</li>
+      <li>Ni et al. <a href="https://arxiv.org/abs/2602.05191">Double-P: Hierarchical Top-P Sparse Attention for Long-Context LLMs</a>. 2026.</li>
+      <li>Wu et al. <a href="https://arxiv.org/abs/2404.15574">Retrieval Head Mechanistically Explains Long-Context Factuality</a>. 2024.</li>
+      <li>Chen et al. <a href="https://arxiv.org/abs/2410.16179">MagicPIG: LSH Sampling for Efficient LLM Generation</a>. ICLR 2025 (Spotlight).</li>
+      <li>Mohtashami &amp; Jaggi. <a href="https://arxiv.org/abs/2305.16300">Landmark Attention: Random-Access Infinite Context Length for Transformers</a>. NeurIPS 2023.</li>
+      <li>Yuan et al. <a href="https://arxiv.org/abs/2502.11089">Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention</a> (NSA). ACL 2025 (Best Paper).</li>
       <li>Lu et al. <a href="https://arxiv.org/abs/2502.13189">MoBA: Mixture of Block Attention for Long-Context LLMs</a>. 2025.</li>
-      <li>InfLLM-V2. <a href="https://arxiv.org/abs/2509.24663">Dense-Sparse Switchable Attention</a>. 2025.</li>
-      <li>NOSA. <a href="https://arxiv.org/abs/2510.13602">Native and Offloadable Sparse Attention</a>. 2025.</li>
-      <li>Gonçalves, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2502.12082">AdaSplash: Adaptive Sparse Flash Attention</a>. ICML 2025.</li>
-      <li>Gonçalves, Pitorro, Niculae, Ponti, Li, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2604.15180">AdaSplash-2: Faster Differentiable Sparse Attention</a>. 2026.</li>
-      <li>Huang et al. <a href="https://arxiv.org/abs/2605.18753">DashAttention</a>. 2026.</li>
-      <li>Duarte, Couceiro &amp; Treviso. <a href="https://arxiv.org/abs/2605.21649">EntmaxKV: Support-Aware Decoding for Entmax Attention</a>. 2026.</li>
+      <li>Zhao et al. <a href="https://arxiv.org/abs/2509.24663">InfLLM-V2: Dense-Sparse Switchable Attention for Seamless Short-to-Long Adaptation</a>. 2025.</li>
+      <li>Huang et al. <a href="https://arxiv.org/abs/2510.13602">NOSA: Native and Offloadable Sparse Attention</a>. 2025.</li>
+      <li>Gao et al. <a href="https://arxiv.org/abs/2506.08889">SeerAttention-R: Sparse Attention Adaptation for Long Reasoning</a>. 2025.</li>
+      <li>Hu et al. <a href="https://arxiv.org/abs/2504.16795">Hardware-Aligned Hierarchical Sparse Attention for Efficient Long-Term Memory Access</a> (HSA). NeurIPS 2025.</li>
+      <li>Yan et al. <a href="https://arxiv.org/abs/2508.18224">FSA: An Alternative Efficient Implementation of Native Sparse Attention Kernel</a>. 2025.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2510.18830">MTraining: Distributed Dynamic Sparse Attention for Ultra-Long Context Training</a>. 2025.</li>
+      <li>DeepSeek-AI. <a href="https://arxiv.org/abs/2512.02556">DeepSeek-V3.2: Pushing the Frontier of Open Large Language Models</a> (DSA). 2025.</li>
+      <li>GLM-5 Team. <a href="https://arxiv.org/abs/2602.15763">GLM-5: From Vibe Coding to Agentic Engineering</a>. 2026.</li>
+      <li>MiniMax. <a href="https://arxiv.org/abs/2501.08313">MiniMax-01: Scaling Foundation Models with Lightning Attention</a>. 2025.</li>
+      <li>Lai et al. <a href="https://arxiv.org/abs/2606.13392">MiniMax Sparse Attention</a> (MSA). 2026.</li>
+      <li>Kimi Team. <a href="https://arxiv.org/abs/2507.20534">Kimi K2: Open Agentic Intelligence</a>. 2025.</li>
+      <li>Kimi Team. <a href="https://arxiv.org/abs/2510.26692">Kimi Linear: An Expressive, Efficient Attention Architecture</a>. 2025.</li>
+      <li>Jiang et al. <a href="https://arxiv.org/abs/2310.06825">Mistral 7B</a>. 2023.</li>
+      <li>Gemma Team. <a href="https://arxiv.org/abs/2503.19786">Gemma 3 Technical Report</a>. 2025.</li>
+      <li>OpenAI. <a href="https://arxiv.org/abs/2508.10925">gpt-oss-120b &amp; gpt-oss-20b Model Card</a>. 2025.</li>
+      <li>Gonçalves, Treviso &amp; Martins. <a href="https://arxiv.org/abs/2502.12082">AdaSplash: Adaptive Sparse Flash Attention</a>. ICML 2025 (Spotlight).</li>
+      <li>Gonçalves, Pitorro, Niculae, Ponti, Li, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2604.15180">AdaSplash-2: Faster Differentiable Sparse Attention</a>. ICML 2026.</li>
+      <li>Huang, Gonçalves, Alvetreti, Li, Han, Ponti, Martins &amp; Treviso. <a href="https://arxiv.org/abs/2605.18753">DashAttention: Differentiable and Adaptive Sparse Hierarchical Attention</a>. 2026.</li>
       <li>Nawrot et al. <a href="https://arxiv.org/abs/2504.17768">The Sparse Frontier: Sparse Attention Trade-offs in Transformer LLMs</a>. 2025.</li>
+      <li>Li et al. <a href="https://arxiv.org/abs/2412.10319">SCBench: A KV Cache-Centric Analysis of Long-Context Methods</a>. ICLR 2025.</li>
+      <li>Goldman et al. <a href="https://arxiv.org/abs/2407.00402">Is It Really Long Context if All You Need Is Retrieval?</a>. 2024.</li>
+      <li>Yang et al. <a href="https://arxiv.org/abs/2508.07101">Less Is More: Fast and Accurate Reasoning with Cross-Head Unified Sparse Attention</a> (LessIsMore). ICML 2026.</li>
     </ol>
   </section>
 
@@ -972,8 +1161,9 @@ function vizSupport(){
   const el=document.getElementById('viz-support'); if(!el) return;
   const W=el.clientWidth||820, H=260, m={t:18,r:18,b:40,l:52};
   const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`);
-  // a score vector with a small "true" support
-  const n=40; const scores=d3.range(n).map(i=>{ const spike=(i<6)?(3.0-i*0.25):0; return spike + 0.6*Math.abs(Math.sin(i*3.3)); });
+  // a score vector with a small "true" support; n exceeds the plotted budget range
+  // so the softmax curve stays strictly positive everywhere on screen
+  const n=64, bMax=40; const scores=d3.range(n).map(i=>{ const spike=(i<6)?(3.0-i*0.25):0; return spike + 0.6*Math.abs(Math.sin(i*3.3)); });
   const sm=softmax(scores); const en=entmax(scores,1.5);
   const suppEn=en.filter(x=>x>1e-6).length;
   // sort by weight desc to simulate "keep top-b"
@@ -982,13 +1172,13 @@ function vizSupport(){
   function deltaSoft(b){ // discarded mass (L1 error of truncated+renormalized ~ tail mass)
     let kept=0; for(let i=0;i<b;i++) kept+=sm[order[i]]; return Math.max(0,1-kept); }
   function deltaEnt(b){ let kept=0; for(let i=0;i<b;i++) kept+=en[orderEn[i]]; return Math.max(0,1-kept); }
-  const bs=d3.range(1,n+1);
-  const x=d3.scaleLinear().domain([1,n]).range([m.l,W-m.r]);
+  const bs=d3.range(1,bMax+1);
+  const x=d3.scaleLinear().domain([1,bMax]).range([m.l,W-m.r]);
   const y=d3.scaleLinear().domain([0,1]).range([H-m.b,m.t]);
   svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(6));
   svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5));
-  svg.append('text').attr('x',(m.l+W-m.r)/2).attr('y',H-4).attr('text-anchor','middle').attr('class','tokenlabel').text('KV budget b (tokens kept)');
-  svg.append('text').attr('transform',`translate(14,${(m.t+H-m.b)/2}) rotate(-90)`).attr('text-anchor','middle').attr('class','tokenlabel').text('output error δ');
+  svg.append('text').attr('x',(m.l+W-m.r)/2).attr('y',H-4).attr('text-anchor','middle').attr('class','tokenlabel').text('KV budget b (tokens kept, of n=64)');
+  svg.append('text').attr('transform',`translate(14,${(m.t+H-m.b)/2}) rotate(-90)`).attr('text-anchor','middle').attr('class','tokenlabel').text('discarded attention mass δ');
   const L=d3.line().x(d=>x(d)).y(function(){return 0;});
   svg.append('path').datum(bs).attr('fill','none').attr('stroke',C.muted).attr('stroke-width',3)
     .attr('d',d3.line().x(d=>x(d)).y(d=>y(deltaSoft(d))).curve(d3.curveMonotoneX));
