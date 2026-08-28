@@ -1,0 +1,1602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Sparse Attention, From Scratch · Part I — Marcos Treviso</title>
+<meta content="Part I of a two-part, math-first series on sparse attention: attention normalizers as regularized prediction maps, why softmax must disperse at long context, what exact zeros change, why adaptive sparsity beats a fixed top-k, and the classical resource-allocation problem behind every thresholding method." name="description"/>
+<link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230E1F1C'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='%23E8D5B0' font-family='Georgia,serif' font-weight='bold'>MT</text></svg>" rel="icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ["Fraunces","Georgia","serif"], sans: ["Outfit","ui-sans-serif","system-ui","sans-serif"] },
+      colors: { ink:"#0E1F1C", teal:"#0A7C6A", parchment:"#F7F3EC", warm:"#E8D5B0", muted:"#6B7C79", rule:"#D5CFC3" }
+    }}
+  }
+</script>
+<style>
+  :root{
+    --ink:#0E1F1C; --teal:#0A7C6A; --teal-l:#12A68E; --parchment:#F7F3EC;
+    --warm:#E8D5B0; --muted:#6B7C79; --rule:#D5CFC3;
+    --rust:#B45309; --rose:#B91C1C; --sky:#0369A1; --plum:#6D28D9;
+  }
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body{ background:var(--parchment); color:var(--ink); font-family:"Outfit",ui-sans-serif,system-ui,sans-serif; }
+  body::before{ content:""; position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:0; opacity:0.5; }
+  main, nav, footer { position:relative; z-index:1; }
+  h1,h2,h3{ font-family:"Fraunces",Georgia,serif; color:var(--ink); }
+  h4{ font-family:"Outfit",sans-serif; font-weight:600; color:var(--ink); }
+  p{ color:var(--ink); opacity:0.86; text-align: justify;}
+  a.prose-link, .narrative-section a:not(.no-style), .toc a { color:var(--teal); text-decoration:underline; text-underline-offset:3px; }
+  a.prose-link:hover, .narrative-section a:not(.no-style):hover, .toc a:hover { opacity:0.75; }
+  a.cite{ color:var(--teal); text-decoration:none; border-bottom:1px dotted var(--teal); font-variant-numeric:tabular-nums; }
+  a.cite:hover{ background:rgba(10,124,106,.08); }
+  code:not([class*="language-"]){ background:rgba(10,124,106,0.08); color:var(--ink); padding:2px 6px;
+    border-radius:4px; font-size:0.88em; font-family:'SF Mono','Monaco','Consolas',monospace; border:1px solid rgba(10,124,106,0.15); }
+  .codeblk{ background:#0f172a; color:#e2e8f0; border-radius:12px; padding:14px 16px; overflow-x:auto; font-size:0.8rem;
+    font-family:'SF Mono','Monaco','Consolas',monospace; line-height:1.6; margin:0 0 1.4rem 0; box-shadow:0 4px 20px rgba(14,31,28,0.15); white-space:pre; }
+  .codeblk .cmt{ color:#64748b; font-style:italic; } .codeblk .kw{ color:#e8a06a; } .codeblk .fn{ color:#8bd5a0; } .codeblk .op{ color:#7dd3fc; }
+  .section-divider{ height:1px; background:var(--rule); margin:3rem 0; }
+  .toc{ background:rgba(255,255,255,0.5); border:1px solid var(--rule); border-radius:12px; padding:24px; margin:24px 0; }
+  .toc ul{ list-style:none; padding-left:0; } .toc li{ margin:7px 0; }
+  .toc ul ul{ padding-left:20px; margin-top:4px; } .toc ul ul li{ margin:3px 0; font-size:0.875rem; }
+  .toc a{ color:var(--teal); text-decoration:none; padding:2px 6px; border-radius:4px; transition:background 0.15s; }
+  .toc a:hover{ background:rgba(10,124,106,0.1); }
+  .narrative-section{ margin:1.5rem 0; line-height:1.75; } .narrative-section p{ margin-bottom:1rem; }
+  .narrative-section ul.pts{ list-style:disc; padding-left:1.4rem; margin:0 0 1.1rem 0; }
+  .narrative-section ul.pts li{ margin:0 0 .8rem 0; line-height:1.7; opacity:.9; }
+  .breadcrumb{ color:var(--muted); font-size:0.875rem; } .breadcrumb a{ color:var(--muted); } .breadcrumb a:hover{ color:var(--teal); }
+  .nav-link{ color:var(--muted); font-size:0.875rem; transition:color 0.15s; } .nav-link:hover,.nav-link.active{ color:var(--teal); }
+  /* KaTeX */
+  .katex{ font-size:1.04em; }
+  .katex-display{ margin:1.3rem 0; padding:.4rem 0; overflow-x:auto; overflow-y:hidden; }
+  .proof{ font-size:.95rem; }
+  .proof .pl{ font-variant:small-caps; color:var(--muted); }
+  .qed{ float:right; color:var(--muted); }
+  /* collapsible derivations and proofs: a plain disclosure line, no box */
+  details.dv{ margin:.4rem 0 1.2rem; }
+  details.dv > summary{ cursor:pointer; font-family:"Outfit"; font-weight:600; font-size:.86rem; color:var(--teal); list-style:none; user-select:none; }
+  details.dv > summary::-webkit-details-marker{ display:none; }
+  details.dv > summary::before{ content:"▸ "; }
+  details.dv[open] > summary::before{ content:"▾ "; }
+  details.dv > div{ margin:.6rem 0 0 .1rem; padding-left:1.1rem; border-left:2px solid var(--rule); }
+  /* collapsed footnotes: a quiet expandable line, amber-inked */
+  .mref{ color:#8a6d3b; font-weight:700; font-size:.82em; vertical-align:super; }
+  details.fn{ margin:.4rem 0 1.2rem; }
+  details.fn > summary{ cursor:pointer; font-family:"Outfit"; font-weight:600; font-size:.8rem; color:#8a6d3b; list-style:none; user-select:none; }
+  details.fn > summary::-webkit-details-marker{ display:none; }
+  details.fn > summary::before{ content:"▸ "; }
+  details.fn[open] > summary::before{ content:"▾ "; }
+  details.fn > div{ margin:.5rem 0 0 .1rem; padding-left:1.1rem; border-left:2px solid var(--warm); font-size:.88rem; }
+  details.fn > div p{ margin-bottom:.6rem; } details.fn > div p:last-child{ margin-bottom:0; }
+  /* heatmap controls */
+  .hm-controls{ display:grid; grid-template-columns:max-content minmax(140px,1fr); gap:8px 12px; margin:2px 0 12px; font-size:.88rem; color:var(--muted); font-family:"Outfit"; }
+  .hm-control{ display:contents; }
+  .hm-control label{ white-space:nowrap; }
+  .hm-controls input[type=range]{ accent-color:var(--teal); width:100%; min-width:140px; }
+  /* viz */
+  .viz-card{ background:rgba(255,255,255,0.55); border:1px solid var(--rule); border-radius:14px; padding:20px 20px 16px; margin:26px 0; }
+  .viz-card h4{ margin:0 0 2px; font-size:1.02rem; } .viz-card .sub{ color:var(--muted); font-size:.9rem; margin:0 0 12px; }
+  .viz-card img{ width:100%; border-radius:8px; display:block; }
+  .fig-caption{ color:var(--muted); font-size:0.925rem; margin-top:12px; line-height:1.55; }
+  .fig-caption .fnum{ font-weight:700; color:var(--ink); }
+  svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .axis path,.axis line{ stroke:var(--rule); } .axis text{ fill:var(--muted); font-size:12px; font-family:"Outfit"; }
+  .tokenlabel{ font-size:12px; fill:var(--muted); font-family:"Outfit"; }
+  .series-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:.82rem; color:var(--muted); margin-top:8px; }
+  .series-legend span{ display:inline-flex; align-items:center; gap:6px; } .series-legend i{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .seg{ display:inline-flex; background:rgba(255,255,255,.6); border:1px solid var(--rule); border-radius:10px; padding:3px; gap:3px; flex-wrap:wrap; }
+  .seg button{ border:0; background:transparent; padding:7px 13px; border-radius:8px; font-weight:600; font-size:.86rem;
+    color:var(--muted); cursor:pointer; font-family:"Outfit"; transition:.15s; }
+  .seg button.on{ background:var(--teal); color:#fff; }
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pill{ font-size:.75rem; font-weight:600; padding:4px 11px; border-radius:100px; background:rgba(10,124,106,.1); color:var(--teal); }
+  .part-nav{ display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:1rem; }
+  .part-nav a{ flex:1; min-width:240px; border:1px solid var(--rule); border-radius:12px; padding:16px 18px; background:rgba(255,255,255,.5);
+    text-decoration:none; color:var(--ink); transition:.2s; } .part-nav a:hover{ border-color:var(--teal); box-shadow:0 6px 18px rgba(10,124,106,.08); }
+  .part-nav .lab{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .part-nav .ttl{ font-family:"Fraunces",serif; font-weight:600; font-size:1.05rem; margin-top:3px; }
+  table.taxo{ width:100%; border-collapse:collapse; margin:20px 0; font-size:.9rem; }
+  table.taxo th,table.taxo td{ border:1px solid var(--rule); padding:9px 12px; text-align:left; vertical-align:top; }
+  table.taxo th{ background:rgba(10,124,106,.06); font-family:"Outfit"; font-weight:600; }
+  table.taxo td code{ font-size:.82em; }
+  .tbl-scroll{ overflow-x:auto; }
+  .ref-list{ counter-reset:ref; list-style:none; padding-left:0; } .ref-list li{ margin:9px 0; padding-left:2.4rem; position:relative; font-size:.92rem; color:var(--ink); opacity:.9; }
+  .ref-list li::before{ counter-increment:ref; content:"["counter(ref)"]"; position:absolute; left:0; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .ref-list a{ color:var(--teal); text-decoration:none; } .ref-list a:hover{ text-decoration:underline; }
+</style>
+</head>
+
+<body class="bg-slate-50 text-ink font-sans antialiased">
+
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 border-b border-rule bg-slate-100/90 backdrop-blur-sm">
+  <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
+    <a href="../index.html" class="font-display font-semibold text-lg text-ink hover:text-teal transition-colors">Marcos Treviso</a>
+    <div class="flex items-center gap-6 text-sm text-muted">
+      <a href="../index.html#publications" class="hover:text-ink transition-colors">Publications</a>
+      <a href="../blog.html" class="text-ink font-medium">Blog</a>
+      <a href="../CV.pdf" class="hover:text-ink transition-colors" target="_blank">CV</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Breadcrumb -->
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+  <nav class="breadcrumb">
+    <a href="../index.html">Home</a><span class="mx-2 text-rule">›</span>
+    <a href="../blog.html">Blog</a><span class="mx-2 text-rule">›</span>
+    <span class="text-ink">Sparse Attention · Part I</span>
+  </nav>
+</div>
+
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
+  <!-- Header -->
+  <header class="mb-12">
+    <div class="text-sm mb-4" style="color:var(--muted)">
+      Essay · Part I of II · <span id="reading">~40 min read</span> · August 2026
+    </div>
+    <h1 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight mb-5 leading-tight">
+      Sparse Attention · Part I
+    </h1>
+    <p class="font-display text-2xl italic mb-6" style="color:var(--teal)">Why sparse, why adaptive, and the classical problem behind thresholds</p>
+    <p class="text-lg leading-relaxed mb-6" style="color:var(--muted)">
+      This two-part blog post is my attempt to write down, carefully, what is actually known about sparse attention.
+      Part I makes three arguments. First, that softmax attention must flatten as context grows.
+      Second, that once exact zeros are allowed, a fixed cutoff \(k\) is an arbitrary choice with empirical consequences. 
+      And third, the thresholding methods in use today are all instances of one family of regularized prediction maps. In fact, this family is rooted in a classical resource-allocation problem that optimization has studied for decades (or even centuries, some may say).
+    </p>
+    <!-- <div class="pill-row">
+      <span class="pill">regularized argmax</span>
+      <span class="pill">softmax</span>
+      <span class="pill">top-k</span>
+      <span class="pill">α-entmax</span>
+      <span class="pill">dispersion</span>
+      <span class="pill">water-filling</span>
+    </div> -->
+  </header>
+
+  <!-- TOC -->
+  <section class="mb-14">
+    <div class="toc">
+      <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
+      <ul>
+        <li><a href="#intro">1. Introduction</a></li>
+        <li><a href="#maps">2. Attention maps beyond softmax</a>
+          <ul>
+            <li><a href="#regmaps">2.1 Regularized prediction maps</a></li>
+            <li><a href="#softmaxderiv">2.2 Softmax, derived</a></li>
+            <li><a href="#entmaxderiv">2.3 Exact zeros: sparsemax and α-entmax</a></li>
+            <li><a href="#fy">2.4 The Fenchel–Young perspective</a></li>
+            <li><a href="#kernels">2.5 Attention as kernel regression</a></li>
+          </ul>
+        </li>
+        <li><a href="#dispersion">3. Softmax must disperse</a>
+          <ul>
+            <li><a href="#dispprop">3.1 The dispersion bound</a></li>
+            <li><a href="#zeros">3.2 What exact zeros change</a></li>
+            <li><a href="#measured2">3.3 What this buys in practice</a></li>
+          </ul>
+        </li>
+        <li><a href="#adaptive">4. Adaptive versus fixed \(k\)</a>
+          <ul>
+            <li><a href="#fixedalso">4.1 Three lines of evidence for adaptivity</a></li>
+            <li><a href="#compose">4.2 Where fixed \(k\) and exact zeros compose</a></li>
+            <li><a href="#gradientq">4.3 Can the allocation rule be learned end to end?</a></li>
+          </ul>
+        </li>
+        <li><a href="#everywhere">5. Everything solves for \(\tau\)</a></li>
+        <li><a href="#next">6. What Part II does</a></li>
+        <li><a href="#appendix">Appendix: the classical literature, at length</a></li>
+        <li><a href="#refs">References</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 1. INTRODUCTION -->
+  <section class="mb-16" id="intro">
+    <h2 class="font-display text-3xl font-semibold mb-8">1. Introduction</h2>
+    <div class="narrative-section">
+      <p>
+        The transformer's attention layer computes, for each query, a weighted average of value vectors, with
+        weights produced by softmax over query-key scores
+        <a class="cite" href="https://arxiv.org/abs/1706.03762">(Vaswani et al., 2017)</a>. But why softmax? My honest guess: it is a convenient choice as it is easy to compute and it is the most well-known transformation of raw scores into probability. However, softmax never outputs an exact zero probability, so every token in the context, relevant or not, receives a positive mass. For most of the transformer era this was treated as a harmless implementation detail. 
+        The argument of this series is that it is not a detail. At long context it is a provable failure mode, and the fixes deployed against it are more classical than the literature acknowledges.
+      </p>
+      <p>
+        Why write a detailed post about this? Because of a reflex I keep meeting, in reviews, in reading groups, and
+        in myself. 
+        When you say "sparse attention", people immediately hear "fixed patterns" or "top-\(k\) attention". 
+        I can honestly see why: if the sparsity is <em>structured</em>, as in fixed windows or strided blocks, it maps well to hardware but decides in advance who may attend to whom; if it is <em>unstructured</em>, chosen at runtime by the input, people believe it cannot possibly be fast on GPUs. 
+        This creates a <b>false dichotomy</b> that has costly consequences for training and deploying LLMs today: either use exact softmax attention accelerated by FlashAttention, or give up exactness and resort to a top-\(k\) approximation to beat it. Let us break this dichotomy apart!
+      </p>
+      <p>
+        In the first part, I will show that top-\(k\) is not what sparse attention <em>is</em>. Instead, it is one member of a family of
+        thresholded maps that is older, richer, and well understood mathematically.
+        For example, sparsemax has been used for attention for 10 years
+        <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, and α-entmax
+        generalizes both softmax and sparsemax <a class="cite" href="https://arxiv.org/abs/1905.05702">(Peters, Niculae &amp; Martins, 2019)</a>. 
+        <!-- Both replace softmax outright and assign exactly zero weight by construction. -->
+        Part II will show that unstructured, input-dependent sparsity is efficient on
+        modern GPUs, not despite the hardware but because of what the hardware has become. 
+        The belief that unstructured sparsity was slow was reasonable once, but it is not true today. 
+        For example, fused Triton kernels for exact α-entmax attention exist
+        <a class="cite" href="https://arxiv.org/abs/2502.12082">(Gonçalves et al., 2025)</a>, and the current
+        generation can be more than 2x faster than FlashAttention-2 
+        <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026)</a>.
+      </p>
+      <!-- <p>
+        <strong>How to read this.</strong> The mathematical claims are stated alongside their hypotheses,
+        followed by collapsible derivations or proofs for the curious readers. I make sure that experimental numbers
+        never appear without their conditions, such as model type, scale, context length, sparsity, hardware, etc. Key results are shown as figures and tables taken directly from the relevant papers. 
+      </p> -->
+      <p>
+        <strong>Notation.</strong> A single query attends over \(n\) keys with scores
+        \(\mathbf z\in\mathbb R^n\); a normalizing map turns \(\mathbf z\) into weights \(\mathbf p\) on the probability simplex
+        \(\triangle^{n}:=\{\mathbf p\in\mathbb R^n : \mathbf p\ge 0,\ \mathbf 1^\top\mathbf p=1\}\). I write \(k\) for a
+        cardinality, \(\tau\) for a normalizing threshold, \(\alpha\) for the Tsallis index,
+        \([t]_+ := \max\{t,0\}\), \(S(\mathbf p):=\{i : p_i>0\}\) for the support,
+        \(H(\mathbf p)\) for Shannon entropy in nats, \(\Delta := \max_i z_i - \min_i z_i\) for the score spread, and
+        \(\theta>0\) for a temperature, so that
+        \(\operatorname{softmax}_\theta(\mathbf z)_i = e^{z_i/\theta}\big/\sum_j e^{z_j/\theta}\).
+        Everything else is defined where it first appears.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 2. MAPS -->
+  <section class="mb-16" id="maps">
+    <h2 class="font-display text-3xl font-semibold mb-8">2. Attention maps beyond softmax</h2>
+    <div class="narrative-section">
+      <p>
+        Before asking what goes wrong with softmax, it is worth asking what softmax <em>is</em>. 
+        <!-- The answer: softmax is one member of a family of maps from scores to distributions, and the family has exactly one design choice in it.  -->
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="regmaps">2.1 Regularized prediction maps</h3>
+      <p>
+        Let us pose the problem of transforming scores into probabilities as an optimization: find the distribution that favors high scores, moderated by a convex regularizer \(\Omega\),
+      </p>
+      $$\pi_\Omega(\mathbf z) \;=\; \arg\max_{\mathbf p\,\in\,\triangle^n}\ \langle \mathbf z, \mathbf p\rangle \;-\; \Omega(\mathbf p).$$
+      <p>
+        With no regularizer at all, the maximizer of a linear function over the simplex is a vertex, all mass on
+        the single largest score, i.e. argmax <a class="cite" href="https://www.jstor.org/stable/2627159">(Dantzig, 1955)</a>. 
+        The regularizer spreads the mass, and <em>how</em> it spreads it is determined entirely by the choice of \(\Omega\). 
+        This framing was developed for attention precisely to put softmax and its sparse alternatives in one picture by
+        <a class="cite" href="https://arxiv.org/abs/1705.07704">Niculae &amp; Blondel (2017)</a>. 
+        The general theory of these maps and their losses is laid out by
+        <a class="cite" href="https://jmlr.org/papers/v21/19-021.html">Blondel, Martins &amp; Niculae (2020)</a> under the Fenchel-Young losses framework.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="softmaxderiv">2.2 Softmax</h3>
+      <p>
+        Take \(\Omega(\mathbf p) = \sum_i p_i\log p_i\), the negative Shannon entropy. Then
+        \(\pi_\Omega(\mathbf z) = \operatorname{softmax}(\mathbf z)\), and the familiar normalizing constant is a
+        threshold in disguise:
+      </p>
+      $$p_i \;=\; e^{\,z_i - \tau}, \qquad \tau \;=\; \log\textstyle\sum_j e^{z_j},$$
+      <p>
+        with \(\tau\), the log-partition function, playing the role of the Lagrange multiplier of the sum-to-one
+        constraint. Every weight is strictly positive, whatever the scores are.
+      </p>
+      <details class="dv">
+        <summary>Derivation (Lagrangian and KKT conditions)</summary>
+        <div class="proof">
+          <p>
+            Form the Lagrangian with a multiplier \(\tau'\in\mathbb R\) for the constraint \(\mathbf 1^\top\mathbf p = 1\)
+            and multipliers \(\mu_i\ge 0\) for \(p_i \ge 0\):
+            $$L(\mathbf p, \tau', \boldsymbol\mu) \;=\; \sum_i z_i p_i \;-\; \sum_i p_i\log p_i \;-\; \tau'\Bigl(\sum_i p_i - 1\Bigr) \;+\; \sum_i \mu_i p_i.$$
+            Stationarity in \(p_i\) gives
+            \(\;z_i - (1 + \log p_i) - \tau' + \mu_i = 0.\)
+            Here is the key observation: as \(p_i \to 0^+\) the term \(-\log p_i\) blows up to \(+\infty\), so
+            stationarity cannot hold at \(p_i = 0\) for any finite multipliers. The entropy's slope is infinite at
+            the boundary of the simplex, which forces every coordinate strictly inside; complementary slackness
+            (\(\mu_i p_i = 0\)) then gives \(\mu_i = 0\) for all \(i\). Solving,
+            \(\log p_i = z_i - 1 - \tau'\), i.e. \(p_i = e^{\,z_i}\,e^{-1-\tau'}\), and the constraint
+            \(\sum_i p_i = 1\) fixes the constant: \(e^{\,1+\tau'} = \sum_j e^{z_j}\). Hence
+            \(p_i = e^{z_i}\big/\sum_j e^{z_j}\), and writing \(\tau := 1+\tau' = \log\sum_j e^{z_j}\) (the
+            log-partition function) gives the threshold form \(p_i = e^{\,z_i-\tau}\). The objective is strictly
+            concave on the simplex, so this stationary point is the unique maximizer. <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        Two things in that derivation deserve names, because the whole series turns on them. 
+        The normalization is a <em>1D</em> problem: a single number \(\tau\) is adjusted until the weights sum to one, and each
+        weight responds to its own score through a fixed gate. In this case, the gate is \(e^{\,z_i-\tau}\), with \(\tau = \log\textstyle\sum_j e^{z_j}\) recovered in closed-form. 
+      </p>
+      <p>
+        What a beauty! This means the reason softmax can never produce a zero is a property of the regularizer, and not because softmax is defined through an exp function. Shannon entropy has infinite slope at the boundary of the simplex, so the optimum is always interior. Change the regularizer to
+        one with <em>finite</em> slope at zero, and the boundary becomes reachable. That is the key idea behind sparse attention maps.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="entmaxderiv">2.3 Sparsemax and α-entmax</h3>
+      <p>
+        Now, take a quadratic regularizer, \(\Omega(\mathbf p) = \tfrac12\|\mathbf p\|_2^2\), which makes
+        \(\pi_\Omega\) the Euclidean projection of \(\mathbf z\) onto the simplex. This is a well-known problem for decades.
+        In ML, this map is known as <strong>sparsemax</strong> <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, and its solution is a clipped shift, \(p_i = [z_i - \tau]_+\), with \(\tau\) chosen so
+        the positive parts sum to one. That means that scores below \(\tau\) get <em>exactly</em> zero. 
+        Sparsemax's contribution was not the projection algorithm itself, but recognizing Euclidean simplex projection as a useful neural prediction map and deriving its loss and Jacobian.
+      </p>
+      <p>
+        A continuous family between softmax and sparsemax comes from replacing Shannon entropy by the Tsallis entropies
+        \(H_\alpha(\mathbf p) = \frac{1}{\alpha(\alpha-1)}\sum_i (p_i - p_i^\alpha)\)
+        <a class="cite" href="https://doi.org/10.1007/BF01016429">(Tsallis, 1988)</a>. Setting \(\Omega = -H_\alpha\)
+        with \(\alpha > 1\) yields the α-entmax map of
+        <a class="cite" href="https://arxiv.org/abs/1905.05702">Peters, Niculae &amp; Martins (2019)</a>, in closed
+        form:
+      </p>
+      $$\alpha\text{-entmax}(\mathbf z) \;=\; \bigl[(\alpha-1)\,\mathbf z - \tau(\mathbf z)\,\mathbf 1\bigr]_+^{1/(\alpha-1)},$$
+      <p>
+        where \(\tau(\mathbf z)\) is the unique constant making the output sum to one. Coordinates with
+        \((\alpha-1)z_i \le \tau\) receive exactly zero. The limit \(\alpha\to 1\) recovers softmax. Setting \(\alpha=2\) yields
+        sparsemax, and larger \(\alpha\) gives a stronger propensity to sparsity.
+      </p>
+      <details class="dv">
+        <summary>Derivation (KKT conditions, step by step)</summary>
+        <div class="proof">
+          <p>
+            Same Lagrangian as in §2.2, with \(-\sum_i p_i \log p_i\) replaced by \(H_\alpha(\mathbf p)\).
+            Since \(\partial H_\alpha/\partial p_i = \frac{1}{\alpha(\alpha-1)}\bigl(1 - \alpha\,p_i^{\alpha-1}\bigr)\),
+            stationarity in \(p_i\) reads
+            $$z_i \;+\; \frac{1 - \alpha\,p_i^{\alpha-1}}{\alpha(\alpha-1)} \;-\; \tau' \;+\; \mu_i \;=\; 0.$$
+            Unlike the Shannon case, every term here is finite at \(p_i = 0\): the boundary is reachable, and
+            complementary slackness (\(\mu_i p_i = 0\)) leaves two cases.
+            <em>If \(p_i > 0\)</em>: then \(\mu_i = 0\), and solving for \(p_i\) gives
+            \(p_i^{\alpha-1} = \tfrac1\alpha + (\alpha-1)(z_i - \tau')\); absorbing the constants into a rescaled
+            threshold \(\tau := (\alpha-1)\tau' - \tfrac1\alpha\), this is exactly
+            \(p_i = \bigl[(\alpha-1)z_i - \tau\bigr]^{1/(\alpha-1)}\).
+            <em>If \(p_i = 0\)</em>: then \(\mu_i \ge 0\) requires \((\alpha-1)z_i - \tau \le 0\).
+            Both cases are summarized by the clipped form
+            \(p_i = [(\alpha-1)z_i - \tau]_+^{1/(\alpha-1)}\).
+            For existence and uniqueness of \(\tau\): the normalization function
+            \(\tau \mapsto \sum_i [(\alpha-1)z_i-\tau]_+^{1/(\alpha-1)}\) is continuous, strictly decreasing
+            wherever it is positive, at least \(1\) at \(\tau = (\alpha-1)\max_j z_j - 1\), and \(0\) for
+            \(\tau \ge (\alpha-1)\max_j z_j\), so it crosses \(1\) exactly once; strict concavity of the objective
+            gives uniqueness of \(\mathbf p\). Setting \(\alpha = 2\) makes the gate \([z_i - \tau]_+\), i.e.
+            sparsemax; as \(\alpha \to 1^+\) the gate \([1 + (\alpha-1)t]_+^{1/(\alpha-1)} \to e^{t}\) (the
+            \(q\)-exponential limit), recovering softmax. <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        From this we can conclude that <em>every one of these maps is a monotone gate applied to "score minus threshold," and the regularizer decides the gate.</em> 
+        <ul class="pts">
+          <li>Shannon entropy gives the exponential gate and forbids zeros; the quadratic gives the linear gate and allows them.</li>
+          <li>Tsallis
+        interpolates, with the exponent \(1/(\alpha-1)\) controlling how gradually a token enters the support.</li>
+        </ul>
+         
+        Whether zeros are possible at all is decided by one number, the regularizer's slope at the boundary.
+        Figure 1 shows what the maps actually do. The <a class="prose-link" href="https://mtreviso.github.io/entmax-demo/simplex_v2.html">interactive simplex explorer</a> lets you vary α and compare the maps, support geometry, probabilities, and gradient surfaces directly.
+      </p>
+
+      <!-- FIGURE 1 -->
+      <div class="viz-card">
+        <img src="figs/p0_surfaces_as2.png" alt="3D surfaces of p0 as a function of z1 and z2 for softmax, top-k softmax, 1.5-entmax and sparsemax"/>
+        <p class="fig-caption"><span class="fnum">Fig. 1.</span>
+          Visualization of \(\alpha\)-entmax for different values of \(\alpha\). We also include top-\(k\) softmax
+          with \(k=2\) for completeness. Each panel shows how the probability mass of \(p_0\) varies for the input
+          \(\mathbf z = [0, z_1, z_2]\). For softmax, \(p_0\) is always non-zero, regardless of \(z_1\) and \(z_2\).
+          As \(\alpha\) increases, \(\alpha\)-entmax increasingly assigns exactly zero probability to \(z_0\).
+          α-entmax remains continuous as coordinates enter or leave the support; for \(\alpha&lt;2\), its first
+          derivatives are continuous too. Sparsemax, at \(\alpha=2\), remains continuous but has kinks at support
+          boundaries. Top-\(k\) softmax changes the selected set abruptly, so its output jumps when the ranking swaps.
+        </p>
+      </div>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="fy">2.4 The Fenchel–Young perspective</h3>
+      <p>
+        We have now derived the softmax and α-entmax gates from two particular regularizers. The Fenchel-Young
+        framework of §2.1 turns the pattern into a general result. The gate, the threshold equation, and the
+        possibility of exact zeros all follow from the one-coordinate regularizer
+        <a class="cite" href="https://jmlr.org/papers/v21/19-021.html">Blondel, Martins &amp; Niculae (2020)</a>.
+      </p>
+      <p>
+        <strong>The reduction to root-finding, and the sparsity criterion</strong>
+        (<a class="cite" href="https://jmlr.org/papers/v21/19-021.html">Blondel et al. (2020)</a>, Props. 9 and 6).
+        <em>Let \(g:[0,1]\to\mathbb R\) be strictly convex and differentiable, and
+        \(\Omega(\mathbf p) = \sum_i g(p_i)\). Then</em>
+      </p>
+      $$\pi_\Omega(\mathbf z) = \mathbf p(\tau^\star),\qquad
+        p_i(\tau) = (g')^{-1}\bigl(\max\{\,z_i - \tau,\ g'(0)\,\}\bigr),$$
+      <p>
+        <em>where \(\tau^\star\) is the root of the nonincreasing equation \(\sum_i p_i(\tau) = 1\), guaranteed to lie
+        in \([\max_i z_i - g'(1),\ \max_i z_i - g'(1/n)]\).</em> More generally, a finite lower-boundary slope
+        \(g'(0^+)>-\infty\) is what lets the prediction map reach zero. For separable generalized entropies, the
+        associated loss has a separation margin when subgradients exist at both ends; for every regularizer in the
+        table below, the upper endpoint is finite, so the criterion reduces to \(g'(0^+)>-\infty\). This holds for
+        Tsallis entropies with \(\alpha>1\), but not for Shannon entropy, whose derivative \(1+\log t\) blows down at
+        zero.
+      </p>
+      <details class="dv">
+        <summary>Proof sketch</summary>
+        <div class="proof">
+          <p>
+            KKT once more gives \(z_i - g'(p_i) - \tau + \mu_i = 0\). Where \(p_i>0\),
+            \(p_i = (g')^{-1}(z_i-\tau)\);
+            where \(p_i=0\), feasibility of \(\mu_i\ge0\) requires \(z_i - \tau \le g'(0)\). Monotonicity of
+            \((g')^{-1}\) makes \(\sum_i p_i(\tau)\)
+            nonincreasing in \(\tau\), so the threshold is found by any bracketing method. Full statements in
+            <a class="cite" href="https://jmlr.org/papers/v21/19-021.html">Blondel et al. (2020)</a>.
+            <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        Read \((g')^{-1}\) as <em>the gate</em>. Each operator below is one choice of feasible set and regularizer,
+        and one boundary derivative, \(g'(0^+)\), decides whether the gate can shut completely:
+      </p>
+      <div class="tbl-scroll">
+      <table class="taxo">
+        <thead>
+          <tr><th>Feasible set</th><th>Regularizer \(g(t)\)</th><th>Gate (response to \(z_i-\tau\))</th><th>Operator</th><th>Exact zeros?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>\(\triangle^n\)</td><td>\(t\log t\) (Shannon)</td><td>\(e^{\,z_i-\tau}\)</td><td>softmax; \(\tau=\log\sum_j e^{z_j}\)</td><td>no — \(g'(0)=-\infty\)</td></tr>
+          <tr><td>\(\triangle^n\)</td><td>\(\tfrac12 t^2\) (Gini)</td><td>\([z_i-\tau]_+\)</td><td>sparsemax</td><td><strong>yes</strong></td></tr>
+          <tr><td>\(\triangle^n\)</td><td>\(\frac{t^\alpha-t}{\alpha(\alpha-1)}\), \(\alpha>1\)</td><td>\([(\alpha-1)z_i-\tau]_+^{1/(\alpha-1)}\)</td><td>α-entmax</td><td><strong>yes</strong></td></tr>
+          <tr><td>\(\triangle^n,\ \mathbf p\le\mathbf u\)</td><td>\(\tfrac12 t^2\)&nbsp;/&nbsp;\(t\log t\)</td><td>\(\min\{u_i,[z_i-\tau]_+\}\)&nbsp;/&nbsp;\(\min\{u_i, e^{z_i-\tau}\}\)</td><td>csparsemax / csoftmax</td><td>yes / no</td></tr>
+          <tr><td>\(\triangle^n\cap\{\|\cdot\|_0\le k\}\)</td><td>\(\tfrac12 t^2\)</td><td>\([z_i-\tau]_+\) on the top-\(k\)</td><td>sparsemax\(_k\) (≤ \(k\) nonzeros)</td><td><strong>yes</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="fig-caption" style="margin-top:-8px">
+        The gate column is stated up to the affine reparameterizations of scores each paper uses; the table is
+        restricted to the maps this series actually leans on.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="kernels">2.5 Attention as kernel regression</h3>
+      <p>
+        Before leaving this section, one more way of seeing the same family, because it connects attention to
+        60y old statistics. Attention output is a weighted average of value vectors at key locations, which
+        is precisely a Nadaraya-Watson kernel-regression estimate
+        <a class="cite" href="https://doi.org/10.1137/1109020">(Nadaraya, 1964</a>;
+        <a class="cite" href="https://www.jstor.org/stable/25049340">Watson, 1964)</a>:
+      </p>
+      $$\hat{\mathbf v}(\mathbf q) \;=\; \frac{\sum_i K(\mathbf q, \mathbf k_i)\,\mathbf v_i}{\sum_j K(\mathbf q, \mathbf k_j)}.$$
+      <p>
+        The choice of normalizer is a choice of kernel \(K\). For unit-norm queries and keys,
+        \(\tfrac12\|\mathbf q - \mathbf k\|^2 = 1 - \mathbf q^\top\mathbf k\), so softmax attention is exactly the Gaussian
+        kernel; and the sparse maps of §2.3 turn out to correspond to the classical <em>compact-support</em> kernels.
+        <a class="cite" href="https://arxiv.org/abs/2601.22766">Santos et al. (2026, Prop. 1)</a> prove that, for
+        unit-norm queries and keys, \(r \ge 1\), \(\alpha = 1 + 1/r\), and temperature \(\gamma\), α-entmax attention
+        equals Nadaraya-Watson regression with the rectified-polynomial kernel
+        \(K_h(\mathbf u) \propto [\,1 - \|\mathbf u\|^2/h^2\,]_+^{\,r}\), where the bandwidth satisfies
+        \(h = \sqrt{2 - 2r\gamma\tau}\) with \(\tau\) the entmax threshold. In particular, \(r{=}1\) (the
+        Epanechnikov kernel) corresponds to sparsemax, \(r{=}2\) (biweight) to 1.5-entmax, \(r{=}3\) (triweight) to
+        4/3-entmax, and \(r\to\infty\) (Gaussian) to softmax.
+      </p>
+      <details class="dv">
+        <summary>Proof sketch</summary>
+        <div class="proof">
+          <p>
+            For unit vectors, a threshold on the inner product is a radius on the distance:
+            \([\,\mathbf k^\top\mathbf q - r\gamma\tau\,]_+^r = \bigl(\tfrac{h^2}{2}\bigr)^r\bigl[\,1 - \|\mathbf k - \mathbf q\|^2/h^2\,\bigr]_+^r\)
+            with \(h^2 = 2 - 2r\gamma\tau\), and entmax's normalization plays the role of the kernel normalizer.
+            Full proof in <a class="cite" href="https://arxiv.org/abs/2601.22766">Santos et al. (2026)</a>.
+            <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        Look closer at the bandwidth formula. \(h\) depends on \(\tau\), and \(\tau\) depends on the scores. This means <em>the entmax threshold is a data-adaptive bandwidth.</em> 
+        Compact kernels are what statisticians reach for when they want a local estimate, because far points get exactly zero weight and stop "polluting" the fit. 
+        <!-- The contrast with \(k\)-nearest-neighbor truncation is also classical, fixed cardinality versus fixed radius, and kernel regression has known for decades that these are different estimators.  -->
+        <!-- The same paper measures the difference where it hurts: on associative recall (in Memory Mosaics, a network of associative memories rather than a vanilla transformer, means over 3 seeds), a uniform kNN kernel with \(k{=}32\) scores 0.04 exact match even in-distribution, while the compact-kernel maps extrapolate best <a class="cite" href="https://arxiv.org/abs/2601.22766">(Santos et al., 2026)</a>.  -->
+        Figure 2 shows the
+        picture. Switch the kernel and watch the regression become local.
+      </p>
+
+      <!-- FIGURE 2 (interactive kernel/regression card) -->
+      <div class="viz-card">
+        <h4>Dense versus compact kernels</h4>
+        <p class="sub">The kernel shape (top) decides how far attention reaches; the regression fit (bottom) shows the consequence.</p>
+        <div class="seg" id="ker-seg" style="margin-bottom:12px">
+          <button data-ker="gauss" class="on">Gaussian (softmax)</button>
+          <button data-ker="epan">Epanechnikov (sparsemax)</button>
+          <button data-ker="biweight">Biweight (1.5-entmax)</button>
+          <button data-ker="triweight">Triweight (4/3-entmax)</button>
+        </div>
+        <div style="display:grid; gap:16px; grid-template-columns:1fr;"><div id="fig2kernel"></div><div id="fig2regress"></div></div>
+        <p class="fig-caption"><span class="fnum">Fig. 2.</span>
+          A one-dimensional Nadaraya-Watson regression on 16 fixed noisy points, bandwidth \(h=0.13\), with the
+          kernel selectable above (the faint dashed curve in the top panel is the Gaussian, kept for reference). The
+          Gaussian is strictly positive everywhere, so distant points leak into every estimate; the compact kernels
+          of the correspondence above vanish outside the bandwidth, and the fit becomes local, driven only by nearby
+          points. Shown with a fixed bandwidth for clarity; the exact sparsemax/entmax correspondence uses the
+          per-query adaptive bandwidth of Santos et al., which shares the same compact support. This is the
+          regression-flavored version of what §2 built algebraically, and of the failure §3 proves next: a strictly
+          positive kernel cannot stop far tokens from leaking in.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 3. DISPERSION -->
+  <section class="mb-16" id="dispersion">
+    <h2 class="font-display text-3xl font-semibold mb-8">3. Softmax must disperse</h2>
+    <div class="narrative-section">
+      <p>
+        Softmax attention is super ultra mega fast due to FlashAttention (and its many systems optimizations), so why worry about sparse alternatives? Can't we just keep increasing the context length with our plain-old softmax attention?
+        The answer is no, and the reason is encoded by what the softmax map can express when the sequence grows and the scores stay in a bounded range. Lets dig into this.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-6 mb-4" id="dispprop">3.1 The dispersion bound</h3>
+      <p>
+        Imagine a simple experiment: append a token to the context. 
+        With softmax, every attention weight will drop since the new score adds a positive term \(e^{b}\) to the denominator, whatever \(b\) is, so appending anything, however irrelevant, makes every existing weight smaller
+        <a class="cite" href="https://arxiv.org/abs/2406.04267">(Barbero et al., 2024, Lemma B.1)</a>. 
+        Under α-entmax the story is different. If the new score falls below the threshold, \((\alpha-1)b \le \tau\), the
+        new token gets exactly <em>zero</em> and <em>every existing weight is unchanged</em> <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026, Lemma 1)</a>. This is an important point. Let us formalize it. 
+      </p>
+      <p>
+        <strong>The dispersion bound</strong>
+        (<a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. 2025</a>, Lemma 2.1;
+        <a class="cite" href="https://arxiv.org/abs/2506.16640">Vasylenko et al. 2026</a>, Prop. 1).
+        <em>Fix a temperature \(\theta > 0\) and constants \(m \le M\). For any bounded \(\mathbf z \in \mathbb R^n\) with
+        \(m \le z_i \le M\) for all \(i\), let \(\Delta = M - m\) and
+        \(\mathbf p = \operatorname{softmax}_\theta(\mathbf z)\). Then</em>
+      </p>
+      $$\frac{e^{-\Delta/\theta}}{n} \;\le\; p_i \;\le\; \frac{e^{\Delta/\theta}}{n}
+      \qquad\text{and}\qquad
+      \log n - \frac{\Delta}{\theta} \;\le\; H(\mathbf p) \;\le\; \log n .$$
+      <p>
+        <em>Hence every weight is \(\Theta(1/n)\) and \(H(\mathbf p)/\log n \to 1\) as \(n\to\infty\).</em> 
+        This means that entropy converges to its maximum at a rate controlled by the margin \(\Delta/\theta\).
+      </p>
+      <details class="dv">
+        <summary>Proof</summary>
+        <div class="proof">
+          <p>
+            The numerator of \(p_i\) lies in \([e^{m/\theta}, e^{M/\theta}]\) and the denominator in
+            \([n\,e^{m/\theta}, n\,e^{M/\theta}]\), giving the weight bounds. For the entropy, use the upper weight
+            bound inside the logarithm:
+            \(H = -\sum_i p_i \log p_i \ge -\sum_i p_i \log\!\big(e^{\Delta/\theta}/n\big) = \log n - \Delta/\theta\);
+            the upper bound \(H\le \log n\) holds for any distribution on \(n\) elements. <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        The weight bounds and the \(\Theta(1/n)\) conclusion are Lemma 2.1 of
+        <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025)</a>, and the entropy limit comes from
+        Proposition 1 of our ASEntmax paper <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026)</a>.
+        <!-- The two-line entropy sandwich above is only a packaging that makes the <em>rate</em> visible. And the rate is the useful part: nothing disperses at \(n = 4{,}096\) if \(\Delta/\theta \approx 40\).  -->
+        Dispersion is not a claim that attention is uniform at the lengths we use today. It is a claim about what must happen on any family of inputs whose spread stays constant while the context length grows <span class="mref">†</span>. Figure&nbsp;3 lets you see this.
+      </p>
+      <details class="fn">
+        <summary>† Is "bounded scores" the right hypothesis?</summary>
+        <div>
+          <p>
+            The bound is built on top of an important hypothesis: the scores stay in a range that does not widen with \(n\). 
+
+            Two facts support this hypothesis. 
+            
+            Theoretically, <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025)</a> prove (their Thm. 2.2) that a transformer built from continuous blocks over a finite vocabulary produces bounded scores <em>necessarily</em>, because inputs live in a compact set, continuous layers map compact sets to compact sets, so dot-product scores are bounded no matter what the weights learned.
+            
+            Empirically, the same paper measures the spread in trained models (while processing a ~4,000-token code file): Gemma 2B, range \([2.28, 14.78]\), average \(5.69 \pm 2.05\); Gemma 7B, range \([0.09, 32.74]\), average \(5.82 \pm 2.61\). Plug the average into the dispersion bound. For a head with spread \(\Delta \approx 5.7\), at \(n = 10^6\) the entropy is at least \(\log n - \Delta \approx 13.8 - 5.7 = 8.1\) nats. Normalized entropy is at least \(0.59\), more than halfway to uniform, whatever the input. 
+            
+            Perhaps more convincingly, a score spread cannot grow without limit in a fixed float format. Exhausting that range yields underflow, overflow, or lost precision rather than a principled escape from dispersion.
+          </p>
+        </div>
+      </details>
+
+      <!-- FIGURE 3 -->
+      <div class="viz-card">
+        <h4>Watching dispersion happen</h4>
+        <p class="sub">Four cells each contain one relevant token; every cell aggregates \(n/64\) tokens. Temperature is fixed at \(\theta=1\).</p>
+        <div class="hm-controls">
+          <div class="hm-control">
+            <label for="hm-n">context length n = <strong id="hm-n-val">4K</strong></label>
+            <input type="range" id="hm-n" min="0" max="6" step="1" value="3">
+          </div>
+          <div class="hm-control">
+            <label for="hm-delta">score gap Δ = <strong id="hm-delta-val">4.0</strong></label>
+            <input type="range" id="hm-delta" min="0" max="12" step="0.1" value="4">
+          </div>
+        </div>
+        <div id="fig3strips"></div>
+        <p class="fig-caption"><span class="fnum">Fig. 3.</span>
+          Exact attention mass per cell, computed in-page from the closed forms of this section; each strip sums to
+          1. Drag \(n\) and \(\Delta\). To preserve a fixed mass on the relevant tokens, softmax needs \(\Delta\) to grow
+          with length. For 1.5-entmax, the support snaps to the four relevant tokens once \(\Delta\ge 1\), after which
+          changing \(n\) does nothing.
+        </p>
+      </div>
+
+      <p>
+        The bound leaves two levers for us to work with. 
+
+        <ul class="pts">
+          <li>
+            <strong>Lever one: grow the spread with \(n\).</strong> If
+            \(\Delta\) is made to scale like \(\log n\), the sandwich no longer makes the normalized entropy to approach one. This is, explicitly or not, what an entire family of fixes does: YaRN's attention temperature
+            \(\sqrt{1/t} = 0.1\ln s + 1\) <a class="cite" href="https://arxiv.org/abs/2309.00071">(Peng et al., 2024)</a>,
+            Scalable-Softmax's \(z_i \mapsto (s\log n)\,z_i\) <a class="cite" href="https://arxiv.org/abs/2501.19399">(Nakanishi, 2025)</a>,
+            entropy-invariant scalings <a class="cite" href="https://arxiv.org/abs/2501.08570">(Li et al., 2025)</a>,
+            position-dependent scale-invariant transformations <a class="cite" href="https://arxiv.org/abs/2505.17083">(Anson et al., 2025)</a>,
+            and the inference-time adaptive temperature of <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025)</a>.
+            The Aitchison analysis of <a class="cite" href="https://icml.cc/virtual/2026/poster/66654">Hilton-Jones et al. (2026)</a> also puts a floor under the whole family: producing a sharp attention distribution
+            requires logit scaling of at least \(\Omega(\sqrt{\log L})\). 
+            These fixes are principled and can work well, however, note that sharpness at length \(n\) comes at the cost of knowing the coefficient \(n\), along with many careful tweaks to the hyperparameters.
+          </li>
+
+          <li>
+            <strong>Lever two: break strict positivity.</strong> Give the normalizer a
+            threshold, so that irrelevant tokens cost exactly nothing (the appended-token computation above) and the
+            entropy is governed by the support rather than by \(n\). 
+          </li>
+        </ul>
+
+        Interestingly, the levers are not rivals! ASEntmax <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026)</a> pulls both at once by using α-entmax for the exact zeros and a learned per-head scaling \(\alpha\text{-entmax}\!\big((\delta + \beta(\log n)^{\gamma})\,\mathbf z\big)\). In that way, the support decides what the entropy can be and the scaling decides what clears the threshold at each length.<span class="mref">‡</span>
+      </p>
+
+
+      <!-- <p>
+        One caveat the bound itself invites: dispersion is a statement about <em>mass</em>. The ratios between
+        weights never wash out, since \(p_i/p_j = e^{(z_i-z_j)/\theta}\) does not depend on \(n\) at all. A recent
+        ICML paper makes this precise from inside the simplex. Measured in the <em>Aitchison
+        distance</em> of compositional data analysis, a metric defined only on the interior of the simplex where
+        only log-ratios matter, token distinguishability at long context converges to a finite, non-zero limit
+        rather than vanishing (shown for Gaussian queries and keys), which is why the authors propose it as a
+        sounder monitor than entropy
+        <a class="cite" href="https://icml.cc/virtual/2026/poster/66654">(Hilton-Jones, Norman &amp; Zhu, 2026)</a>.
+        Both statements are true at once: relative information survives, absolute mass disperses, and it is mass
+        that the attention average actually consumes. Note also that exact zeros exit the Aitchison picture
+        entirely, since log-ratios are undefined at the boundary; a sparse attention row is not even a point of that
+        geometry.
+      </p> -->
+
+      <details class="fn">
+        <summary>‡ What trained LLMs did on their own</summary>
+        <div>
+          <p>
+            Trained LLMs seem to have found a third workaround. Some heads dump most of their attention mass onto the first token, turning it into an <i>attention sink</i>. 
+            <a class="cite" href="https://arxiv.org/abs/2504.02732">Barbero et al. (2025)</a> describe sinks as "a method for LLMs to avoid over-mixing." If a head has nothing useful to retrieve, sending its mass to the sink can make the attention update behave almost like a no-op. To me, the ubiquity of sinks is strong circumstantial evidence that models want a way to say "no change," and softmax gives them no direct way to do so.
+            Still, sharper attention is not always better. <a class="cite" href="https://arxiv.org/abs/2303.06296">Zhai
+            et al. (2023)</a> shows <em>entropy collapse</em>, a training instability in which attention becomes too
+            concentrated. Sparse attention therefore has to navigate both extremes. Attention that is too diffuse
+            breaks down as context grows; attention that becomes too sharp can destabilize training (I'm looking at you top-k 👀).
+          </p>
+        </div>
+      </details>
+
+      <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="zeros">3.2 What exact zeros change</h3>
+      <p>
+        <strong>The support bound.</strong>
+        For any distribution \(\mathbf p\) with support \(S(\mathbf p)\),
+        \(H(\mathbf p)\le \log |S(\mathbf p)|\), since the uniform distribution maximizes entropy on a
+        fixed support. Consequently, if the support grows sublinearly with \(n\), normalized entropy cannot
+        converge to one
+        <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026, Prop. 1(iii))</a>.
+        This is the precise thing exact zeros buy: entropy is controlled by the number of selected tokens,
+        not by the full context length.
+      </p>
+      <p>
+        This argument does not, by itself, favor α-entmax over hard top-\(k\). A fixed top-\(k\) also guarantees
+        \(H\le\log k\)
+        <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026, appendix E)</a>.
+        The difference is how the support is chosen. Top-\(k\) fixes its size in advance; α-entmax lets the
+        scores determine it and can leave every existing weight unchanged when an irrelevant token is appended.
+        Whether that adaptivity is actually useful is a separate question, which is the subject of §4.
+      </p>
+      <p>
+        In the two-level example from Figure 3, 1.5-entmax needs a gap of only \(\Delta=1\) to isolate the four
+        relevant tokens at every length. Softmax instead needs the gap to grow with \(\log n\) to preserve the
+        same mass. Figure&nbsp;4 shows the resulting difference in normalized entropy.
+      </p>
+
+
+      <!-- FIGURE 4 -->
+      <div class="viz-card">
+        <h4>Normalized entropy under a fixed gap</h4>
+        <p class="sub">Two-level scores: \(k=4\) tokens at score \(\Delta\), the remaining \(n-4\) at \(0\); temperature \(\theta=1\).</p>
+        <div id="fig4"></div>
+        <div class="series-legend" id="fig4legend"></div>
+        <p class="fig-caption"><span class="fnum">Fig. 4.</span>
+          Normalized entropy \(H/\log n\) versus context length \(n\) (log scale). The softmax curves climb toward \(1\) (complete dispersion) for every gap \(\Delta \in \{2, 4, 8\}\). Increasing \(\Delta\) shifts the climb right but never changes where it ends.
+          The dark \(1.5\)-entmax curve satisfies the margin condition for all three gaps (\(\Delta \ge 1\)), so the support stays at the 4 relevant tokens and \(H/\log n = \log 4/\log n \to 0\).
+        </p>
+      </div>
+
+
+
+
+
+      <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="measured2">3.3 What this buys in practice</h3>
+      <p>
+        The cleanest place to test this argument is length extrapolation. If a fixed score spread cannot keep
+        softmax sharp as \(n\) grows, the difference should become clearest far beyond the training length,
+        where a coefficient learned during training has no guarantee of remaining calibrated. That is where
+        we see it in <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026)</a>.
+      </p>
+      <p>
+        We test transformers with ~10M parameters on the multi-query multi-token associative recall (MQMTAR) task. Models are trained at length 64 with NAPE positional encoding (half of the heads use ALiBi and the other half use NoPE). 
+        The models reach <strong>95.3</strong> exact match with ASEntmax at 65K tokens. At the same length, standard softmax attention reaches just 3.0. The contrast is worth the emphasis: while softmax attention fails, ASEntmax achieves <b>1024x extrapolation</b>!
+        <!-- Interestingly, the top-\(k\) baseline falls abruptly. It scores 99.9 at 4x the training length, 6.2 at 16x, and 0 from 64x onward.  -->
+      </p>
+      <!-- FIGURE 5 -->
+      <div class="viz-card">
+        <img src="figs/asentmax_fig1.png" alt="Length extrapolation curves on MQMTAR and Max Retrieval from the ASEntmax paper"/>
+        <p class="fig-caption"><span class="fnum">Fig. 5.</span>
+          Length extrapolation on MQMTAR (left; trained at length 64) and Max Retrieval (right; trained at length
+          16); the shaded band marks in-distribution lengths, and everything to its right is extrapolation. From <a class="cite" href="https://arxiv.org/abs/2506.16640">Vasylenko et
+          al. (2026)</a>.
+        </p>
+      </div>
+      <p>
+        The gap narrows at language-model scale, but it does not disappear. On RULER, 420M-parameter Llama-3-style models trained on 7B tokens at context 2048 with NAPE score <strong>97.4</strong> with ASEntmax on S-NIAH-1 at 16K tokens, or 8x the training context, where softmax scores 0.8. 
+      </p>
+      <!-- FIGURE 6 -->
+      <div class="viz-card">
+        <img src="figs/asentmax_ruler_table4.png" alt="RULER retrieval table from the ASEntmax paper"/>
+        <p class="fig-caption"><span class="fnum">Fig. 6.</span>
+          Retrieval on RULER needle-in-a-haystack tasks for 420M-parameter models trained at context 2048 (ID = in
+          distribution, OOD = beyond training length). Softmax is perfect in distribution and collapses out of it;
+          ASEntmax degrades gradually. Reproduced from Table 4 of
+          <a class="cite" href="https://arxiv.org/abs/2506.16640">Vasylenko et al. (2026)</a>.
+        </p>
+      </div>
+
+      <p>
+        In AdaSplash-2 <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, table 1)</a> we carry a larger
+        scale experiment, with 1B-parameter models trained on 50B tokens and context extended to 32K. The entmax+NAPE models average 39.4 on RULER, compared with 36.8 for softmax+NAPE and 27.3 for softmax+RoPE.
+      </p>
+
+      <p>
+        Since these are our own papers, the caveats deserve the same rigour. The first is that the theory assumes sublinear support growth, which learned heads do not guarantee, and the ASEntmax paper reports no wall-clock measurements (we will get back to this in Part 2). 
+        I also think it is interesting that Sort fails beyond 4x the training length for every method, including ours. To me, this is because sparsity does not solve precise global ordering (we need a different kind of attention for that). The gains are also entangled with our NAPE positional encoding (NoPE+ALiBi), which seems to help softmax too.
+        The per-task results are not uniformly favorable either. In the AdaSplash-2 paper, entmax scores 1.8 on MK-2 at 32K, compared with 4.2 for softmax. 
+        At the same time, it wins decisively on variable tracking, 27.4 versus 7.7, and frequent-word extraction, 45.8 versus 3.3. 
+        As <a href="https://x.com/p_nawrot/status/2089315591010079034" target="_blank">Piotr Nawrot points out</a>,
+        simply reporting averages hides this contrast.
+      </p>
+
+
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 4. ADAPTIVE VS FIXED K -->
+  <section class="mb-16" id="adaptive">
+    <h2 class="font-display text-3xl font-semibold mb-8">4. Adaptive versus fixed \(k\)</h2>
+    <div class="narrative-section">
+
+      <h3 class="font-display text-2xl font-semibold mt-2 mb-4" id="fixedalso">4.1 Three lines of evidence for adaptivity</h3>
+      <p>
+        As §3.2 showed, hard top-\(k\) already prevents entropy dispersion. On that axis it is as good as
+        entmax, and many modern LLMs use it. DeepSeek-V3.2 selects \(k=2048\) tokens per query
+        <a class="cite" href="https://arxiv.org/abs/2512.02556">(DeepSeek-AI, 2025)</a>. NSA selects 16
+        blocks, including one initial and two local blocks
+        <a class="cite" href="https://arxiv.org/abs/2502.11089">(Yuan et al., 2025)</a>. MoBA selects 3
+        blocks of 512, or 12 blocks of 4096 at 1M context
+        <a class="cite" href="https://arxiv.org/abs/2502.13189">(Lu et al., 2025)</a>. InfLLM-V2 fixes 96
+        blocks of 64, about 6K visible tokens, "for both training and inference"
+        <a class="cite" href="https://arxiv.org/abs/2509.24663">(Zhao et al., 2026)</a>.
+      </p>
+      <p>
+        The idea is not new. The Explicit Sparse Transformer masks everything below the row-wise \(k\)-th
+        score to \(-\infty\) before softmax
+        <a class="cite" href="https://arxiv.org/abs/1912.11637">(Zhao et al., 2019)</a>, and top-\(k\)
+        attention has also been used as a drop-in approximation
+        <a class="cite" href="https://arxiv.org/abs/2106.06899">(Gupta et al., 2021)</a>. The question,
+        then, is not whether fixed \(k\) can work. It clearly can. The question is what we lose by choosing
+        the same cardinality in advance. I see three reasons to take adaptivity seriously.
+      </p>
+      
+
+      <ul class="pts">
+        <li>
+          <strong>Heads and layers learn different sparsity profiles.</strong>
+          When α is learned separately for each head, trained transformers spread it across the available
+          range. Encoder self-attention heads even form a bimodal distribution, with some remaining near
+          softmax and others moving toward sparsemax
+          <a class="cite" href="https://arxiv.org/abs/1909.00015">(Correia et al., 2019)</a>.
+          DashAttention shows the same variation across depth. Without a hand-written per-layer schedule,
+          its router learns denser attention in early layers and sparser attention in middle layers
+          <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026, Fig. 5)</a>.
+          Test-time routing between soft and sparse attention provides another version of this evidence
+          <a class="cite" href="https://arxiv.org/abs/2601.17367">(Tang et al., 2026)</a>.
+          None of these results proves that adaptivity is necessary, but they all push against the assumption that
+          one sparsity level should fit every head and layer.
+        </li>
+
+        <li>
+          <strong>Adaptive routing remains robust at aggressive sparsity.</strong>
+          DashAttention replaces top-\(k\) chunk routing with entmax, allowing each query to retain as
+          many chunks as its scores justify. On HELMET
+          <a class="cite" href="https://arxiv.org/abs/2410.02694">(Yen et al., 2025)</a>, it scores
+          <strong>39.4</strong> overall at 88.5% sparsity, while InfLLM-V2 scores 30.5 and NSA 20.1 at
+          89.8% sparsity. These results use 8B-parameter MiniCPM-4 models at 16K context, with all methods
+          following the same continued-pretraining and SFT protocol. The comparison does not isolate adaptivity.
+          DashAttention also changes the gate, keeps it differentiable, and folds a prior into its second stage,
+          while its average sparsity remains tuned.
+        </li>
+
+        <li>
+          <strong>Training-free adaptivity is much less convincing.</strong>
+          The Sparse Frontier
+          <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2026)</a> compares six
+          training-free methods across three model families, sequence lengths up to 128K, and sparsity up
+          to 0.95. It finds that "longer sequences tolerate higher sparsity" and that "the optimal token
+          budget should grow sublinearly with sequence length." That supports adaptivity. Yet the same study
+          finds that dynamic allocation "yield[s] inconsistent results." During prefill, threshold-based
+          FlexPrefill "matches or underperforms Vertical-Slash's uniform allocation," which the authors
+          attribute to thresholds missing information in the long tail.
+        </li>
+      </ul>
+
+      <p>
+        My read is deliberately narrower than "adaptive is better." The evidence is strongest when adaptive support
+        is learned jointly with the model, while the evidence for retrofitting adaptive thresholds onto softmax
+        attention is mixed. This is empirical evidence, not a theorem. Nor does it make fixed \(k\) a mistake. A
+        fixed cap and an adaptive allocation rule answer different questions, and the next section shows that they
+        can coexist.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="compose">4.2 Where fixed \(k\) and exact zeros compose</h3>
+      <p>
+        Fixed \(k\) and data-dependent sparsity answer different questions. One limits how large the support may
+        become; the other decides how large it should be for the current scores. Mathematically, they compose in one
+        exact operator.
+      </p>
+      <p>
+        <strong>The \(k\)-sparse projection identity</strong>
+        (<a class="cite" href="https://arxiv.org/abs/1206.1529">Kyrillidis et al. (2013)</a>, Thm. 1;
+        <a class="cite" href="https://arxiv.org/abs/2007.01919">Correia et al. (2020)</a>, §4.1).
+        <em>Fix a deterministic rule for ties in the top-\(k\), and define</em>
+      </p>
+      $$\operatorname{sparsemax}_k(\mathbf z)
+      \;:=\; \operatorname{sparsemax}\bigl(\operatorname{top}_k(\mathbf z)\bigr)
+      \;\in\; \arg\min_{\mathbf p\,\in\,\triangle^n,\ \|\mathbf p\|_0\le k}
+      \|\mathbf p-\mathbf z\|_2^2,$$
+      <p>
+        <em>where \(\operatorname{top}_k\) masks all but the \(k\) largest entries to \(-\infty\). The feasible set
+        is nonconvex, yet the composition returns a global minimizer. If the \(k\)-th score is tied, the problem may
+        have several minimizers and the tie-breaking rule selects one. Whenever
+        \(\|\operatorname{sparsemax}(\mathbf z)\|_0 \le k\), the cardinality cap is inactive and
+        \(\operatorname{sparsemax}_k = \operatorname{sparsemax}\).</em>
+      </p>
+      <details class="dv">
+        <summary>Proof sketch</summary>
+        <div class="proof">
+          <p>
+            Let \(j\) be in the support with \(p_j>0\), and suppose some excluded coordinate satisfies
+            \(z_i>z_j\). Moving the mass \(p_j\) from \(j\) to \(i\) preserves the simplex and the cardinality cap,
+            while changing the squared distance by \(2p_j(z_j-z_i)<0\). That contradicts optimality. Thus a
+            minimizing support lies among the \(k\) largest scores, up to ties. Once that set is fixed, the problem
+            is ordinary Euclidean projection onto its simplex face, which is exactly sparsemax after masking the
+            other scores. <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        This separates the maximum support size from the realized one. The sparsemax threshold chooses the actual support, and when the unconstrained solution already uses no more than \(k\) coordinates, the cap disappears from the answer.
+        The operator has entered in ML as a way to marginalize over large discrete latent spaces <a class="cite" href="https://arxiv.org/abs/2007.01919">(Correia et al., 2020)</a>. 
+        The same primitive appears as a column projection in sparsity-constrained optimal transport, where each expert is matched with <em>at most</em> \(k\) tokens <a class="cite" href="https://arxiv.org/abs/2209.15466">(Liu et al., 2023)</a>. 
+        To me, this is a good frame for the fixed-versus-adaptive debate. Both operators compute a numerical threshold. The difference is whether the support size is fixed in advance or adaptive.
+      </p>
+      <!-- <p>
+        A fixed \(k\) still buys something real. <a class="cite" href="https://arxiv.org/abs/2606.13392">Lai et al.
+        (2026)</a> describe MSA's per-token selection cost as "fixed as the sequence length increases." Fixed shapes
+        make memory use predictable and tiling regular. Adaptive supports make the systems work harder, which is why
+        Part II spends so much time on threshold search, compact metadata, and kernels that can tolerate variable
+        work.
+      </p> -->
+
+      <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="gradientq">4.3 Can the allocation rule be learned end to end?</h3>
+      <p>
+        Section 4.1's strongest evidence for adaptivity came from systems in which the sparsity pattern was learned
+        jointly with the model. That condition raises a practical question. Can the task loss learn the allocation
+        rule itself? Hard top-\(k\) and α-entmax both produce exact zeros, but they present very different maps to the
+        optimizer.
+      </p>
+      <p>
+        <strong>The dead gradient.</strong>
+        <em>Let \(C_k=\{\mathbf y\in[0,1]^n:\mathbf 1^\top\mathbf y=k\}\), whose vertices are the
+        \(\binom nk\) hard \(k\)-subsets, and write the mask as
+        \(\mathbf m(\mathbf z)=\arg\max_{\mathbf y\in C_k}\langle\mathbf z,\mathbf y\rangle\), with any fixed rule
+        for ties. Wherever \(z_{(k)}>z_{(k+1)}\), the selected set is locally constant and
+        \(\partial\mathbf m/\partial\mathbf z=\mathbf 0\). At a tie on the boundary, the mask jumps and is not
+        differentiable.</em>
+      </p>
+      <details class="dv">
+        <summary>Proof</summary>
+        <div class="proof">
+          <p>
+            If \(z_{(k)} > z_{(k+1)}\), every score can be perturbed by less than
+            \(\tfrac12(z_{(k)}-z_{(k+1)})\) without changing which \(k\) coordinates are largest, hence without
+            changing the mask. A locally constant function has zero derivative. At a boundary tie, arbitrarily small
+            perturbations can select different vertices, so the mask is discontinuous. <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        This result is easy to overstate. The zero Jacobian belongs to the membership map, not to the entire attention
+        computation. If top-\(k\) is applied directly to the attention scores, the selected scores still receive
+        gradients through the attention weights; the excluded scores receive none through that path. The obstruction
+        becomes decisive when a separate indexer affects the loss only by emitting the mask. The task loss can train
+        everything downstream of that mask, but it provides no local signal saying how the membership should change.
+        This is exactly the problem that the frontier selectors in Part II engineer around.
+      </p>
+      <p>
+        <strong>The α-entmax Jacobian</strong>
+        (<a class="cite" href="https://arxiv.org/abs/1905.05702">Peters, Niculae &amp; Martins (2019)</a>, Prop. 1).
+        <em>With \(\mathbf p^\star = \alpha\text{-entmax}(\mathbf z)\) and \(s_i = (p_i^\star)^{2-\alpha}\) on the
+        support (0 elsewhere),</em>
+      </p>
+      $$\frac{\partial \alpha\text{-entmax}(\mathbf z)}{\partial \mathbf z}
+        \;=\; \operatorname{diag}(\mathbf s) \;-\; \frac{\mathbf s\,\mathbf s^\top}{\|\mathbf s\|_1}.$$
+      <p>
+        The Jacobian is a diagonal minus a rank-one correction computed from the output itself, so a
+        Jacobian-vector product costs only linear work in the support size. An excluded coordinate is locally flat, so
+        α-entmax does not magically send a nonzero gradient to every score. The useful difference is that α-entmax is
+        a continuous weight map. Its probabilities change continuously as coordinates enter or leave the support,
+        and for \(\alpha<2\) its first derivatives are continuous too. Exact sparsity and end-to-end differentiation
+        therefore coexist.
+      </p>
+      <details class="dv">
+        <summary>Derivation, and why the smoothness inequalities are strict</summary>
+        <div class="proof">
+          <p>
+            Differentiate \(p_i = [(\alpha-1)z_i - \tau]^{1/(\alpha-1)}\) on the support, giving
+            \(dp_i = s_i\,(dz_i - d\tau/(\alpha-1))\); the constraint \(\sum_i dp_i = 0\) pins
+            \(d\tau/(\alpha-1) = \sum_j s_j\,dz_j / \|\mathbf s\|_1\). Substituting gives the diag-minus-rank-one
+            form. Away from a support boundary, excluded coordinates are locally exactly zero.
+          </p>
+          <p>
+            Near a support boundary, each coordinate has the local form \([u]_+^r\), with
+            \(r=1/(\alpha-1)\). This function is \(\mathcal C^t\) across \(u=0\) only when \(r>t\), which gives the
+            strict inequality \(1<\alpha<(t+1)/t\) for every positive integer \(t\)
+            <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, Prop. 2)</a>. At
+            \(\alpha=2\), the local gate is a ReLU and is not continuously differentiable. At \(\alpha=1.5\), it is
+            a squared ReLU, continuously differentiable but not twice continuously differentiable. Away from support
+            boundaries the map is smoother. This boundary behavior is the smoothness dial that Part II uses when it
+            chooses a threshold solver.
+            <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        Methods that manufacture a gradient for hard top-\(k\) are outside the scope of this series. Part II instead
+        follows what deployed LLMs actually do. DeepSeek-V3.2 and MiniMax's MSA detach their selector inputs from
+        the backbone and train the selectors with KL alignment, while AdaSplash-2 uses the smoothness split above to
+        choose how it refines the threshold. The <a href="#appendix" class="prose-link">appendix</a> traces the much
+        older optimization history behind these threshold equations.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 5. EVERYTHING SOLVES FOR TAU -->
+  <section class="mb-16" id="everywhere">
+    <h2 class="font-display text-3xl font-semibold mb-8">5. Everything solves for \(\tau\)</h2>
+    <div class="narrative-section">
+      <p>
+        The main operators now line up under one question. <em>What condition does each threshold enforce?</em>
+      </p>
+      <ul class="pts">
+        <li>
+          <strong>Top-\(k\)</strong> enforces a count. When \(z_{(k)}>z_{(k+1)}\), any
+          \(\tau\in(z_{(k+1)},z_{(k)}]\) separates the selected coordinates from the rest. At a boundary tie, a
+          scalar threshold is not enough by itself; the tie-breaking rule completes the definition.
+        </li>
+        <li>
+          <strong>Top-\(p\)</strong> enforces cumulative softmax mass. If
+          \(w_{(1)}\ge\cdots\ge w_{(n)}\) are the sorted softmax weights, it chooses the smallest \(r\) satisfying
+          \(\sum_{j=1}^r w_{(j)}\ge p\).
+          Its cutoff is a threshold on the mass CDF rather than on a prescribed count.
+        </li>
+        <li>
+          <strong>α-entmax</strong> enforces total mass one through
+          \(\sum_i[(\alpha-1)z_i-\tau]_+^{1/(\alpha-1)}=1\). Its support size is an output, not an input.
+        </li>
+      </ul>
+      <p>
+        This is a unification, but not an identity. Top-\(k\), top-\(p\), and regularized prediction maps do not share
+        one objective. What they share is a computational skeleton. Locate a cutoff, apply a monotone response to each
+        score relative to it, and enforce the required total or support rule. Once phrased that way, the remaining
+        questions become precise:
+      </p>
+      <ul class="pts">
+        <li>
+          <strong>Who chooses the operating point?</strong> A method may fix \(k\), \(p\), α, or a target sparsity.
+          The evidence in §4.1 says that one support size is not uniformly best across tasks, lengths, layers, and
+          heads. One quantitative guideline is that the number of retained tokens should grow sublinearly with the
+          sequence length <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2026)</a>. 
+          <!-- Public methods encode the rest of this choice in different ways; there is no single settled rule. -->
+        </li>
+        <li>
+          <strong>Can the task loss train the allocation?</strong> For hard top-\(k\), the membership map has zero
+          Jacobian away from ties. For α-entmax, the active weights have an exact, cheap Jacobian and the map remains
+          continuous when its support changes (§4.3). 
+          <!-- The distinction is not whether \(\tau\) has a derivative. It is whether the complete allocation map supplies a useful local signal. -->
+        </li>
+        <li>
+          <strong>How fast can the threshold be found at scale?</strong> At \(n\) in the millions, inside a fused
+          kernel, with the scores streaming past, this is much of a system problem as a mathematical one. 
+        </li>
+      </ul>
+      <p>
+        <a href="#maps" class="prose-link">Figure 1</a> makes the second question visible. Softmax is smooth but never
+        reaches zero. α-entmax reaches zero continuously; sparsemax, its \(\alpha=2\) member, remains continuous but
+        has kinks at support boundaries. Hard top-\(k\) is the odd one out because its selected set jumps when a
+        ranking swaps. Part II begins at that jump, then turns to the third question and the systems problem of finding
+        a threshold without materializing dense attention.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 6. NEXT -->
+  <section class="mb-16" id="next">
+    <h2 class="font-display text-3xl font-semibold mb-8">6. What Part II does</h2>
+    <div class="narrative-section">
+      <p>
+        Part II is the systems half of §1's dichotomy. It starts with the dead membership gradient from §4.3 and reads
+        two frontier models in their own words. DeepSeek-V3.2's DSA and MiniMax's MSA both train separate selectors
+        with KL alignment to their main attention distributions while detaching the selector inputs from the
+        language-model backbone. Their reasons, and the cost of that choice, are the first part of the story.
+      </p>
+      <p>
+        The second part asks how the thresholds in this post are found at scale. It first compares the data flow of a
+        materialized attention pipeline, a fused FlashAttention-style pipeline, and an AdaSplash-style sparse
+        pipeline. It then develops the GPU argument. On the relevant modern accelerators, avoiding memory traffic can
+        justify extra arithmetic, so several systems use coarse statistics to bracket the threshold and refine only
+        where the answer can lie.
+      </p>
+      <p>
+        AdaSplash-2 gets the close-up, from its SRAM histogram and conservative bracket to the bit-packed block masks
+        that let the kernel skip work known to be zero, with pointers into the implementation. Part II ends with the
+        46-method landscape, organized around the line that matters most here: approximating a pretrained softmax
+        model on one side, training with native sparsity on the other.
+      </p>
+      <div class="part-nav">
+        <a href="../blog.html">
+          <div class="lab">Series</div>
+          <div class="ttl">Sparse Attention, From Scratch</div>
+        </a>
+        <a href="sparse-attention-2.html">
+          <div class="lab">Next · Part II</div>
+          <div class="ttl">How sparse attention runs fast, and why the frontier labs don't differentiate through it →</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+
+  <!-- 8. AI Disclaimer -->
+  <section class="mb-16" id="ai-disclaimer">
+    <h2 class="font-display text-3xl font-semibold mb-8">AI Disclaimer</h2>
+    <div class="narrative-section">
+      <p>
+        I used AI in many ways while writing this blog post.
+        Here is exactly how I used it:
+        (i) I used Claude to help with the frontend (HTML/CSS/JS); 
+        (ii) I used Claude and GPT to dig deeper into the literature. I was already familiar with most of the related work, but AI helped me find some references I had not seen before, such as Patriksson's great survey and the works cited therein.
+        (iii) Despite being familiar with the math in this post, I asked both Claude and GPT to proof-read it. Interestingly, they caught many notation inconsistencies and helped me trim the proofs. 
+        (iv) Finally, I tried my best to write things myself, in my own words. Yet, some parts were edited by GPT and Claude for readability. 
+        <!-- With that said, I want to emphasize that -->
+        <i>Ultimately, the views and opinions expressed in this post are entirely my own.</i>
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- APPENDIX -->
+  <section class="mb-16" id="appendix">
+    <span id="classical"></span>
+    <h2 class="font-display text-3xl font-semibold mb-8">Appendix: the classical literature, at length</h2>
+    <div class="narrative-section">
+      <p>
+        Here is the part of the story that I think machine learning keeps walking past. Sparse prediction maps allocate
+        a fixed total across coordinates, and operations research has studied that template for a very long time under
+        the name <em>continuous resource allocation</em>. <a class="cite" href="https://doi.org/10.1016/j.ejor.2006.12.006">Patriksson (2008)</a>
+        traces the principle to Gibbs (1876-78) and, in marginal-utility form, to Gossen (1854). The algorithmic
+        literature runs from the 1950s through a 2015 update with hundreds of entries
+        <a class="cite" href="https://doi.org/10.1016/j.ejor.2015.01.029">Patriksson &amp; Strömberg (2015)</a>.
+        Not every rule in this post solves the same optimization problem, but the common threshold pattern is not a
+        recent invention. This appendix keeps that history together.
+      </p>
+
+      <span id="waterfilling"></span>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="apx-wf">A.1 Water-filling: the whole derivation</h3>
+      <p>
+        <strong>The continuous quadratic knapsack</strong>, also known as water-filling.
+        <em>Let \(\mathbf z\in\mathbb R^n\), caps \(0 &lt; u_i \le \infty\), and a total
+        \(0 &lt; R &lt; \sum_i u_i\). The problem</em>
+      </p>
+      $$\min_{\mathbf p}\ \tfrac12\|\mathbf p-\mathbf z\|_2^2
+      \qquad \text{s.t.}\qquad \textstyle\sum_i p_i = R,\quad 0\le p_i\le u_i,$$
+      <p>
+        <em>has the unique solution
+        \(p_i^\star = \operatorname{clip}(z_i-\tau^\star,0,u_i) := \min\{u_i,[z_i-\tau^\star]_+\}\), where
+        \(\tau^\star\) solves \(\varphi(\tau)=R\) for
+        \(\varphi(\tau):=\sum_i\operatorname{clip}(z_i-\tau,0,u_i)\).</em>
+        The allocation is unique even when a flat segment makes the threshold itself nonunique.
+      </p>
+      <details class="dv" open>
+        <summary>The water-filling solution, derived</summary>
+        <div class="proof">
+          <p>
+            The feasible set is nonempty, closed, and convex, while the quadratic objective is coercive and strongly
+            convex. A solution therefore exists and is unique. Let \(F=\{i:u_i&lt;\infty\}\). Introduce a multiplier
+            \(\tau\) for the sum constraint, \(\mu_i\ge 0\) for \(p_i\ge 0\), and \(\nu_i\ge 0\) for each finite cap
+            \(p_i\le u_i\), \(i\in F\). Stationarity of
+            \(\tfrac12\|\mathbf p-\mathbf z\|_2^2 + \tau(\mathbf 1^\top\mathbf p - R) - \boldsymbol\mu^\top\mathbf p + \sum_{i\in F}\nu_i(p_i-u_i)\)
+            gives \(p_i = z_i - \tau + \mu_i - \nu_i\).
+          </p>
+          <p>
+            Complementary slackness leaves three cases. In the interior, \(0&lt;p_i&lt;u_i\) implies
+            \(\mu_i=\nu_i=0\), so \(p_i=z_i-\tau\). At the floor, \(p_i=0\) implies \(z_i\le\tau\). At the cap,
+            \(p_i=u_i\) implies \(z_i\ge\tau+u_i\). These cases combine into
+            \(p_i=\operatorname{clip}(z_i-\tau,0,u_i)\).
+          </p>
+          <p>
+            Feasibility now reduces to \(\varphi(\tau)=R\). The function \(\varphi\) is continuous,
+            nonincreasing, and piecewise linear, with finite breakpoints at \(z_i\) and at \(z_i-u_i\) whenever
+            \(u_i&lt;\infty\). It tends to zero as \(\tau\to+\infty\); as \(\tau\to-\infty\), it tends to
+            \(\sum_i u_i&gt;R\), with the limit understood as infinity when any cap is infinite. A root therefore
+            exists. If \(\varphi\) is flat at level \(R\), the threshold can vary across that interval, but every
+            coordinate is already at its floor or cap, so the allocation does not change.
+            <span class="qed">∎</span>
+          </p>
+        </div>
+      </details>
+      <p>
+        Sorting the finite breakpoints gives an \(O(n\log n)\) method
+        <a class="cite" href="https://doi.org/10.1007/BF01588328">Helgason, Kennington &amp; Lall (1980)</a>.
+        Later work obtained \(O(n)\) selection-based methods
+        (<a class="cite" href="https://doi.org/10.1016/0167-6377(84)90010-5">Brucker, 1984</a>), a randomized
+        expected-\(O(n)\) variant
+        (<a class="cite" href="https://doi.org/10.1007/BF01585748">Pardalos &amp; Kovoor, 1990</a>), and a family of
+        refinements <a class="cite" href="https://doi.org/10.1007/s10107-006-0050-z">Kiwiel (2008)</a>.
+      </p>
+      <p>
+        The quadratic objective is what makes each response a clipped <em>linear</em> ramp. For the general resource
+        allocation problem that maximizes a strictly concave, separable utility \(\sum_i f_i(p_i)\) under the same
+        constraints, KKT gives the clamped inverse-marginal rule
+        \(p_i=\operatorname{clip}((f_i')^{-1}(\tau),0,u_i)\), with the inverse interpreted through the endpoint
+        derivatives. The sum constraint again leaves one monotone
+        equation in \(\tau\), whatever the \(f_i\)
+        <a class="cite" href="https://doi.org/10.1016/j.ejor.2006.12.006">(Patriksson, 2008)</a>. In information theory,
+        the same threshold geometry appears in power allocation across parallel Gaussian channels,
+        \(P_i=(\nu-N_i)_+\), with \(\nu\) chosen to meet the total-power constraint
+        <a class="cite" href="https://onlinelibrary.wiley.com/doi/book/10.1002/047174882X">(Cover &amp; Thomas, 2006, §9.4)</a>.
+        Same picture, different cups.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="apx-simplex">A.2 Sparsemax is a knapsack</h3>
+      <p>
+        Set every cap to \(u_i=\infty\) and the total to \(R=1\). The knapsack of Appendix A.1 becomes Euclidean projection
+        onto the probability simplex, with solution \(p_i=[z_i-\tau]_+\). An explicit sort-based algorithm appears
+        as a subroutine in Held, Wolfe &amp; Crowder's work on subgradient optimization
+        <a class="cite" href="https://doi.org/10.1007/BF01580223">(Held et al., 1974)</a>, and, as Condat puts it in
+        his definitive treatment, it "was rediscovered many times later"
+        <a class="cite" href="https://doi.org/10.1007/s10107-015-0946-6">(Condat, 2016)</a>. Michelot gave a finite
+        active-set algorithm <a class="cite" href="https://doi.org/10.1007/BF00938486">(Michelot, 1986)</a>, while
+        <a class="cite" href="https://doi.org/10.1145/1390156.1390191">Duchi et al. (2008)</a> made selection-based
+        projection an ML workhorse.
+      </p>
+      <p>
+        When this projection entered attention as sparsemax
+        <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, credit where due,
+        the paper's footnote already pointed to "more elaborate \(O(K)\) algorithms … based on linear-time
+        selection," citing Pardalos &amp; Kovoor. The per-coordinate response \([z_i-\tau]_+\) is soft-thresholding,
+        the same nonlinearity wavelet denoising made famous
+        <a class="cite" href="https://doi.org/10.1109/18.382009">(Donoho, 1995)</a>. One of sparse attention's founding
+        operators is structurally a 1970s allocation subroutine wearing a 1990s shrinkage gate. I mean that as praise.
+        The old formulation gives us uniqueness, exact zeros, and \(O(n)\) algorithms for free.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="apx-caps">A.3 The capped-simplex catalogue</h3>
+      <p>
+        Set \(u_i=1\) and \(R=k\) for integer \(k\). The feasible set becomes the capped simplex
+        \(C_k:=\{\mathbf y\in[0,1]^n:\mathbf 1^\top\mathbf y=k\}\), named in online PCA
+        <a class="cite" href="https://jmlr.org/papers/v9/warmuth08a.html">Warmuth &amp; Kuzmin (2008)</a>. Its vertices
+        are exactly the \(\binom nk\) hard \(k\)-subsets. Projecting onto \(C_k\) gives the fractional map
+        \(y_i=\min\{1,[z_i-\tau]_+\}\); maximizing a linear score over the same polytope instead lands on a vertex
+        and gives a hard top-\(k\) mask. The feasible set is the same, while the objective decides whether the answer
+        is fractional or discrete.
+      </p>
+      <p>
+        This projection has its own small rediscovery story. An elementary derivation with an
+        \(O(n^2)\) algorithm was written up by
+        <a class="cite" href="https://arxiv.org/abs/1503.01002">Wang &amp; Lu (2015)</a>, while the classical
+        breakpoint methods of Appendix A.1 solve the same problem in \(O(n\log n)\) or \(O(n)\). This is a small but telling
+        example of the rediscovery pattern above.
+      </p>
+      <p>
+        The NLP lineage got there early and <em>did</em> cite the classics. Constrained sparsemax, built for machine
+        translation with fertility upper bounds, is exactly the
+        projection with caps \(\mathbf u\), solved with Pardalos &amp; Kovoor's linear-time algorithm and
+        differentiated in closed form
+        <a class="cite" href="https://arxiv.org/abs/1805.08241">(Malaviya, Ferreira &amp; Martins, 2018)</a>; the same
+        paper notes the algorithm "has been used in NLP by Almeida and Martins (2013) for a budgeted summarization
+        problem": a knapsack-constrained factor inside a summarizer, solved by median search, in 2013
+        <a class="cite" href="https://aclanthology.org/P13-1020/">(Almeida &amp; Martins, 2013)</a>. The entropic
+        sibling, constrained softmax
+        \( \arg\max_{\mathbf p\in\triangle^n,\ \mathbf p\le\mathbf u}\ \mathbf z^\top\mathbf p + H(\mathbf p)\), has the closed
+        form \(p_i=\min\{u_i,e^{z_i-\tau}\}\), with \(\tau\) enforcing unit mass, and powered differentiable
+        easy-first taggers
+        <a class="cite" href="https://aclanthology.org/D17-1036/">(Martins &amp; Kreutzer, 2017)</a>. The AD3
+        inference library projects onto the simplex inside its logic factors, citing Brucker, Michelot and Duchi in
+        one breath <a class="cite" href="https://jmlr.org/papers/v16/martins15a.html">(Martins et al., 2015)</a>.
+      </p>
+
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="permutahedron">A.4 Beyond a scalar threshold</h3>
+      <p>
+        The scalar-threshold story has a useful boundary. Replace the simplex by the <em>permutahedron</em>
+        \(P(\mathbf w)\), the convex hull of all permutations of a seed vector \(\mathbf w\). Taking
+        \(\mathbf w=\mathbf 1_k:=(1,\dots,1,0,\dots,0)\) recovers \(C_k\), which places top-\(k\) inside this larger
+        family. Euclidean projection onto a permutahedron reduces to sorting followed by <em>isotonic regression</em>,
+        or pool-adjacent-violators. The single threshold becomes a monotone vector of thresholds, one for each pooled
+        block <a class="cite" href="https://papers.nips.cc/paper_files/paper/2014/hash/888637e6555c5498c2523f2315963e08-Abstract.html">(Negrinho &amp; Martins, 2014, Prop. 14)</a>.
+      </p>
+      <p>
+        The same sort-and-pool computation appears in the proximal operator of the sorted-\(\ell_1\) norm behind
+        SLOPE <a class="cite" href="https://doi.org/10.1214/15-AOAS842">(Bogdan et al., 2015)</a>, in projections onto
+        OWL balls <a class="cite" href="https://arxiv.org/abs/1409.4271">(Zeng &amp; Figueiredo, 2014)</a>, and in
+        Bregman projections onto permutahedra
+        <a class="cite" href="https://proceedings.mlr.press/v51/lim16.html">(Lim &amp; Wright, 2016)</a>. Attention took
+        the analogous step when the simplex was replaced by a marginal polytope for structured inference
+        <a class="cite" href="https://arxiv.org/abs/1702.00887">(Kim et al., 2017)</a>, then made sparse with SparseMAP
+        <a class="cite" href="https://arxiv.org/abs/1802.04223">(Niculae et al., 2018)</a> and fused or clustered with
+        OWL-family penalties
+        <a class="cite" href="https://arxiv.org/abs/1705.07704">(Niculae &amp; Blondel, 2017)</a>.
+      </p>
+      <p>
+        This detour marks the boundary of the unification. For the scalar maps in §2, designing an operator means
+        choosing a feasible set and a regularizer. The feasible set determines what the mass may do, the regularizer's
+        derivative at zero decides exact sparsity, and its curvature controls smoothness. Computing the operator then
+        means locating one threshold. More structured polytopes can replace that scalar with coupled thresholds, but
+        the logic survives.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- REFERENCES -->
+  <section class="mb-16" id="refs">
+    <h2 class="font-display text-3xl font-semibold mb-8">References</h2>
+    <p class="text-sm mb-4" style="color:var(--muted)">In order of first appearance. Venues verified against the publisher, proceedings, or arXiv record as of August 2026; preprints are marked as such.</p>
+    <ol class="ref-list">
+      <li>Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, Polosukhin. <a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a>. NeurIPS 2017.</li>
+      <li>Martins, Astudillo. <a href="https://arxiv.org/abs/1602.02068">From Softmax to Sparsemax: A Sparse Model of Attention and Multi-Label Classification</a>. ICML 2016 (PMLR 48:1614-1623).</li>
+      <li>Peters, Niculae, Martins. <a href="https://arxiv.org/abs/1905.05702">Sparse Sequence-to-Sequence Models</a>. ACL 2019.</li>
+      <li>Gonçalves, Treviso, Martins. <a href="https://arxiv.org/abs/2502.12082">AdaSplash: Adaptive Sparse Flash Attention</a>. ICML 2025.</li>
+      <li>Gonçalves, Pitorro, Niculae, Ponti, Li, Martins, Treviso. <a href="https://arxiv.org/abs/2604.15180">AdaSplash-2: Faster Differentiable Sparse Attention</a>. ICML 2026.</li>
+      <li>Dantzig. <a href="https://www.jstor.org/stable/2627159">Linear Programming under Uncertainty</a>. Management Science 1(3-4):197-206, 1955.</li>
+      <li>Niculae, Blondel. <a href="https://arxiv.org/abs/1705.07704">A Regularized Framework for Sparse and Structured Neural Attention</a>. NeurIPS 2017.</li>
+      <li>Blondel, Martins, Niculae. <a href="https://jmlr.org/papers/v21/19-021.html">Learning with Fenchel-Young Losses</a>. JMLR 21(35):1-69, 2020.</li>
+      <li>Tsallis. <a href="https://doi.org/10.1007/BF01016429">Possible Generalization of Boltzmann-Gibbs Statistics</a>. Journal of Statistical Physics 52:479-487, 1988.</li>
+      <li>Nadaraya. <a href="https://doi.org/10.1137/1109020">On Estimating Regression</a>. Theory of Probability &amp; Its Applications 9(1):141-142, 1964.</li>
+      <li>Watson. <a href="https://www.jstor.org/stable/25049340">Smooth Regression Analysis</a>. Sankhyā: The Indian Journal of Statistics, Series A 26(4):359-372, 1964.</li>
+      <li>Santos, Gonçalves, McNamee, Treviso, Martins. <a href="https://arxiv.org/abs/2601.22766">Sparse Attention as Compact Kernel Regression</a>. ICLR 2026.</li>
+      <li>Barbero, Banino, Kapturowski, Kumaran, Araújo, Vitvitskyi, Pascanu, Veličković. <a href="https://arxiv.org/abs/2406.04267">Transformers Need Glasses! Information Over-Squashing in Language Tasks</a>. NeurIPS 2024.</li>
+      <li>Vasylenko, Pitorro, Martins, Treviso. <a href="https://arxiv.org/abs/2506.16640">Long-Context Generalization with Sparse Attention</a>. ICLR 2026.</li>
+      <li>Veličković, Perivolaropoulos, Barbero, Pascanu. <a href="https://arxiv.org/abs/2410.01104">Softmax Is Not Enough (for Sharp Size Generalisation)</a>. ICML 2025.</li>
+      <li>Peng, Quesnelle, Fan, Shippole. <a href="https://arxiv.org/abs/2309.00071">YaRN: Efficient Context Window Extension of Large Language Models</a>. ICLR 2024.</li>
+      <li>Nakanishi. <a href="https://arxiv.org/abs/2501.19399">Scalable-Softmax Is Superior for Attention</a>. arXiv preprint, 2025.</li>
+      <li>Li, Kong, Xu, Su, Huang, Zhang, Zhou. <a href="https://arxiv.org/abs/2501.08570">Information Entropy Invariance: Enhancing Length Extrapolation in Attention Mechanisms</a>. arXiv preprint, 2025.</li>
+      <li>Anson, Wang, Aitchison. <a href="https://arxiv.org/abs/2505.17083">Scale-Invariant Attention</a>. NeurIPS 2025.</li>
+      <li>Hilton-Jones, Norman, Zhu. <a href="https://icml.cc/virtual/2026/poster/66654">Modelling Attention with Aitchison Geometry: Token Distinguishability and Temperature Scaling</a>. ICML 2026.</li>
+      <li>Barbero, Arroyo, Gu, Perivolaropoulos, Bronstein, Veličković, Pascanu. <a href="https://arxiv.org/abs/2504.02732">Why Do LLMs Attend to the First Token?</a> COLM 2025.</li>
+      <li>Zhai, Likhomanenko, Littwin, Busbridge, Ramapuram, Zhang, Gu, Susskind. <a href="https://arxiv.org/abs/2303.06296">Stabilizing Transformer Training by Preventing Attention Entropy Collapse</a>. ICML 2023 (PMLR 202:40770-40803).</li>
+      <li>Huang, Gonçalves, Alvetreti, Li, Han, Ponti, Martins, Treviso. <a href="https://arxiv.org/abs/2605.18753">DashAttention: Differentiable and Adaptive Sparse Hierarchical Attention</a>. arXiv preprint, 2026.</li>
+      <li>DeepSeek-AI. <a href="https://arxiv.org/abs/2512.02556">DeepSeek-V3.2: Pushing the Frontier of Open Large Language Models</a>. arXiv preprint, 2025.</li>
+      <li>Yuan, Gao, Dai, Luo, Zhao, Zhang, Xie, Wei, Wang, Xiao, Wang, Ruan, Zhang, Liang, Zeng. <a href="https://arxiv.org/abs/2502.11089">Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention</a>. ACL 2025.</li>
+      <li>Lu, Jiang, Liu, et al. <a href="https://arxiv.org/abs/2502.13189">MoBA: Mixture of Block Attention for Long-Context LLMs</a>. NeurIPS 2025.</li>
+      <li>Zhao, Zhou, Su, Xiao, Li, Li, Zhang, Zhao, Li, Huang, Sun, Han, Liu. <a href="https://arxiv.org/abs/2509.24663">InfLLM-V2: Dense-Sparse Switchable Attention for Seamless Short-to-Long Adaptation</a>. ICLR 2026.</li>
+      <li>Zhao, Lin, Zhang, Ren, Su, Sun. <a href="https://arxiv.org/abs/1912.11637">Explicit Sparse Transformer: Concentrated Attention Through Explicit Selection</a>. arXiv preprint, 2019.</li>
+      <li>Gupta, Dar, Goodman, Ciprut, Berant. <a href="https://arxiv.org/abs/2106.06899">Memory-Efficient Transformers via Top-k Attention</a>. SustaiNLP @ EMNLP 2021.</li>
+      <li>Correia, Niculae, Martins. <a href="https://arxiv.org/abs/1909.00015">Adaptively Sparse Transformers</a>. EMNLP-IJCNLP 2019 (pp. 2174-2184).</li>
+      <li>Tang, Qiu, Yang, et al. <a href="https://arxiv.org/abs/2601.17367">Elastic Attention: Test-Time Adaptive Sparsity Ratios for Efficient Transformers</a>. ICML 2026.</li>
+      <li>Yen, Gao, Hou, Ding, Fleischer, Izsak, Wasserblat, Chen. <a href="https://arxiv.org/abs/2410.02694">HELMET: How to Evaluate Long-Context Language Models Effectively and Thoroughly</a>. ICLR 2025.</li>
+      <li>Nawrot, Li, Huang, Ruder, Marchisio, Ponti. <a href="https://arxiv.org/abs/2504.17768">The Sparse Frontier: Sparse Attention Trade-offs in Transformer LLMs</a>. Findings of ACL 2026.</li>
+      <li>Kyrillidis, Becker, Cevher, Koch. <a href="https://arxiv.org/abs/1206.1529">Sparse Projections onto the Simplex</a>. ICML 2013 (PMLR 28(2):235-243).</li>
+      <li>Correia, Niculae, Aziz, Martins. <a href="https://arxiv.org/abs/2007.01919">Efficient Marginalization of Discrete and Structured Latent Variables via Sparsity</a>. NeurIPS 2020.</li>
+      <li>Liu, Puigcerver, Blondel. <a href="https://arxiv.org/abs/2209.15466">Sparsity-Constrained Optimal Transport</a>. ICLR 2023.</li>
+      <li>Lai, Xu, Yang, Chen, Xu, Zeng, Li, Sun, Zhu, Zhang, Hu, Li, Gao, Li, Zhu, Zhou, Zhao. <a href="https://arxiv.org/abs/2606.13392">MiniMax Sparse Attention</a>. arXiv preprint, 2026.</li>
+      <li>Patriksson. <a href="https://doi.org/10.1016/j.ejor.2006.12.006">A Survey on the Continuous Nonlinear Resource Allocation Problem</a>. European Journal of Operational Research 185(1):1-46, 2008.</li>
+      <li>Patriksson, Strömberg. <a href="https://doi.org/10.1016/j.ejor.2015.01.029">Algorithms for the Continuous Nonlinear Resource Allocation Problem — New Implementations and Numerical Studies</a>. European Journal of Operational Research 243(3):703-722, 2015.</li>
+      <li>Helgason, Kennington, Lall. <a href="https://doi.org/10.1007/BF01588328">A Polynomially Bounded Algorithm for a Singly Constrained Quadratic Program</a>. Mathematical Programming 18:338-343, 1980.</li>
+      <li>Brucker. <a href="https://doi.org/10.1016/0167-6377(84)90010-5">An O(n) Algorithm for Quadratic Knapsack Problems</a>. Operations Research Letters 3(3):163-166, 1984.</li>
+      <li>Pardalos, Kovoor. <a href="https://doi.org/10.1007/BF01585748">An Algorithm for a Singly Constrained Class of Quadratic Programs Subject to Upper and Lower Bounds</a>. Mathematical Programming 46:321-328, 1990.</li>
+      <li>Kiwiel. <a href="https://doi.org/10.1007/s10107-006-0050-z">Breakpoint Searching Algorithms for the Continuous Quadratic Knapsack Problem</a>. Mathematical Programming 112:473-491, 2008.</li>
+      <li>Cover, Thomas. <a href="https://onlinelibrary.wiley.com/doi/book/10.1002/047174882X">Elements of Information Theory</a>, 2nd ed., §9.4 (Parallel Gaussian Channels). Wiley, 2006.</li>
+      <li>Held, Wolfe, Crowder. <a href="https://doi.org/10.1007/BF01580223">Validation of Subgradient Optimization</a>. Mathematical Programming 6:62-88, 1974.</li>
+      <li>Condat. <a href="https://doi.org/10.1007/s10107-015-0946-6">Fast Projection onto the Simplex and the ℓ1 Ball</a>. Mathematical Programming 158:575-585, 2016.</li>
+      <li>Michelot. <a href="https://doi.org/10.1007/BF00938486">A Finite Algorithm for Finding the Projection of a Point onto the Canonical Simplex of ℝⁿ</a>. Journal of Optimization Theory and Applications 50(1):195-200, 1986.</li>
+      <li>Duchi, Shalev-Shwartz, Singer, Chandra. <a href="https://doi.org/10.1145/1390156.1390191">Efficient Projections onto the ℓ1-Ball for Learning in High Dimensions</a>. ICML 2008.</li>
+      <li>Donoho. <a href="https://doi.org/10.1109/18.382009">De-Noising by Soft-Thresholding</a>. IEEE Transactions on Information Theory 41(3):613-627, 1995.</li>
+      <li>Warmuth, Kuzmin. <a href="https://jmlr.org/papers/v9/warmuth08a.html">Randomized Online PCA Algorithms with Regret Bounds that are Logarithmic in the Dimension</a>. JMLR 9:2287-2320, 2008.</li>
+      <li>Wang, Lu. <a href="https://arxiv.org/abs/1503.01002">Projection onto the Capped Simplex</a>. arXiv preprint, 2015.</li>
+      <li>Malaviya, Ferreira, Martins. <a href="https://arxiv.org/abs/1805.08241">Sparse and Constrained Attention for Neural Machine Translation</a>. ACL 2018.</li>
+      <li>Almeida, Martins. <a href="https://aclanthology.org/P13-1020/">Fast and Robust Compressive Summarization with Dual Decomposition and Multi-Task Learning</a>. ACL 2013.</li>
+      <li>Martins, Kreutzer. <a href="https://aclanthology.org/D17-1036/">Learning What's Easy: Fully Differentiable Neural Easy-First Taggers</a>. EMNLP 2017.</li>
+      <li>Martins, Figueiredo, Aguiar, Smith, Xing. <a href="https://jmlr.org/papers/v16/martins15a.html">AD3: Alternating Directions Dual Decomposition for MAP Inference in Graphical Models</a>. JMLR 16:495-545, 2015.</li>
+      <li>Negrinho, Martins. <a href="https://papers.nips.cc/paper_files/paper/2014/hash/888637e6555c5498c2523f2315963e08-Abstract.html">Orbit Regularization</a>. NeurIPS 2014 (pp. 3221-3229).</li>
+      <li>Bogdan, van den Berg, Sabatti, Su, Candès. <a href="https://doi.org/10.1214/15-AOAS842">SLOPE — Adaptive Variable Selection via Convex Optimization</a>. Annals of Applied Statistics 9(3):1103-1140, 2015.</li>
+      <li>Zeng, Figueiredo. <a href="https://arxiv.org/abs/1409.4271">The Ordered Weighted ℓ1 Norm: Atomic Formulation, Projections, and Algorithms</a>. arXiv preprint, 2014.</li>
+      <li>Lim, Wright. <a href="https://proceedings.mlr.press/v51/lim16.html">Efficient Bregman Projections onto the Permutahedron and Related Polytopes</a>. AISTATS 2016 (PMLR 51:1205-1213).</li>
+      <li>Kim, Denton, Hoang, Rush. <a href="https://arxiv.org/abs/1702.00887">Structured Attention Networks</a>. ICLR 2017.</li>
+      <li>Niculae, Martins, Blondel, Cardie. <a href="https://arxiv.org/abs/1802.04223">SparseMAP: Differentiable Sparse Structured Inference</a>. ICML 2018 (PMLR 80:3799-3808).</li>
+    </ol>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-10 border-t border-rule">
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm" style="color:var(--muted)">
+      <div>© <span id="year"></span> Marcos Treviso · Sparse Attention, From Scratch · Part I</div>
+      <div class="flex items-center gap-4">
+        <a href="../index.html" class="hover:text-teal">Home</a>
+        <a href="../blog.html" class="hover:text-teal">Blog</a>
+        <a href="sparse-attention-2.html" class="hover:text-teal">Part II →</a>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<!-- ===================== LIBS ===================== -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<script>
+/* ================= exact solvers (used by the figures; each figure computes what its caption states) ================= */
+
+/* softmax entropy for the two-level family: k tokens at score D (gap), n-k at 0, temperature 1.
+   Closed form, computed in a numerically safe way. */
+function twoLevelSoftmaxEntropy(n, k, D){
+  const Z = k*Math.exp(D) + (n - k);
+  const pHi = Math.exp(D)/Z, pLo = 1/Z;
+  return -(k*pHi*Math.log(pHi) + (n-k)*pLo*Math.log(pLo));
+}
+
+/* generic alpha-entmax on a two-level histogram (k tokens at value hi, n-k at lo), by bisection on tau.
+   Uses counts, so it is exact for any n. */
+function twoLevelEntmax(n, k, hi, lo, alpha){
+  const am1 = alpha - 1;
+  const f = (tau) => k*Math.pow(Math.max(am1*hi - tau, 0), 1/am1)
+                   + (n-k)*Math.pow(Math.max(am1*lo - tau, 0), 1/am1) - 1;
+  let loT = am1*hi - 1, hiT = am1*hi;             // f(loT) >= 0 >= f(hiT)
+  for (let it = 0; it < 200; it++){
+    const mid = 0.5*(loT + hiT);
+    (f(mid) > 0) ? (loT = mid) : (hiT = mid);
+  }
+  const tau = 0.5*(loT + hiT);
+  const pHi = Math.pow(Math.max(am1*hi - tau, 0), 1/am1);
+  const pLo = Math.pow(Math.max(am1*lo - tau, 0), 1/am1);
+  return {pHi, pLo, tau};
+}
+function twoLevelEntmaxEntropy(n, k, D, alpha){
+  const {pHi, pLo} = twoLevelEntmax(n, k, D, 0, alpha);
+  let H = 0;
+  if (pHi > 0) H -= k*pHi*Math.log(pHi);
+  if (pLo > 0) H -= (n-k)*pLo*Math.log(pLo);
+  return H;
+}
+
+/* ================= Figure 2: kernels and Nadaraya-Watson regression (interactive) ================= */
+function kern(name, u2){ switch(name){
+  case 'gauss': return Math.exp(-u2/(2*0.34*0.34));
+  case 'epan': return Math.max(0, 1-u2);
+  case 'biweight': return Math.pow(Math.max(0, 1-u2), 2);
+  case 'triweight': return Math.pow(Math.max(0, 1-u2), 3);
+  default: return 0; } }
+let KERNEL = 'gauss';
+function fig2Kernel(){
+  const W = 720, Hh = 170, m = {t:14, r:16, b:30, l:40};
+  const svg = d3.select("#fig2kernel").append("svg").attr("viewBox", `0 0 ${W} ${Hh}`);
+  const x = d3.scaleLinear().domain([-1.6, 1.6]).range([m.l, W-m.r]);
+  const y = d3.scaleLinear().domain([0, 1.05]).range([Hh-m.b, m.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-m.b})`).call(d3.axisBottom(x).ticks(5));
+  svg.append("text").attr("x",W-m.r).attr("y",Hh-6).attr("text-anchor","end").attr("class","tokenlabel").text("distance  u = (q−kᵢ)/h");
+  const us = d3.range(-1.6, 1.601, 0.02);
+  const path = svg.append("path").attr("fill","rgba(10,124,106,0.10)").attr("stroke","#0A7C6A").attr("stroke-width",2.5);
+  const ref = svg.append("path").attr("fill","none").attr("stroke","#D5CFC3").attr("stroke-width",1.5).attr("stroke-dasharray","3 3");
+  function update(){
+    const raw = us.map(u => kern(KERNEL, u*u)); const mx = Math.max(...raw);
+    const pts = us.map((u,i) => ({u, k: raw[i]/mx}));
+    const area = d3.area().x(d=>x(d.u)).y0(y(0)).y1(d=>y(d.k)).curve(d3.curveMonotoneX);
+    path.datum(pts).attr("d", area);
+    const g = us.map(u => ({u, k: kern('gauss', u*u)}));
+    ref.datum(g).attr("d", d3.line().x(d=>x(d.u)).y(d=>y(d.k)).curve(d3.curveMonotoneX)).attr("opacity", KERNEL==='gauss'?0:.8);
+  }
+  fig2Kernel._update = update; update();
+}
+function fig2Regress(){
+  const W = 720, Hh = 250, m = {t:16, r:16, b:34, l:40};
+  const svg = d3.select("#fig2regress").append("svg").attr("viewBox", `0 0 ${W} ${Hh}`);
+  // deterministic noisy data on [0,1]
+  const N = 16, xs = [], ys = [];
+  for (let i = 0; i < N; i++){
+    const xi = i/(N-1); const noise = Math.sin(i*91.7)*0.5;
+    ys.push(Math.sin(xi*6.0)*1.0 + 0.28*noise); xs.push(xi);
+  }
+  const x = d3.scaleLinear().domain([-0.02, 1.02]).range([m.l, W-m.r]);
+  const y = d3.scaleLinear().domain([d3.min(ys)-0.4, d3.max(ys)+0.4]).range([Hh-m.b, m.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-m.b})`).call(d3.axisBottom(x).ticks(5));
+  svg.append("text").attr("x",W-m.r).attr("y",Hh-8).attr("text-anchor","end").attr("class","tokenlabel").text("query position q · dots = (key, value) pairs · line = NW fit");
+  const h = 0.13;
+  const grid = d3.range(0, 1.0001, 0.01);
+  const fit = svg.append("path").attr("fill","none").attr("stroke","#0A7C6A").attr("stroke-width",3);
+  svg.selectAll("circle.dp").data(xs).join("circle").attr("class","dp")
+    .attr("cx", d=>x(d)).attr("cy", (d,i)=>y(ys[i])).attr("r",4).attr("fill","#0E1F1C").attr("opacity",.55);
+  function nw(x0){
+    let sw = 0, swy = 0;
+    for (let i = 0; i < N; i++){ const u2 = ((x0-xs[i])/h)**2; const w = kern(KERNEL, u2); sw += w; swy += w*ys[i]; }
+    return sw > 1e-9 ? swy/sw : null;
+  }
+  function update(){
+    const pts = grid.map(g => ({g, v: nw(g)})).filter(d => d.v != null);
+    fit.datum(pts).attr("d", d3.line().x(d=>x(d.g)).y(d=>y(d.v)).curve(d3.curveMonotoneX));
+  }
+  fig2Regress._update = update; update();
+}
+function initKernelToggle(){
+  d3.selectAll('#ker-seg button').on('click', function(){
+    KERNEL = this.getAttribute('data-ker');
+    d3.selectAll('#ker-seg button').classed('on', false); d3.select(this).classed('on', true);
+    if (fig2Kernel._update) fig2Kernel._update(); if (fig2Regress._update) fig2Regress._update();
+  });
+}
+
+/* ================= Figure 3: dispersion strips (interactive) ================= */
+/* Two-level family: 4 relevant tokens at gap D, n-4 at 0, theta=1. One strip per map, C display
+   cells; each cell shows the total attention mass of its n/C tokens, from the closed forms.
+   Softmax: Z = 4 e^D + (n-4); relevant cell = e^D/Z + (n/C - 1)/Z, background cell = (n/C)/Z.
+   1.5-entmax: exact two-level solution by bisection (twoLevelEntmax); D >= 1 clears the margin. */
+function fig3Heatmap(){
+  const C = 64, K = 4, ENTMAX_MARGIN = 1;
+  const NS = [64, 256, 1024, 4096, 16384, 65536, 262144];
+  const NLBL = ["64", "256", "1K", "4K", "16K", "64K", "256K"];
+  const REL = [7, 22, 38, 54];                    // display cells holding one relevant token each
+  const W = 720, rowH = 38, gapY = 16, mL = 88, mR = 168, mT = 8;
+  const Hh = mT + 2*rowH + gapY + 8;
+  const cellW = (W - mL - mR)/C;
+  const svg = d3.select("#fig3strips").append("svg").attr("viewBox", "0 0 " + W + " " + Hh)
+    .attr("role", "img");
+
+  function colorFor(v){                           // v = cell mass in [0, 0.25]
+    if (v <= 0) return null;                      // exact zero -> white with outline
+    const t = 0.08 + 0.92*Math.sqrt(Math.min(1, v/0.25));
+    const mix = (a,b) => Math.round(a + (b-a)*t);
+    return "rgb(" + mix(247,10) + "," + mix(243,124) + "," + mix(236,106) + ")";  // parchment -> teal
+  }
+
+  function buildStrip(row, label){
+    const y = mT + row*(rowH+gapY);
+    svg.append("text").attr("x", mL-8).attr("y", y+rowH/2+4).attr("text-anchor","end")
+      .attr("class","tokenlabel").text(label);
+    const cells = d3.range(C).map(c => svg.append("rect")
+      .attr("x", mL + c*cellW).attr("y", y).attr("width", Math.max(0.5, cellW-0.8)).attr("height", rowH)
+      .attr("rx", 1.5));
+    const mass = svg.append("text").attr("x", W-mR+8).attr("y", y+15)
+      .attr("class","tokenlabel").style("font-variant-numeric","tabular-nums");
+    const support = svg.append("text").attr("x", W-mR+8).attr("y", y+30)
+      .attr("class","tokenlabel").style("font-variant-numeric","tabular-nums");
+    return {cells, mass, support};
+  }
+  const soft = buildStrip(0, "softmax");
+  const ent  = buildStrip(1, "1.5-entmax");
+
+  function paint(strip, rel, bg, relMass, supportSize){
+    strip.cells.forEach((rc, c) => {
+      const isRelevant = REL.indexOf(c) >= 0;
+      const v = isRelevant ? rel : bg;
+      const col = colorFor(v);
+      rc.attr("fill", col === null ? "#fff" : col)
+        .attr("stroke", col === null ? "#E8E2D6" : "none")
+        .attr("stroke-width", col === null ? 0.6 : 0);
+    });
+    const pc = relMass*100;
+    const pct = pc >= 99.95 ? "100" : pc.toFixed(pc < 1 ? 2 : 1);
+    strip.mass.text(pct + "% relevant-token mass");
+    strip.support.text("support " + supportSize.toLocaleString("en-US"));
+  }
+
+  function update(){
+    const idx = parseInt(document.getElementById("hm-n").value, 10);
+    const D = parseFloat(document.getElementById("hm-delta").value);
+    const n = NS[idx], per = n/C;
+    document.getElementById("hm-n-val").textContent = NLBL[idx];
+    document.getElementById("hm-delta-val").textContent = D.toFixed(1);
+    const Z = K*Math.exp(D) + (n - K);
+    const sRel = Math.exp(D)/Z + (per-1)/Z, sBg = per/Z;
+    paint(soft, sRel, sBg, K*Math.exp(D)/Z, n);
+    const sol = twoLevelEntmax(n, K, D, 0, 1.5);
+    const sparse = D >= ENTMAX_MARGIN - 1e-12;
+    const eHi = sparse ? 1/K : sol.pHi, eLo = sparse ? 0 : sol.pLo;
+    const eRel = eHi + (per-1)*eLo, eBg = per*eLo;
+    paint(ent, eRel, eBg, K*eHi, sparse ? K : n);
+    const sSum = K*sRel + (C-K)*sBg, eSum = K*eRel + (C-K)*eBg;   // sanity: strips sum to 1
+    if (Math.abs(sSum-1) > 1e-9 || Math.abs(eSum-1) > 1e-6)
+      console.error("fig3: strip mass off", {n, D, sSum, eSum});
+    if (sparse && sol.pLo > 1e-9)
+      console.error("fig3: entmax margin check failed", {n, D, pLo:sol.pLo});
+    svg.attr("aria-label", "Softmax and 1.5-entmax attention at context length " + n +
+      ", score gap " + D.toFixed(1) + ". Four cells contain the relevant tokens.");
+  }
+
+  document.getElementById("hm-n").addEventListener("input", update);
+  document.getElementById("hm-delta").addEventListener("input", update);
+  update();
+}
+
+/* ================= Figure 4: entropy under a fixed gap ================= */
+function fig4Entropy(){
+  const K = 4, ALPHA = 1.5, DELTAS = [2, 4, 8];
+  const ns = d3.range(4, 20.0001, 0.25).map(e => Math.round(Math.pow(2, e))); // n = 16 .. ~1M
+  const softCols = {2:"#0A7C6A", 4:"#0369A1", 8:"#B45309"};
+
+  const W = 720, Hh = 240, mL = 52, mR = 16, mT = 12, mB = 40;
+  const svg = d3.select("#fig4").append("svg").attr("viewBox", `0 0 ${W} ${Hh}`);
+  const x = d3.scaleLog().domain([16, 1<<20]).range([mL, W-mR]);
+  const y = d3.scaleLinear().domain([0, 1.05]).range([Hh-mB, mT]);
+
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${Hh-mB})`)
+    .call(d3.axisBottom(x).tickValues([16, 256, 4096, 65536, 1048576]).tickFormat(d => d>=1048576?"1M":(d>=65536?"65K":(d>=4096?"4K":d))));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${mL},0)`)
+    .call(d3.axisLeft(y).ticks(4));
+  svg.append("text").attr("class","axis").attr("x", (mL+W-mR)/2).attr("y", Hh-8)
+    .attr("text-anchor","middle").style("fill","var(--muted)").style("font-size","12px").text("context length n (log scale)");
+  svg.append("text").attr("class","axis").attr("transform",`translate(14,${(mT+Hh-mB)/2}) rotate(-90)`)
+    .attr("text-anchor","middle").style("fill","var(--muted)").style("font-size","12px").text("normalized entropy H / log n");
+
+  const line = d3.line().x(d=>x(d.n)).y(d=>y(Math.max(0, Math.min(1.05, d.v))));
+
+  DELTAS.forEach(D=>{
+    const data = ns.map(n => ({n, v: twoLevelSoftmaxEntropy(n, K, D)/Math.log(n)}));
+    svg.append("path").attr("d", line(data)).attr("fill","none")
+      .attr("stroke", softCols[D]).attr("stroke-width", 2.4);
+  });
+
+  const ent = ns.map(n => ({n, v: twoLevelEntmaxEntropy(n, K, DELTAS[0], ALPHA)/Math.log(n)}));
+  svg.append("path").attr("d", line(ent)).attr("fill","none")
+    .attr("stroke", "#0E1F1C").attr("stroke-width", 2.6);
+
+  const chk = twoLevelEntmax(1<<20, K, 2, 0, ALPHA);
+  if (Math.abs(chk.pHi - 1/K) > 1e-6 || chk.pLo > 1e-9)
+    console.error("fig4: entmax two-level solution deviates from the two-level closed form", chk);
+
+  const leg = d3.select("#fig4legend");
+  DELTAS.forEach(D => leg.append("span").html(`<i style="background:${softCols[D]}"></i> softmax, Δ = ${D}`));
+  leg.append("span").html(`<i style="background:#0E1F1C"></i> 1.5-entmax, Δ ≥ 1`);
+}
+
+/* ================= boot ================= */
+function boot(){
+  try { fig2Kernel(); fig2Regress(); initKernelToggle(); fig3Heatmap(); fig4Entropy(); } catch(e){ console.error(e); }
+  document.getElementById('year').textContent = new Date().getFullYear();
+}
+function renderMath(){ if(window.renderMathInElement) renderMathInElement(document.body,{
+  delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}], throwOnError:false }); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60)); else setTimeout(boot,60);
+window.addEventListener('load', renderMath);
+</script>
+</body>
+</html>
