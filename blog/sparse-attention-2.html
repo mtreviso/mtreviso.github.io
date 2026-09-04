@@ -140,21 +140,16 @@
     </h1>
     <p class="font-display text-2xl italic mb-6" style="color:var(--teal)">How sparse attention runs fast and how frontier labs do it</p>
     <p class="text-lg leading-relaxed mb-6" style="color:var(--muted)">
-      
-      Say “sparse attention” and many people hear only “top-\(k\).” Part I placed top-\(k\) inside a much older family of
-      thresholded maps.
-      <!-- A hard mask has zero membership Jacobian almost everywhere, while sparse prediction maps carry exact gradients.  -->
-      This part takes the other half of the trap, the belief that unstructured, input-dependent sparsity cannot be fast on GPUs. 
-      <!-- and the false dichotomy it sustains between exact softmax under FlashAttention and approximate top-\(k\) as the only faster option. Two questions organize the post.  -->
-
-      <!-- How do frontier systems train a learned selector around a gradient-free mask? DeepSeek-V3.2 and MiniMax’s MSA both distill softmax attention while detaching the selector from the backbone, and both say why. -->
-      
-      <!-- How is the threshold found quickly at millions of tokens? The communities that need it have converged on the same answer. Bracket it with coarse statistics and refine only where the answer can hide. This works because compute has outgrown memory bandwidth, so in memory-bound regimes the arithmetic spent deciding what to read is cheap next to the bytes not read (§4). AdaSplash-2, our fused entmax kernel, gets the close-up, down to its bit-packed masks. -->
+      Say “sparse attention” and many people hear only “top-\(k\) on a softmax model.” Part I took the first half
+      of that trap apart, showing that top-\(k\) is one member of an old, well-understood family of thresholded
+      maps, some of which are sparse by construction and differentiable. It ended on the question the mathematics
+      cannot settle: can a genuinely sparse model be trained and served at competitive speed? This part answers it
+      with what is running today. I will first draw the line the literature keeps blurring, between training-free
+      approximations to a softmax model and models that are sparse natively (§2). Then I will read the two frontier
+      systems that train selectors without differentiating through them, in their own words and their own equations
+      (§3), and go down to the metal, where thresholds are bracketed with histograms and block masks are walked
+      with single hardware instructions (§4). One table at the end organizes the whole zoo (§5).
     </p>
-    <!-- <div class="pill-row">
-      <span class="pill">detach &amp; distill</span><span class="pill">DSA · MSA</span><span class="pill">threshold bracketing</span>
-      <span class="pill">GPU kernels</span><span class="pill">AdaSplash-2</span>
-    </div> -->
   </header>
 
   <!-- TOC -->
@@ -162,27 +157,26 @@
     <div class="toc">
       <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
       <ul>
-        <li><a href="#object">1. The object, and the dead end</a></li>
-        <li><a href="#families">2. Two families, and the line that matters</a></li>
-        <li><a href="#frontier">3. The gradient the frontier labs engineer around</a>
+        <li><a href="#object">1. Introduction</a></li>
+        <li><a href="#families">2. Training-free vs. trainable</a></li>
+        <li><a href="#frontier">3. Detach and distill</a>
           <ul>
-            <li><a href="#dsa">3.1 DeepSeek-V3.2, in its own words</a></li>
-            <li><a href="#msa">3.2 MiniMax MSA, in its own words, with the ablation</a></li>
-            <li><a href="#precedents">3.3 The recipe predates them</a></li>
-            <li><a href="#openq">3.4 What detaching buys, what it costs, and an open question</a></li>
+            <li><a href="#dsa">3.1 DeepSeek-V3.2’s DSA</a></li>
+            <li><a href="#msa">3.2 MiniMax’s MSA</a></li>
+            <li><a href="#precedents">3.3 Precedents</a></li>
+            <li><a href="#openq">3.4 An open question</a></li>
           </ul>
         </li>
-        <li><a href="#bracketing">4. The convergence on bracketing the threshold</a>
+        <li><a href="#bracketing">4. Bracketing the threshold</a>
           <ul>
-            <li><a href="#pattern">4.1 The pattern, and why conservative errors preserve correctness</a></li>
-            <li><a href="#entmaxlane">4.2 The entmax lane: AdaSplash-2 up close</a></li>
+            <li><a href="#pattern">4.1 Conservative errors are safe</a></li>
+            <li><a href="#entmaxlane">4.2 AdaSplash-2</a></li>
             <li><a href="#servinglane">4.3 The serving lane</a></li>
             <li><a href="#softmaxlane">4.4 The softmax-threshold lane</a></li>
-            <li><a href="#lanes">4.5 Three lanes, one trick, and what stays open</a></li>
-          </ul>
+            </ul>
         </li>
-        <li><a href="#landscape">5. The landscape, at a glance</a></li>
-        <li><a href="#close">6. Where this leaves us</a></li>
+        <li><a href="#landscape">5. The landscape</a></li>
+        <li><a href="#close">6. Conclusion</a></li>
         <li><a href="#refs">References</a></li>
       </ul>
     </div>
@@ -199,7 +193,7 @@
 
   <!-- 1. OBJECT -->
   <section class="mb-16" id="object">
-    <h2 class="font-display text-3xl font-semibold mb-8">1. The object, and the dead end</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">1. Introduction</h2>
     <div class="narrative-section">
       <p>
         The object at the center of the selector systems in this part is the hard top-\(k\) mask. Write it as
@@ -217,7 +211,7 @@
         softmax attention it replaces, with the selector cut out of the graph, and explain why. Either way, one
         system-level problem remains for everybody: given scores, find the threshold fast, at context lengths where
         moving memory, not doing arithmetic, is the scarce resource (§4). That second problem is where this post
-        earns the word “systems,” and where the false dichotomy from the introduction finally dissolves.
+        earns the word “systems,” and where the last piece of Part I’s false dichotomy finally dissolves.
       </p>
     </div>
   </section>
@@ -226,7 +220,7 @@
 
   <!-- 2. TWO FAMILIES -->
   <section class="mb-16" id="families">
-    <h2 class="font-display text-3xl font-semibold mb-8">2. Two families, and the line that matters</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">2. Training-free vs. trainable</h2>
     <div class="narrative-section">
       <p>
         Here is the fact that triggered this series. Open the proceedings of a recent conference and “sparse
@@ -260,16 +254,18 @@
         version, and it has no training-free analogue: restrict a softmax model to any subset and the answer
         changes, restrict an entmax model to a superset of its support and it does not.
       </p>
-      <div class="tbl-scroll">
-      <table class="taxo">
-        <tr><th></th><th>Training-free</th><th>Trainable (native)</th></tr>
-        <tr><td><strong>Idea</strong></td><td>Retrofit sparsity onto a frozen softmax model at inference</td><td>Make sparsity part of the model; train with it</td></tr>
-        <tr><td><strong>Retraining</strong></td><td>None; drop-in</td><td>Pretrain or fine-tune with the sparse operator</td></tr>
-        <tr><td><strong>Attention it runs on</strong></td><td>Dense softmax, positive everywhere</td><td>Sparse by construction</td></tr>
-        <tr><td><strong>Discarded mass</strong></td><td>\(\delta > 0\) whenever a strict subset is retained</td><td>\(\delta = 0\); exact once the support is recovered</td></tr>
-        <tr><td><strong>Examples</strong></td><td>H2O, StreamingLLM, Quest, SnapKV, MInference, FlexPrefill, SALE, FFD, Twilight (Table 1)</td><td>NSA, MoBA, InfLLM-V2, DSA, MSA; entmax-native: AdaSplash-2, DashAttention, EntmaxKV (Table 1)</td></tr>
-      </table>
-      </div>
+      <p>
+        The extreme point of the trainable family, and the running example of §4, is α-entmax attention, which
+        Part I built from first principles. Replace softmax by
+        \(\alpha\text{-entmax}(\mathbf z)=[(\alpha-1)\mathbf z-\tau\mathbf 1]_+^{1/(\alpha-1)}\) and the map
+        assigns <em>exact zeros</em> to every token whose score falls below a threshold \(\tau(\mathbf z)\) that moves
+        with the scores, while staying differentiable exactly where it matters (Part I §4.3). Nothing about it
+        approximates anything. A model trained this way is sparse because the operator is, the same computation at
+        training and at inference, and the number of surviving tokens is an outcome of the scores rather than a
+        knob someone tuned. Keep it in mind through what follows. The systems of §3 train hard top-\(k\) selectors
+        instead and must engineer around the dead membership gradient; the kernels of §4 compute \(\tau\) fast, for
+        entmax out of necessity, since \(\tau\) <em>is</em> the operator, and for top-\(k\) as an approximation knob.
+      </p>
       <p>
         One honest wrinkle. A thin middle band retrofits <em>trained components</em> onto a frozen or lightly tuned
         backbone: SeerAttention distills block gates from the model’s own attention maps
@@ -286,8 +282,8 @@
         This line is why the post keeps the families apart to the end. Section 3 covers the trained systems and
         what they say about gradients. Section 4 covers the kernels, where the two families meet, because
         bracketing a threshold is the same trick whether the threshold guards an approximation or recovers an
-        exact support; the difference lives in the last column of the lanes table, in what “exact” means. Section
-        5 lays the whole territory out in one table, family by family.
+        exact support; the difference is what “exact” means for each method, and Table 1 records it row by row.
+        Section 5 lays the whole territory out in that one table, family by family.
       </p>
     </div>
   </section>
@@ -296,28 +292,40 @@
 
   <!-- 3. FRONTIER -->
   <section class="mb-16" id="frontier">
-    <h2 class="font-display text-3xl font-semibold mb-8">3. The gradient the frontier labs engineer around</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">3. Detach and distill</h2>
     <div class="narrative-section">
       <p>
         Two frontier-scale systems now run sparse attention with a <em>learned</em> selector: DeepSeek-V3.2
         and MiniMax’s MSA. Neither differentiates through selection. Both train the selector by distilling the softmax
         attention it replaces, with the selector explicitly cut out of the computational graph. Unusually, and to
-        their credit, both papers say exactly why. This section quotes them because the wording is the evidence.
+        their credit, both papers say exactly why. This section quotes them, because the wording is the evidence,
+        and writes their losses down, because the equations are short and they repay reading.
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="dsa">3.1 DeepSeek-V3.2, in its own words</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="dsa">3.1 DeepSeek-V3.2’s DSA</h3>
       <p>
         DSA scores every prefix token with a “lightning indexer,” \(I_{t,s} = \sum_{j} w^I_{t,j}\cdot\mathrm{ReLU}(\mathbf q^I_{t,j}\cdot\mathbf k^I_s)\),
         a few FP8 heads with ReLU chosen “for throughput consideration,” and keeps the top \(k=2048\) tokens per query
-        <a class="cite" href="https://arxiv.org/abs/2512.02556">(DeepSeek-AI, 2025)</a>. Training is two-stage. A dense
-        warm-up freezes everything except the indexer and trains it by KL divergence toward the L1-normalized,
-        head-summed softmax attention distribution: 1,000 steps × 16 sequences × 128K tokens = 2.1B tokens. Then the sparse
-        stage switches selection on and continues the KL on the selected set only, while the main model trains on language
-        modeling: 15,000 steps × 480 × 128K = 943.7B tokens. And the sentence this series has been circling:
+        <a class="cite" href="https://arxiv.org/abs/2512.02556">(DeepSeek-AI, 2025)</a>. Training is two-stage, and the
+        paper writes the objective down plainly. In the dense warm-up, everything is frozen except the indexer, which is
+        trained by KL divergence toward a teacher built from the model’s own attention. For query \(t\), sum the softmax
+        attention scores across all heads and L1-normalize along the sequence; call the result \(p_{t,:}\). Then, in
+        their notation (Eqs. 3–4),
+      </p>
+      $$\begin{aligned}
+      \text{warm-up:}\quad &\mathcal L^{I} \;=\; \textstyle\sum_t\, \mathbb D_{\mathrm{KL}}\big(p_{t,:} \,\big\|\, \mathrm{Softmax}(I_{t,:})\big),\\[3pt]
+      \text{sparse stage:}\quad &\mathcal L^{I} \;=\; \textstyle\sum_t\, \mathbb D_{\mathrm{KL}}\big(p_{t,\mathcal S_t} \,\big\|\, \mathrm{Softmax}(I_{t,\mathcal S_t})\big),
+      \qquad \mathcal S_t=\{s \mid I_{t,s}\in \mathrm{Top}\text{-}k(I_{t,:})\}.
+      \end{aligned}$$
+      <p>
+        The warm-up trains only the indexer, for 1,000 steps × 16 sequences × 128K tokens = 2.1B tokens. The sparse stage
+        then switches selection on, keeps the same alignment restricted to the selected set \(\mathcal S_t\), and lets the
+        main model train on language modeling: 15,000 steps × 480 × 128K = 943.7B tokens. Notice what the loss is
+        <em>not</em>. It is not the task loss; it is softmax imitation, twice. And the sentence this series has been circling:
       </p>
       <blockquote class="vq">
         <p>“It is worth noting that we detach the indexer input from the computational graph for separate optimization.
-        The training signal of the indexer is from only \(\mathcal L_I\), while the optimization of the main model is
+        The training signal of the indexer is from only \(\mathcal L^{I}\), while the optimization of the main model is
         according to only the language modeling loss.”</p>
         <span class="who">— DeepSeek-AI (2025), §2.1, on DSA’s sparse training stage</span>
       </blockquote>
@@ -330,7 +338,7 @@
         of <a class="prose-link" href="https://github.com/deepseek-ai/DeepSeek-V3.2-Exp">deepseek-ai/DeepSeek-V3.2-Exp</a>.
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="msa">3.2 MiniMax MSA, in its own words, with the ablation</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="msa">3.2 MiniMax’s MSA</h3>
       <p>
         MSA is the block-level counterpart on GQA. Two added projection matrices score tokens, max-pool to blocks, take
         top-\(k\) blocks per query and GQA group (the local block always included), and run exact block-sparse softmax over the
@@ -348,8 +356,20 @@
         <span class="who">— Lai et al. (2026), §3.2</span>
       </blockquote>
       <p>
-        The teacher is the probability-level average of the per-head softmax over the selected tokens, with stop-gradient on
-        the teacher <em>and</em> on the indexer’s input, so the KL updates only the two index projections. What makes MSA
+        The loss is worth writing out, because its two stop-gradients are the entire philosophy. Write
+        \(P^{\mathrm{idx},(r)}_{i,\cdot}\) for the Index Branch’s softmax over the visible tokens of the selected
+        blocks, and \(P^{(r)}_{i,\cdot}\) for the teacher, the per-head Main-Branch softmax over those same tokens,
+        averaged at the probability level over the \(G\) query heads of GQA group \(r\). Then (their Eq. 10)
+      </p>
+      $$\mathcal L_{\mathrm{KL}} \;=\; \frac{1}{N H_{kv}} \sum_{i=1}^{N}\sum_{r=1}^{H_{kv}}
+      D_{\mathrm{KL}}\Big(\mathrm{stopgrad}\big(P^{(r)}_{i,\cdot}\big) \,\Big\|\, P^{\mathrm{idx},(r)}_{i,\cdot}\Big),$$
+      <p>
+        and, one line later, the input detach
+        \(\mathbf Q^{\mathrm{idx}} = \mathrm{stopgrad}(\mathbf X)\,\mathbf W_q^{\mathrm{idx}}\),
+        \(\mathbf K^{\mathrm{idx}} = \mathrm{stopgrad}(\mathbf X)\,\mathbf W_k^{\mathrm{idx}}\) (their Eq. 11).
+        The first stopgrad keeps the student from gaming the teacher. The second keeps the KL out of the backbone
+        entirely. Together they mean the loss updates exactly two matrices, the index projections, and nothing else.
+        What makes MSA
         especially useful here is that they ablated the alternatives (10B-parameter pilot, their App. B). Give the indexer an
         additive attention output so the LM loss trains it (“LM loss only”) and it “performs poorly on long-context
         retrieval: without an objective on the top-\(k\) selection itself, the indexer receives little direct pressure to
@@ -381,7 +401,7 @@
         per-token attention compute, 14.2× faster prefill, and 7.6× faster decoding on H800 GPUs.
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="precedents">3.3 The recipe predates them</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="precedents">3.3 Precedents</h3>
       <p>
         Detached distillation from softmax attention was not invented at the frontier. SeerAttention trains block-level
         “attention gates” by KL toward the 2D-max-pooled attention map of the frozen model: “only requires training the
@@ -407,7 +427,7 @@
         around it (MoBA).
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="openq">3.4 What detaching buys, what it costs, and an open question</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="openq">3.4 An open question</h3>
       <p>
         What it buys is legible in MSA’s ablations: stability (no KL spikes into the backbone), locality (each layer’s
         selector gets a clean, well-shaped supervision signal), and immunity from the self-distillation collapse, because the
@@ -443,7 +463,7 @@
 
   <!-- 4. BRACKETING -->
   <section class="mb-16" id="bracketing">
-    <h2 class="font-display text-3xl font-semibold mb-8">4. The convergence on bracketing the threshold</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">4. Bracketing the threshold</h2>
     <div class="narrative-section">
       <p>
         Gradient or no gradient, everyone still has to <em>find</em> the threshold, whether it is a top-\(k\) cutoff over
@@ -606,10 +626,10 @@
         </p>
       </div>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="pattern">4.1 The pattern, and why conservative errors preserve correctness</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="pattern">4.1 Conservative errors are safe</h3>
       <p>
-        The recipe works because of two small results that make one-sided errors harmless. The first is special to exact
-        sparsity:
+        The recipe works because of two small results that make one-sided errors harmless. The first belongs to the
+        entmax family recalled in §2, where sparsity is exact:
       </p>
       <p>
         <strong>Conservative supersets are exact</strong>
@@ -662,7 +682,7 @@
         the one statistic every streaming kernel computes anyway; every lane builds its bracket on it.
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="entmaxlane">4.2 The entmax lane: AdaSplash-2 up close</h3>
+      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="entmaxlane">4.2 AdaSplash-2</h3>
       <p>
         Training-time entmax attention needs \(\tau\) for every query row, inside the FlashAttention tiling, without
         materializing \(n\times n\) scores. AdaSplash did it with a safeguarded Halley-bisection hybrid (cubic local
@@ -738,126 +758,24 @@
 
 
       <p>
-        Solving for \(\tau\) is half the kernel. The other half is spending the sparsity it certifies. While the
-        weights are computed, the kernel also builds a binary block mask \(\mathcal M \in \{0,1\}^{T_r\times T_c}\)
-        marking which score blocks contain any nonzero attention weight, bit-packed with 32 column-blocks per
-        <code>int32</code>, so the whole mask costs \(O(T_r \times T_c)\) <em>bits</em> of memory. The output pass and
-        the entire backward pass then never touch the full grid. A population count (<code>popc</code>) tells each
-        row how many blocks survive, and find-next-set (<code>fns</code>) jumps straight from one surviving block to
-        the next, giving \(O(\|\mathcal M\|_0)\) traversal instead of \(O(T_r \times T_c)\)
-        <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026)</a>. A skipped block’s
-        values are never read from HBM in the output pass, and its gradients are never written in backward. That
-        is exactly where the economics of §4’s opening cash out. Figure 5 walks the trick on a toy grid.
+        Solving for \(\tau\) is half the kernel. The other half is spending the sparsity it certifies, and this
+        part never leaves the registers. While the weights are computed, the kernel also builds a binary block mask
+        \(\mathcal M \in \{0,1\}^{T_r\times T_c}\) marking which score blocks contain any nonzero attention
+        weight. “Builds” is almost too grand a word. Per query-row block, a single <code>int32</code> accumulates one
+        bit per key block, a shift and an add as the \(\tau\) pass streams by, and is flushed to memory once every
+        32 blocks, so the whole mask costs \(T_r \times T_c\) <em>bits</em>. The output pass and the entire
+        backward pass then never touch the full grid. Each loads one 4-byte word per 32 column-blocks and
+        interrogates it in place: a population count (<code>popc</code>) says how many blocks survive in that word,
+        and find-next-set (<code>fns</code>) jumps straight to the next surviving one, so the inner loop executes
+        exactly <code>popc</code>-many iterations, \(O(\|\mathcal M\|_0)\) traversal instead of
+        \(O(T_r \times T_c)\)
+        <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026)</a>. Both are single
+        hardware instructions on a register operand, and in the released Triton kernel they are visible almost line
+        for line, <code>popc</code> imported from libdevice and <code>fns</code> as a one-line inline-PTX call. A
+        skipped block therefore costs nothing at all. Its values are never read from HBM in the output pass, its
+        gradients are never written in backward, and not one instruction is spent discovering that it can be
+        skipped beyond the bit that already said so. That is exactly where the economics of §4’s opening cash out.
       </p>
-
-      <!-- FIGURE 5 -->
-      <div class="viz-card">
-        <h4>Skipping what you can prove is zero</h4>
-        <p class="sub">A toy \(4\times4\) block grid; bit \(j\) of each row’s mask stands for column-block \(j\).</p>
-        <svg viewBox="0 0 780 300" role="img" aria-label="Block-sparse score grid, its bit-packed mask, and the popc/fns traversal">
-          <style>
-            .t{font-family:Outfit,sans-serif;font-size:13px;font-weight:600;fill:#0E1F1C}
-            .lbl{font-family:Outfit,sans-serif;font-size:11px;fill:#6B7C79}
-            .mono{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11.5px;fill:#0E1F1C}
-            .monod{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11.5px;fill:#6B7C79}
-          </style>
-          <text class="t" x="18" y="20">nonzero score blocks</text>
-          <text class="t" x="300" y="20">bitpacked mask</text>
-          <text class="t" x="512" y="20">sparsity-aware traversal</text>
-
-          <!-- left: 4x4 block grid; rows i=0..3 top-down, cols j=0..3 left-right -->
-          <!-- nonzero: r0:{0} r1:{0,1} r2:{2} r3:{1,3} -->
-          <g>
-            <!-- row 0 -->
-            <rect x="40" y="36" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.85"/>
-            <rect x="90" y="36" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="140" y="36" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="190" y="36" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <!-- row 1 -->
-            <rect x="40" y="86" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.5"/>
-            <rect x="90" y="86" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.8"/>
-            <rect x="140" y="86" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="190" y="86" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <!-- row 2 -->
-            <rect x="40" y="136" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="90" y="136" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="140" y="136" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.75"/>
-            <rect x="190" y="136" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <!-- row 3 -->
-            <rect x="40" y="186" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="90" y="186" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.45"/>
-            <rect x="140" y="186" width="46" height="46" rx="4" fill="#fff" stroke="#E8E2D6"/>
-            <rect x="190" y="186" width="46" height="46" rx="4" fill="#0A7C6A" opacity="0.7"/>
-            <!-- labels -->
-            <text class="lbl" x="30" y="64" text-anchor="end">i=0</text>
-            <text class="lbl" x="30" y="114" text-anchor="end">i=1</text>
-            <text class="lbl" x="30" y="164" text-anchor="end">i=2</text>
-            <text class="lbl" x="30" y="214" text-anchor="end">i=3</text>
-            <text class="lbl" x="63" y="248" text-anchor="middle">j=0</text>
-            <text class="lbl" x="113" y="248" text-anchor="middle">j=1</text>
-            <text class="lbl" x="163" y="248" text-anchor="middle">j=2</text>
-            <text class="lbl" x="213" y="248" text-anchor="middle">j=3</text>
-          </g>
-
-          <!-- arrow 1 -->
-          <g stroke="#6B7C79" stroke-width="1.6" fill="none">
-            <path d="M248 134 h34" stroke-dasharray="4,4"/>
-            <path d="M278 129 l8 5 -8 5" fill="#6B7C79" stroke="none"/>
-          </g>
-
-          <!-- middle: bit cells (b3 b2 b1 b0, MSB left) + hex -->
-          <!-- r0: 0001=0x1, r1: 0011=0x3, r2: 0100=0x4, r3: 1010=0xA -->
-          <g>
-            <text class="lbl" x="300" y="34">bits b₃b₂b₁b₀</text>
-            <!-- helper rows at y = 44, 94, 144, 194 -->
-            <!-- row 0: 0 0 0 1 -->
-            <rect x="300" y="44" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="322" y="44" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="344" y="44" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="366" y="44" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/>
-            <text class="mono" x="398" y="62">= 0x1</text>
-            <!-- row 1: 0 0 1 1 -->
-            <rect x="300" y="94" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="322" y="94" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="344" y="94" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/><rect x="366" y="94" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/>
-            <text class="mono" x="398" y="112">= 0x3</text>
-            <!-- row 2: 0 1 0 0 -->
-            <rect x="300" y="144" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="322" y="144" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/><rect x="344" y="144" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="366" y="144" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/>
-            <text class="mono" x="398" y="162">= 0x4</text>
-            <!-- row 3: 1 0 1 0 -->
-            <rect x="300" y="194" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/><rect x="322" y="194" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/><rect x="344" y="194" width="20" height="26" rx="3" fill="#0A7C6A" opacity="0.8"/><rect x="366" y="194" width="20" height="26" rx="3" fill="#fff" stroke="#E8E2D6"/>
-            <text class="mono" x="398" y="212">= 0xA</text>
-          </g>
-
-          <!-- arrow 2 -->
-          <g stroke="#6B7C79" stroke-width="1.6" fill="none">
-            <path d="M452 134 h34" stroke-dasharray="4,4"/>
-            <path d="M482 129 l8 5 -8 5" fill="#6B7C79" stroke="none"/>
-          </g>
-
-          <!-- right: traversal cards -->
-          <g>
-            <rect x="505" y="40" width="262" height="36" rx="6" fill="rgba(10,124,106,0.06)"/>
-            <text class="mono" x="514" y="55">n = popc(0x1) = 1</text>
-            <text class="monod" x="514" y="70">visit j = fns → 0; skip 1,2,3</text>
-
-            <rect x="505" y="90" width="262" height="36" rx="6" fill="rgba(10,124,106,0.06)"/>
-            <text class="mono" x="514" y="105">n = popc(0x3) = 2</text>
-            <text class="monod" x="514" y="120">visit j = fns → 0, 1; skip 2,3</text>
-
-            <rect x="505" y="140" width="262" height="36" rx="6" fill="rgba(10,124,106,0.06)"/>
-            <text class="mono" x="514" y="155">n = popc(0x4) = 1</text>
-            <text class="monod" x="514" y="170">visit j = fns → 2; skip 0,1,3</text>
-
-            <rect x="505" y="190" width="262" height="36" rx="6" fill="rgba(10,124,106,0.06)"/>
-            <text class="mono" x="514" y="205">n = popc(0xA) = 2</text>
-            <text class="monod" x="514" y="220">visit j = fns → 1, 3; skip 0,2</text>
-          </g>
-        </svg>
-        <p class="fig-caption"><span class="fnum">Fig. 5.</span>
-          The block mask and its traversal, on a toy \(4\times4\) grid (in the real kernel each row’s mask packs 32
-          column-blocks per <code>int32</code>). Teal blocks hold at least one nonzero weight; each row’s mask sets
-          bit \(j\) when column-block \(j\) survives. The traversal reads the mask with two hardware instructions,
-          <code>popc</code> for how many blocks to visit and <code>fns</code> for where the next one is, so the loop
-          runs over surviving blocks only. Everything else is provably zero under \(\tau_h \le \tau^\star\). Its
-          value block is not loaded in the output pass, and its gradients are not written in backward.
-        </p>
-      </div>
 
       <p>
         The <a class="prose-link" href="https://mtreviso.github.io/entmax-demo/adasplash.html">interactive α-entmax to
@@ -885,10 +803,10 @@
         <a class="cite" href="https://arxiv.org/abs/2605.21649">(Duarte et al., 2026)</a>.
       </p>
 
-      <!-- FIGURE 6 -->
+      <!-- FIGURE 5 -->
       <div class="viz-card">
         <img src="figs/adasplash2_sparsity_speedup.png" alt="AdaSplash-2 runtime versus input sparsity against FlashAttention-2" style="width: 75%; margin: 0 auto;" />
-        <p class="fig-caption"><span class="fnum">Fig. 6.</span>
+        <p class="fig-caption"><span class="fnum">Fig. 5.</span>
           What the bracket buys: runtime (forward + backward) as a function of input sparsity for causal attention.
           AdaSplash-2’s Triton kernels overtake a highly optimized CUDA FlashAttention-2 already at moderate sparsity
           and pull away as block sparsity grows. Reproduced from Figure 1 of
@@ -943,10 +861,10 @@
         statistic, bracket, conservative gate, refine.
       </p>
 
-      <!-- FIGURE 7 -->
+      <!-- FIGURE 6 -->
       <div class="viz-card">
         <img src="figs/litetopk_fig6.png" alt="LiteTopK runtime comparison on sparse-attention and retrieval workloads"/>
-        <p class="fig-caption"><span class="fnum">Fig. 7.</span>
+        <p class="fig-caption"><span class="fnum">Fig. 6.</span>
           The fused bracket at work. <strong>Top:</strong> DSA’s indexer-top-\(k\) kernel latency versus the auxiliary
           memory each configuration needs, at 256K–1M context on a B200; the vLLM baseline trades memory for speed
           along its curve, while LiteTopK (orange) sits below it at a fraction of the memory. <strong>Bottom:</strong>
@@ -989,36 +907,6 @@
         entmax’s threshold is <em>the operator itself</em>, while softmax’s is an approximation knob with an error bound.
       </p>
 
-      <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="lanes">4.5 Three lanes, one trick, and what stays open</h3>
-      <div class="tbl-scroll">
-      <table class="taxo">
-        <thead>
-          <tr><th>Lane</th><th>Representative</th><th>Cheap statistic</th><th>Bracket / gate</th><th>Conservative because</th><th>Refine step</th><th>Result semantics</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>entmax (training)</td><td>AdaSplash-2</td><td>row max + SRAM histogram (B bins)</td><td>\(\tau_h \le \tau^\star &lt; \tau_h + 1/B\)</td><td>left-edge binning (§4.2)</td><td>Halley/Newton, 1–2 iters</td><td>exact entmax</td></tr>
-          <tr><td>entmax (decode)</td><td>EntmaxKV</td><td>per-page key boxes, moments</td><td>page-score upper bounds vs. \(\tau\)</td><td>box bound cannot miss support</td><td>sparse entmax on kept pages</td><td>exact when support covered</td></tr>
-          <tr><td>serving (prefill)</td><td>LiteTopK</td><td>previous chunk’s top-\(3k\)</td><td>equal-width bins; threshold bin</td><td>sample’s \(k\)-th stat (§4.1); stale = looser</td><td>exact select inside the bin</td><td>exact top-\(k\)</td></tr>
-          <tr><td>serving (scan pruning)</td><td>HISA</td><td>mean-pooled block keys</td><td>top-\(m\) blocks, first/last forced</td><td>heuristic; no set-recall guarantee</td><td>token re-scoring in survivors</td><td>“nearly the same set” (their words)</td></tr>
-          <tr><td>softmax threshold</td><td>FFD / BLASST / SALE</td><td>(pseudo/running) max; low-bit scan</td><td>\(s \ge m - \delta\) ⇔ mass ratio \(\ge e^{-\delta}\)</td><td>δ bounds discarded mass per token</td><td>residual dequant / full-precision block</td><td>approximate, bounded error</td></tr>
-        </tbody>
-      </table>
-      </div>
-      <p>
-        And what stays open, stated as open. <strong>The first window.</strong> LiteTopK’s bracket leans on the previous
-        chunk; the first chunk, and any distribution shift between chunks, need a fallback that the paper leaves as engineering.
-        <strong>Exactness accounting.</strong> The lanes mean different things by “exact”: bit-exact selection (LiteTopK),
-        set parity verified empirically (StreamIndex), “nearly the same set” (HISA), bounded discarded mass (FFD, BLASST),
-        exact-given-recall (§4.1’s superset guarantee), and the benchmarks do not overlap enough to weigh these semantics against each other.
-        <strong>Prefill vs. decode.</strong> The lanes specialize (LiteTopK and SALE to prefill; FFD, EntmaxKV, TileSparse to
-        decode), and the Sparse Frontier’s finding that the two phases tolerate sparsity differently
-        <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2026)</a> suggests the
-        specialization is real rather than incidental. <strong>And the lanes have not met.</strong> As published, the serving
-        kernels bracket for hard selection and carry no gradients, while the fused streaming lane (§4.2) differentiates exactly but controls only
-        total mass, with the support size an outcome rather than a control. Each lane currently has something the others
-        lack. Whether they stay three literatures is not for a blog post to decide; the bibliographies, at least, should
-        start intersecting.
-      </p>
     </div>
   </section>
 
@@ -1026,7 +914,7 @@
 
   <!-- 5. LANDSCAPE -->
   <section class="mb-16" id="landscape">
-    <h2 class="font-display text-3xl font-semibold mb-8">5. The landscape, at a glance</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">5. The landscape</h2>
     <div class="narrative-section">
       <p>
         One table for the whole zoo, grouped by the family line of §2. Read across for what each method does; the
@@ -1131,26 +1019,10 @@
         pretraining has not been shown, a gap to state rather than paper over.
       </p>
       <p>
-        The live disagreements that will shape the next few years, compressed to one more table:
-      </p>
-      <div class="tbl-scroll">
-      <table class="taxo">
-        <tr><th>Tension</th><th>One camp</th><th>The other</th></tr>
-        <tr><td>Where sparsity lives</td><td>Retrofit onto a dense model (H2O, Quest, MInference)</td><td>Train it in natively (NSA, MoBA, InfLLM-V2, DSA)</td></tr>
-        <tr><td>Granularity</td><td>Hardware-aligned blocks (NSA, MSA, XAttention)</td><td>Token-exact zeros (sparsemax, α-entmax, DSA’s top-\(k\))</td></tr>
-        <tr><td>Importance</td><td>Query-agnostic scores (H2O, key norms)</td><td>Query-aware selection (Quest, NOSA, the indexers)</td></tr>
-        <tr><td>Cache policy</td><td>Eviction: bounded, irreversible (H2O, TOVA)</td><td>Selection: full state, reversible (Quest, ShadowKV)</td></tr>
-        <tr><td>Estimator</td><td>Deterministic bounds and thresholds (Quest, FFD, BLASST)</td><td>Sampling (MagicPIG) and exact recovery (EntmaxKV)</td></tr>
-        <tr><td>Length generalization</td><td>Patch softmax (Scalable-Softmax, temperature)</td><td>Replace softmax (α-entmax, ASEntmax; Part I §3)</td></tr>
-        <tr><td>Approximation</td><td>Truncate a dense tail (δ &gt; 0)</td><td>Recover an exact support (δ = 0, EntmaxKV)</td></tr>
-      </table>
-      </div>
-      <p class="fig-caption" style="margin-top:-8px">Table 2. The tensions, stated as camps. Most rows are genuinely open; the last is mathematics.</p>
-      <p>
-        Read down the right columns and a single position emerges, the one this series has been arguing for.
+        Squint at the table long enough and a single position emerges, the one this series has been arguing for.
         Sparsity should be a property of the model, trained in, exact where possible, and co-designed with the
-        kernel. That is precisely the object Part I built from sparsemax and α-entmax, and §3–§4 are what it takes
-        to train and run it. The efficiency era did not replace the principled lineage; it caught up to it.
+        kernel. That is precisely the object Part I built from sparsemax and α-entmax, and §3 and §4 are what it
+        takes to train and run it. The efficiency era did not replace the principled lineage; it caught up to it.
       </p>
     </div>
   </section>
@@ -1159,10 +1031,10 @@
 
   <!-- 6. CLOSE -->
   <section class="mb-16" id="close">
-    <h2 class="font-display text-3xl font-semibold mb-8">6. Where this leaves us</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">6. Conclusion</h2>
     <div class="narrative-section">
       <p>
-        The two posts compress to four sentences. Under bounded score spread, softmax attention must flatten at long
+        Here is the series in one paragraph. Under bounded score spread, softmax attention must flatten at long
         context, a theorem, and exact zeros are the exit that changes the mathematics rather than the constants (Part I
         §3). Top-\(k\), top-\(p\),
         and sparse prediction maps do not share one objective, but they share a computational skeleton, and the sparse
@@ -1173,9 +1045,12 @@
         where bytes, not FLOPs, are the scarce resource (§4).
       </p>
       <p>
-        Where the evidence runs out, I have tried to say so in place. The teacher-dispersion question has no
-        measurement, and the lanes have no shared benchmark. Those are the edges of what is known, as best I can draw them, which was
-        the point of writing this down.
+        Where the evidence runs out, I have tried to say so in place. The teacher-dispersion question of §3.4 has
+        no measurement. The serving kernels and the fused training kernels have not met; as published, one lane
+        brackets for hard selection and carries no gradients, while the other differentiates exactly. And the lanes
+        share no benchmark, so their different meanings of “exact,” bit-exact selection, bounded discarded mass,
+        exact once the support is covered, cannot yet be weighed against one another. Those are the edges of what
+        is known, as best I can draw them, which was the point of writing this down.
       </p>
       <div class="part-nav">
         <a href="sparse-attention.html">
@@ -1228,7 +1103,6 @@
       <li>Ji, Zhang, Fu, Cui. <a href="https://arxiv.org/abs/2505.24179">SALE: Low-Bit Estimation for Efficient Sparse Attention in Long-Context LLM Prefilling</a>. ICML 2026.</li>
       <li>Lin, Tang, Yang, Wang, Tang, Tian, Stoica, Han, Gao. <a href="https://arxiv.org/abs/2502.02770">Twilight: Adaptive Attention Sparsity with Hierarchical Top-p Pruning</a>. NeurIPS 2025.</li>
       <li>Wang, Zuo, Chen, Zhou, Ho, Yang. <a href="https://openreview.net/forum?id=lK2AzLDJal">TileSparse: Arithmetic-Intensity-Aware Sparse Attention for Compute-Bound LLM Decoding</a>. ICML 2026.</li>
-      <li>Nawrot, Li, Huang, Ruder, Marchisio, Ponti. <a href="https://arxiv.org/abs/2504.17768">The Sparse Frontier: Sparse Attention Trade-offs in Transformer LLMs</a>. Findings of ACL 2026.</li>
       <li>Xiao, Tian, Chen, Han, Lewis. <a href="https://arxiv.org/abs/2309.17453">Efficient Streaming Language Models with Attention Sinks</a>. ICLR 2024.</li>
       <li>Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, Ré, Barrett, Wang, Chen. <a href="https://arxiv.org/abs/2306.14048">H2O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models</a>. NeurIPS 2023.</li>
       <li>Oren, Hassid, Yarden, Adi, Schwartz. <a href="https://arxiv.org/abs/2401.06104">Transformers are Multi-State RNNs</a>. EMNLP 2024.</li>
@@ -1260,6 +1134,7 @@
       <li>Martins, Astudillo. <a href="https://arxiv.org/abs/1602.02068">From Softmax to Sparsemax: A Sparse Model of Attention and Multi-Label Classification</a>. ICML 2016 (PMLR 48:1614–1623).</li>
       <li>Vasylenko, Pitorro, Martins, Treviso. <a href="https://arxiv.org/abs/2506.16640">Long-Context Generalization with Sparse Attention</a>. ICLR 2026.</li>
       <li>Huang, Gonçalves, Alvetreti, Li, Han, Ponti, Martins, Treviso. <a href="https://arxiv.org/abs/2605.18753">DashAttention: Differentiable and Adaptive Sparse Hierarchical Attention</a>. arXiv preprint, 2026.</li>
+      <li>Nawrot, Li, Huang, Ruder, Marchisio, Ponti. <a href="https://arxiv.org/abs/2504.17768">The Sparse Frontier: Sparse Attention Trade-offs in Transformer LLMs</a>. Findings of ACL 2026.</li>
       <li>Li, Jiang, Wu, Luo, Ahn, et al. <a href="https://arxiv.org/abs/2412.10319">SCBench: A KV Cache-Centric Analysis of Long-Context Methods</a>. ICLR 2025.</li>
       <li>Goldman, Jacovi, Slobodkin, Maimon, Dagan, Tsarfaty. <a href="https://aclanthology.org/2024.emnlp-main.924/">Is It Really Long Context if All You Need Is Retrieval? Towards Genuinely Difficult Long Context NLP</a>. EMNLP 2024.</li>
     </ol>

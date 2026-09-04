@@ -228,7 +228,7 @@
         <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, and α-entmax
         generalizes both softmax and sparsemax <a class="cite" href="https://arxiv.org/abs/1905.05702">(Peters, Niculae &amp; Martins, 2019)</a>. 
         <!-- Both replace softmax outright and assign exactly zero weight by construction. -->
-        Part II will show that unstructured, input-dependent sparsity is efficient on
+        <a href="sparse-attention-2.html">Part II</a> will show that unstructured, input-dependent sparsity is efficient on
         modern GPUs, not despite the hardware but because of what the hardware has become. 
         The belief that unstructured sparsity was slow was reasonable once, but it is not true today. 
         For example, fused Triton kernels for exact α-entmax attention exist
@@ -804,17 +804,14 @@
       <ul class="pts">
         <li>
           <strong>Heads and layers learn different sparsity profiles.</strong>
-          When α is learned separately for each head, trained transformers spread it across the available
-          range. Encoder self-attention heads even form a bimodal distribution, with some remaining near
-          softmax and others moving toward sparsemax
+          When \(\alpha\) is independently for each head, they learn drastically different distributions, with some remaining near softmax and others moving toward sparsemax
           <a class="cite" href="https://arxiv.org/abs/1909.00015">(Correia et al., 2019)</a>.
           DashAttention shows the same variation across depth. Without a hand-written per-layer schedule,
           its router learns denser attention in early layers and sparser attention in middle layers
           <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026, Fig. 5)</a>.
           Test-time routing between soft and sparse attention provides another version of this evidence
           <a class="cite" href="https://arxiv.org/abs/2601.17367">(Tang et al., 2026)</a>.
-          None of these results proves that adaptivity is necessary, but they all push against the assumption that
-          one sparsity level should fit every head and layer.
+          <!-- None of these results proves that adaptivity is necessary, but they all push against the assumption that one sparsity level should fit every head and layer. -->
         </li>
 
         <li>
@@ -823,10 +820,8 @@
           many chunks as its scores justify. On HELMET
           <a class="cite" href="https://arxiv.org/abs/2410.02694">(Yen et al., 2025)</a>, it scores
           <strong>39.4</strong> overall at 88.5% sparsity, while InfLLM-V2 scores 30.5 and NSA 20.1 at
-          89.8% sparsity. These results use 8B-parameter MiniCPM-4 models at 16K context, with all methods
-          following the same continued-pretraining and SFT protocol. The comparison does not isolate adaptivity.
-          DashAttention also changes the gate, keeps it differentiable, and folds a prior into its second stage,
-          while its average sparsity remains tuned.
+          89.8% sparsity. 
+          <!-- These results use 8B MiniCPM-4 models at 16K context, with all methods following the same continued-pretraining and SFT protocol. The comparison does not isolate adaptivity. DashAttention also changes the gate, keeps it differentiable, and folds a prior into its second stage, while its average sparsity remains tuned. -->
         </li>
 
         <li>
@@ -835,18 +830,49 @@
           <a class="cite" href="https://arxiv.org/abs/2504.17768">(Nawrot et al., 2026)</a> compares six
           training-free methods across three model families, sequence lengths up to 128K, and sparsity up
           to 0.95. It finds that "longer sequences tolerate higher sparsity" and that "the optimal token
-          budget should grow sublinearly with sequence length." That supports adaptivity. Yet the same study
-          finds that dynamic allocation "yield[s] inconsistent results." During prefill, threshold-based
-          FlexPrefill "matches or underperforms Vertical-Slash's uniform allocation," which the authors
-          attribute to thresholds missing information in the long tail.
+          budget should grow sublinearly with sequence length." 
+          <!-- <span class="mref">3</span> -->
+          <!-- That supports adaptivity.  -->
+          
         </li>
+
+
+      </p>
+
+
+      <!-- <p>
+        One caveat the bound itself invites: dispersion is a statement about <em>mass</em>. The ratios between
+        weights never wash out, since \(p_i/p_j = e^{(z_i-z_j)/\theta}\) does not depend on \(n\) at all. A recent
+        ICML paper makes this precise from inside the simplex. Measured in the <em>Aitchison
+        distance</em> of compositional data analysis, a metric defined only on the interior of the simplex where
+        only log-ratios matter, token distinguishability at long context converges to a finite, non-zero limit
+        rather than vanishing (shown for Gaussian queries and keys), which is why the authors propose it as a
+        sounder monitor than entropy
+        <a class="cite" href="https://icml.cc/virtual/2026/poster/66654">(Hilton-Jones, Norman &amp; Zhu, 2026)</a>.
+        Both statements are true at once: relative information survives, absolute mass disperses, and it is mass
+        that the attention average actually consumes. Note also that exact zeros exit the Aitchison picture
+        entirely, since log-ratios are undefined at the boundary; a sparse attention row is not even a point of that
+        geometry.
+      </p> -->
+
+      <!-- <details class="fn">
+        <summary>3. More on dynamic allocation</summary>
+        <div>
+          <p>
+            The same study finds that dynamic allocation "yields inconsistent results." During prefill, threshold-based FlexPrefill "matches or underperforms Vertical-Slash's uniform allocation," which the authors attribute to thresholds missing information in the long tail.
+          </p>
+        </div>
+      </details> -->
+
       </ul>
+
+
 
       <p>
         My read is deliberately narrower than "adaptive is better." The evidence is strongest when adaptive support
         is learned jointly with the model, while the evidence for retrofitting adaptive thresholds onto softmax
-        attention is mixed. This is empirical evidence, not a theorem. Nor does it make fixed \(k\) a mistake. A
-        fixed cap and an adaptive allocation rule answer different questions, and the next section shows that they
+        attention is not as pronounced. This is empirical evidence and it make fixed \(k\) a mistake. 
+        A fixed cap and an adaptive allocation rule answer different questions, and the next section shows that they
         can coexist.
       </p>
 
@@ -867,8 +893,8 @@
       \;\in\; \arg\min_{\mathbf p\,\in\,\triangle^n,\ \|\mathbf p\|_0\le k}
       \|\mathbf p-\mathbf z\|_2^2,$$
       <p>
-        <em>where \(\operatorname{top}_k\) masks all but the \(k\) largest entries to \(-\infty\). The feasible set
-        is nonconvex, yet the composition returns a global minimizer. If the \(k\)-th score is tied, the problem may
+        <em>where \(\operatorname{top}_k\) masks all but the \(k\) largest entries to \(-\infty\). 
+        If the \(k\)-th score is tied, the problem may
         have several minimizers and the tie-breaking rule selects one. Whenever
         \(\|\operatorname{sparsemax}(\mathbf z)\|_0 \le k\), the cardinality cap is inactive and
         \(\operatorname{sparsemax}_k = \operatorname{sparsemax}\).</em>
@@ -878,7 +904,7 @@
         <div class="proof">
           <p>
             Let \(j\) be in the support with \(p_j>0\), and suppose some excluded coordinate satisfies
-            \(z_i>z_j\). Moving the mass \(p_j\) from \(j\) to \(i\) preserves the simplex and the cardinality cap,
+            \(z_i>z_j\). Moving the mass \(p_j\) from \(j\) to \(i\) preserves the simplex constraints and the cardinality cap,
             while changing the squared distance by \(2p_j(z_j-z_i)<0\). That contradicts optimality. Thus a
             minimizing support lies among the \(k\) largest scores, up to ties. Once that set is fixed, the problem
             is ordinary Euclidean projection onto its simplex face, which is exactly sparsemax after masking the
@@ -890,7 +916,7 @@
         This separates the maximum support size from the realized one. The sparsemax threshold chooses the actual support, and when the unconstrained solution already uses no more than \(k\) coordinates, the cap disappears from the answer.
         The operator has entered in ML as a way to marginalize over large discrete latent spaces <a class="cite" href="https://arxiv.org/abs/2007.01919">(Correia et al., 2020)</a>. 
         The same primitive appears as a column projection in sparsity-constrained optimal transport, where each expert is matched with <em>at most</em> \(k\) tokens <a class="cite" href="https://arxiv.org/abs/2209.15466">(Liu et al., 2023)</a>. 
-        To me, this is a good frame for the fixed-versus-adaptive debate. Both operators compute a numerical threshold. The difference is whether the support size is fixed in advance or adaptive.
+        To me, this is a good frame for the fixed-versus-adaptive debate. Both operators compute a numerical threshold. <strong>The difference is whether the support size is fixed in advance or adaptive!</strong>
       </p>
       <!-- <p>
         A fixed \(k\) still buys something real. <a class="cite" href="https://arxiv.org/abs/2606.13392">Lai et al.
@@ -919,21 +945,31 @@
       <details class="dv">
         <summary>Proof</summary>
         <div class="proof">
-          <p>
-            If \(z_{(k)} > z_{(k+1)}\), every score can be perturbed by less than
-            \(\tfrac12(z_{(k)}-z_{(k+1)})\) without changing which \(k\) coordinates are largest, hence without
-            changing the mask. A locally constant function has zero derivative. At a boundary tie, arbitrarily small
-            perturbations can select different vertices, so the mask is discontinuous. <span class="qed">∎</span>
+          <p>Left as an exercise. (Joking.) If \(z_{(k)} > z_{(k+1)}\), every score can be perturbed by less than \(\tfrac12(z_{(k)}-z_{(k+1)})\) without changing which \(k\) coordinates are largest, hence without changing the mask. In other words, a locally constant function has zero derivative. 
+          Furthermore, at a boundary tie, arbitrarily small perturbations can select different vertices, and so the function is discontinuous. <span class="qed">∎</span>
           </p>
         </div>
       </details>
       <p>
         This result is easy to overstate. The zero Jacobian belongs to the membership map, not to the entire attention
-        computation. If top-\(k\) is applied directly to the attention scores, the selected scores still receive
-        gradients through the attention weights; the excluded scores receive none through that path. The obstruction
-        becomes decisive when a separate indexer affects the loss only by emitting the mask. The task loss can train
-        everything downstream of that mask, but it provides no local signal saying how the membership should change.
-        This is exactly the problem that the frontier selectors in Part II engineer around.
+        computation.
+        If top-\(k\) is applied directly to the attention scores, the selected scores still receive
+        gradients through the attention weights; the excluded scores receive none through that path. PyTorch makes
+        the split visible in one call, because <code>topk</code> returns two things, values and indices, and only
+        the values live in the autograd graph:
+      </p>
+      <div class="codeblk"><span class="kw">import</span> torch
+z = torch.randn(8, requires_grad=<span class="kw">True</span>)
+topv, topi = z.topk(3)   <span class="cmt"># values and indices of the 3 largest scores</span>
+topv.sum().backward()    <span class="cmt"># gradients flow through the values...</span>
+<span class="fn">print</span>(z.grad)            <span class="cmt"># ...landing only on the selected entries: 1 there, 0 elsewhere</span>
+<span class="fn">print</span>(topi.grad_fn)      <span class="cmt"># None: the indices are integers, outside the graph</span></div>
+      <p>
+        The values behave (<code>topv.grad_fn</code> is a <code>TopkBackward</code> node, and <code>z.grad</code>
+        is nonzero exactly at the selected coordinates), while the indices do not exist for autograd at all. That
+        is the whole point. Everything downstream of <code>topv</code> is trainable; the <em>membership</em> is
+        not, and no loss, however clever, can ask it to change through this operation.
+        This obstruction becomes decisive when a separate indexer affects the loss only by emitting the mask. The task loss can train everything downstream of that mask, but it provides no local signal saying how the membership should change. This is exactly the problem that the frontier models engineer around and that I will cover in <a href="sparse-attention-2.html">Part II</a>. 
       </p>
       <p>
         <strong>The α-entmax Jacobian</strong>
@@ -944,15 +980,24 @@
       $$\frac{\partial \alpha\text{-entmax}(\mathbf z)}{\partial \mathbf z}
         \;=\; \operatorname{diag}(\mathbf s) \;-\; \frac{\mathbf s\,\mathbf s^\top}{\|\mathbf s\|_1}.$$
       <p>
-        The Jacobian is a diagonal minus a rank-one correction computed from the output itself, so a
-        Jacobian-vector product costs only linear work in the support size. An excluded coordinate is locally flat, so
-        α-entmax does not magically send a nonzero gradient to every score. The useful difference is that α-entmax is
-        a continuous weight map. Its probabilities change continuously as coordinates enter or leave the support,
-        and for \(\alpha<2\) its first derivatives are continuous too. Exact sparsity and end-to-end differentiation
-        therefore coexist.
+        The Jacobian is a diagonal minus a rank-one correction computed from the output itself, so a Jacobian-vector product costs only linear work in the support size. An excluded coordinate is locally flat, so α-entmax does not magically send a nonzero gradient to every score. The useful difference is that α-entmax is a continuous weight map. Its probabilities change continuously as coordinates enter or leave the support, and for \(\alpha<2\) its first derivatives are continuous too <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, Prop. 2)</a>. 
+        <strong>Exact sparsity and end-to-end differentiation therefore coexist!</strong>
+        The expression rewards a second look. At \(\alpha = 2\) (sparsemax), \(s_i = (p_i^\star)^0\) is just the
+        0/1 indicator of the support, so the Jacobian depends only on <em>which</em> tokens survived the forward pass
+        and not on their weights; every input with the same support shares the same piecewise-constant Jacobian. At
+        \(\alpha = 1.5\), \(s_i = \sqrt{p_i^\star}\) takes values anywhere in \((0,1]\) and moves smoothly with the
+        forward pass, so the gradient still vanishes off the support but grades the surviving tokens by the mass they
+        received. Sparse, and strictly more informative.
+      </p>
+      <p>
+        Methods that manufacture a gradient for hard top-\(k\) are outside the scope of this series. <a href="sparse-attention-2.html">Part II</a> instead
+        follows what deployed LLMs actually do. DeepSeek-V3.2 and MiniMax's MSA detach their selector inputs from
+        the backbone and train the selectors with KL alignment, while AdaSplash-2 uses the smoothness split above to
+        choose how it refines the threshold. The <a href="#appendix" class="prose-link">appendix</a> traces the much
+        older optimization history behind these threshold equations.
       </p>
       <details class="dv">
-        <summary>Derivation, and why the smoothness inequalities are strict</summary>
+        <summary>Differentiability of α-entmax</summary>
         <div class="proof">
           <p>
             Differentiate \(p_i = [(\alpha-1)z_i - \tau]^{1/(\alpha-1)}\) on the support, giving
@@ -967,19 +1012,12 @@
             <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, Prop. 2)</a>. At
             \(\alpha=2\), the local gate is a ReLU and is not continuously differentiable. At \(\alpha=1.5\), it is
             a squared ReLU, continuously differentiable but not twice continuously differentiable. Away from support
-            boundaries the map is smoother. This boundary behavior is the smoothness dial that Part II uses when it
+            boundaries the map is smoother. This boundary behavior is the smoothness dial that <a href="sparse-attention-2.html">Part II</a> uses when it
             chooses a threshold solver.
             <span class="qed">∎</span>
           </p>
         </div>
       </details>
-      <p>
-        Methods that manufacture a gradient for hard top-\(k\) are outside the scope of this series. Part II instead
-        follows what deployed LLMs actually do. DeepSeek-V3.2 and MiniMax's MSA detach their selector inputs from
-        the backbone and train the selectors with KL alignment, while AdaSplash-2 uses the smoothness split above to
-        choose how it refines the threshold. The <a href="#appendix" class="prose-link">appendix</a> traces the much
-        older optimization history behind these threshold equations.
-      </p>
     </div>
   </section>
 
@@ -990,7 +1028,7 @@
     <h2 class="font-display text-3xl font-semibold mb-8">5. Everything solves for \(\tau\)</h2>
     <div class="narrative-section">
       <p>
-        The main operators now line up under one question. <em>What condition does each threshold enforce?</em>
+        All operators that we covered can be placed under a single question: <em>what condition does each threshold enforce?</em>
       </p>
       <ul class="pts">
         <li>
@@ -1010,10 +1048,9 @@
         </li>
       </ul>
       <p>
-        This is a unification, but not an identity. Top-\(k\), top-\(p\), and regularized prediction maps do not share
-        one objective. What they share is a computational skeleton. Locate a cutoff, apply a monotone response to each
-        score relative to it, and enforce the required total or support rule. Once phrased that way, the remaining
-        questions become precise:
+        To clarify, top-\(k\), top-\(p\), and regularized prediction maps do not share one objective. What they share is a <em>computational skeleton</em>. 
+        That is, locate a cutoff, apply a monotone response to each score relative to it, and enforce the required total or support rule. 
+        Once phrased that way, the remaining questions become precise:
       </p>
       <ul class="pts">
         <li>
@@ -1038,7 +1075,7 @@
         <a href="#maps" class="prose-link">Figure 1</a> makes the second question visible. Softmax is smooth but never
         reaches zero. α-entmax reaches zero continuously; sparsemax, its \(\alpha=2\) member, remains continuous but
         has kinks at support boundaries. Hard top-\(k\) is the odd one out because its selected set jumps when a
-        ranking swaps. Part II begins at that jump, then turns to the third question and the systems problem of finding
+        ranking swaps. <a href="sparse-attention-2.html">Part II</a> begins at that jump, then turns to the third question and the systems problem of finding
         a threshold without materializing dense attention.
       </p>
     </div>
@@ -1048,10 +1085,26 @@
 
   <!-- 6. NEXT -->
   <section class="mb-16" id="next">
-    <h2 class="font-display text-3xl font-semibold mb-8">6. What Part II does</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">6. Conclusion and Next Part</h2>
     <div class="narrative-section">
       <p>
-        Part II is the systems half of §1's dichotomy. It starts with the dead membership gradient from §4.3 and reads
+        Here is Part I in one paragraph. “Sparse attention” names a family, not a trick. Softmax is the Shannon
+        member of a family of regularized maps (§2), and it must flatten as context grows, a theorem whose single
+        hypothesis, bounded score spread, is both provable and measured (§3). Exact zeros escape that bound, and the
+        public evidence favors supports chosen by the scores over any fixed \(k\) (§4), with α-entmax keeping
+        exact, cheap gradients where the hard mask has none (§4.3). Behind every one of these methods sits the same
+        object, a threshold clearing a constraint (§5), and behind the threshold sits a classical allocation problem
+        that optimization solved decades ago (appendix). What the mathematics cannot settle is whether a model built
+        this way trains and serves at competitive speed. 
+        <!-- That is an engineering question, and it has an answer. -->
+      </p>
+      <p>
+        That question is the unfinished half of §1’s trap. Recall the dichotomy: either exact softmax attention,
+        accelerated by FlashAttention, or a top-\(k\) approximation that gives up exactness to beat it, with
+        unstructured, input-dependent sparsity written off as too slow to matter. This post dismantled the trap’s
+        first claim by showing what sparse attention actually is.
+        <a href="sparse-attention-2.html">Part II</a> takes on the second, the systems half. It starts with the
+        dead membership gradient from §4.3 and reads
         two frontier models in their own words. DeepSeek-V3.2's DSA and MiniMax's MSA both train separate selectors
         with KL alignment to their main attention distributions while detaching the selector inputs from the
         language-model backbone. Their reasons, and the cost of that choice, are the first part of the story.
@@ -1063,20 +1116,10 @@
         justify extra arithmetic, so several systems use coarse statistics to bracket the threshold and refine only
         where the answer can lie.
       </p>
-      <p>
-        AdaSplash-2 gets the close-up, from its SRAM histogram and conservative bracket to the bit-packed block masks
-        that let the kernel skip work known to be zero, with pointers into the implementation. Part II ends with the
-        46-method landscape, organized around the line that matters most here: approximating a pretrained softmax
-        model on one side, training with native sparsity on the other.
-      </p>
       <div class="part-nav">
-        <a href="../blog.html">
-          <div class="lab">Series</div>
-          <div class="ttl">Sparse Attention, From Scratch</div>
-        </a>
         <a href="sparse-attention-2.html">
           <div class="lab">Next · Part II</div>
-          <div class="ttl">How sparse attention runs fast, and why the frontier labs don't differentiate through it →</div>
+          <div class="ttl">How sparse attention runs fast and how frontier labs do it →</div>
         </a>
       </div>
     </div>
@@ -1107,7 +1150,7 @@
   <!-- APPENDIX -->
   <section class="mb-16" id="appendix">
     <span id="classical"></span>
-    <h2 class="font-display text-3xl font-semibold mb-8">Appendix: the classical literature, at length</h2>
+    <h2 class="font-display text-3xl font-semibold mb-8">Appendix: the classical literature at length</h2>
     <div class="narrative-section">
       <p>
         Here is the part of the story that I think machine learning keeps walking past. Sparse prediction maps allocate
@@ -1117,7 +1160,7 @@
         literature runs from the 1950s through a 2015 update with hundreds of entries
         <a class="cite" href="https://doi.org/10.1016/j.ejor.2015.01.029">Patriksson &amp; Strömberg (2015)</a>.
         Not every rule in this post solves the same optimization problem, but the common threshold pattern is not a
-        recent invention. This appendix keeps that history together.
+        recent invention. This appendix tries to keep that history alive.
       </p>
 
       <span id="waterfilling"></span>
@@ -1136,7 +1179,7 @@
         \(\varphi(\tau):=\sum_i\operatorname{clip}(z_i-\tau,0,u_i)\).</em>
         The allocation is unique even when a flat segment makes the threshold itself nonunique.
       </p>
-      <details class="dv" open>
+      <details class="dv">
         <summary>The water-filling solution, derived</summary>
         <div class="proof">
           <p>
@@ -1184,30 +1227,26 @@
         the same threshold geometry appears in power allocation across parallel Gaussian channels,
         \(P_i=(\nu-N_i)_+\), with \(\nu\) chosen to meet the total-power constraint
         <a class="cite" href="https://onlinelibrary.wiley.com/doi/book/10.1002/047174882X">(Cover &amp; Thomas, 2006, §9.4)</a>.
-        Same picture, different cups.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="apx-simplex">A.2 Sparsemax is a knapsack</h3>
       <p>
-        Set every cap to \(u_i=\infty\) and the total to \(R=1\). The knapsack of Appendix A.1 becomes Euclidean projection
+        Set every cap to \(u_i=\infty\) and the total to \(R=1\), then the problem becomes Euclidean projection
         onto the probability simplex, with solution \(p_i=[z_i-\tau]_+\). An explicit sort-based algorithm appears
         as a subroutine in Held, Wolfe &amp; Crowder's work on subgradient optimization
         <a class="cite" href="https://doi.org/10.1007/BF01580223">(Held et al., 1974)</a>, and, as Condat puts it in
         his definitive treatment, it "was rediscovered many times later"
         <a class="cite" href="https://doi.org/10.1007/s10107-015-0946-6">(Condat, 2016)</a>. Michelot gave a finite
-        active-set algorithm <a class="cite" href="https://doi.org/10.1007/BF00938486">(Michelot, 1986)</a>, while
-        <a class="cite" href="https://doi.org/10.1145/1390156.1390191">Duchi et al. (2008)</a> made selection-based
-        projection an ML workhorse.
+        active-set algorithm <a class="cite" href="https://doi.org/10.1007/BF00938486">(Michelot, 1986)</a>, and <a class="cite" href="https://doi.org/10.1145/1390156.1390191">Duchi et al. (2008)</a> introduce a selection-based projection method.
       </p>
       <p>
         When this projection entered attention as sparsemax
         <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, credit where due,
-        the paper's footnote already pointed to "more elaborate \(O(K)\) algorithms … based on linear-time
+        the paper's footnote already pointed to "more elaborate \(O(K)\) algorithms [..] based on linear-time
         selection," citing Pardalos &amp; Kovoor. The per-coordinate response \([z_i-\tau]_+\) is soft-thresholding,
         the same nonlinearity wavelet denoising made famous
         <a class="cite" href="https://doi.org/10.1109/18.382009">(Donoho, 1995)</a>. One of sparse attention's founding
-        operators is structurally a 1970s allocation subroutine wearing a 1990s shrinkage gate. I mean that as praise.
-        The old formulation gives us uniqueness, exact zeros, and \(O(n)\) algorithms for free.
+        operators is structurally a 1970s allocation subroutine wearing a 1990s shrinkage gate (I mean that as praise).
       </p>
 
       <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="apx-caps">A.3 The capped-simplex catalogue</h3>
@@ -1219,13 +1258,6 @@
         \(y_i=\min\{1,[z_i-\tau]_+\}\); maximizing a linear score over the same polytope instead lands on a vertex
         and gives a hard top-\(k\) mask. The feasible set is the same, while the objective decides whether the answer
         is fractional or discrete.
-      </p>
-      <p>
-        This projection has its own small rediscovery story. An elementary derivation with an
-        \(O(n^2)\) algorithm was written up by
-        <a class="cite" href="https://arxiv.org/abs/1503.01002">Wang &amp; Lu (2015)</a>, while the classical
-        breakpoint methods of Appendix A.1 solve the same problem in \(O(n\log n)\) or \(O(n)\). This is a small but telling
-        example of the rediscovery pattern above.
       </p>
       <p>
         The NLP lineage got there early and <em>did</em> cite the classics. Constrained sparsemax, built for machine
@@ -1244,6 +1276,14 @@
         inference library projects onto the simplex inside its logic factors, citing Brucker, Michelot and Duchi in
         one breath <a class="cite" href="https://jmlr.org/papers/v16/martins15a.html">(Martins et al., 2015)</a>.
       </p>
+
+      <!-- <p>
+        This projection has its own small rediscovery story. An elementary derivation with an
+        \(O(n^2)\) algorithm was written up by
+        <a class="cite" href="https://arxiv.org/abs/1503.01002">Wang &amp; Lu (2015)</a>, while the classical
+        breakpoint methods of Appendix A.1 solve the same problem in \(O(n\log n)\) or \(O(n)\). This is a small but telling
+        example of the rediscovery pattern above.
+      </p> -->
 
       <h3 class="font-display text-2xl font-semibold mt-8 mb-4" id="permutahedron">A.4 Beyond a scalar threshold</h3>
       <p>
@@ -1333,11 +1373,11 @@
       <li>Duchi, Shalev-Shwartz, Singer, Chandra. <a href="https://doi.org/10.1145/1390156.1390191">Efficient Projections onto the ℓ1-Ball for Learning in High Dimensions</a>. ICML 2008.</li>
       <li>Donoho. <a href="https://doi.org/10.1109/18.382009">De-Noising by Soft-Thresholding</a>. IEEE Transactions on Information Theory 41(3):613-627, 1995.</li>
       <li>Warmuth, Kuzmin. <a href="https://jmlr.org/papers/v9/warmuth08a.html">Randomized Online PCA Algorithms with Regret Bounds that are Logarithmic in the Dimension</a>. JMLR 9:2287-2320, 2008.</li>
-      <li>Wang, Lu. <a href="https://arxiv.org/abs/1503.01002">Projection onto the Capped Simplex</a>. arXiv preprint, 2015.</li>
       <li>Malaviya, Ferreira, Martins. <a href="https://arxiv.org/abs/1805.08241">Sparse and Constrained Attention for Neural Machine Translation</a>. ACL 2018.</li>
       <li>Almeida, Martins. <a href="https://aclanthology.org/P13-1020/">Fast and Robust Compressive Summarization with Dual Decomposition and Multi-Task Learning</a>. ACL 2013.</li>
       <li>Martins, Kreutzer. <a href="https://aclanthology.org/D17-1036/">Learning What's Easy: Fully Differentiable Neural Easy-First Taggers</a>. EMNLP 2017.</li>
       <li>Martins, Figueiredo, Aguiar, Smith, Xing. <a href="https://jmlr.org/papers/v16/martins15a.html">AD3: Alternating Directions Dual Decomposition for MAP Inference in Graphical Models</a>. JMLR 16:495-545, 2015.</li>
+      <li>Wang, Lu. <a href="https://arxiv.org/abs/1503.01002">Projection onto the Capped Simplex</a>. arXiv preprint, 2015.</li>
       <li>Negrinho, Martins. <a href="https://papers.nips.cc/paper_files/paper/2014/hash/888637e6555c5498c2523f2315963e08-Abstract.html">Orbit Regularization</a>. NeurIPS 2014 (pp. 3221-3229).</li>
       <li>Bogdan, van den Berg, Sabatti, Su, Candès. <a href="https://doi.org/10.1214/15-AOAS842">SLOPE — Adaptive Variable Selection via Convex Optimization</a>. Annals of Applied Statistics 9(3):1103-1140, 2015.</li>
       <li>Zeng, Figueiredo. <a href="https://arxiv.org/abs/1409.4271">The Ordered Weighted ℓ1 Norm: Atomic Formulation, Projections, and Algorithms</a>. arXiv preprint, 2014.</li>
