@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Sparse Attention, From Scratch · Part I — Marcos Treviso</title>
-<meta content="Part I of a two-part, math-first series on sparse attention: attention normalizers as regularized prediction maps, why softmax must disperse at long context, what exact zeros change, why adaptive sparsity beats a fixed top-k, and the classical resource-allocation problem behind every thresholding method." name="description"/>
+<meta content="Part I of a two-part series on sparse attention: regularized prediction maps, softmax dispersion under bounded score spread, exact zeros, adaptive versus fixed support, and classical resource allocation." name="description"/>
 <link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230E1F1C'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='%23E8D5B0' font-family='Georgia,serif' font-weight='bold'>MT</text></svg>" rel="icon"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -152,10 +152,13 @@
     </h1>
     <p class="font-display text-2xl italic mb-6" style="color:var(--teal)">Why sparse, why adaptive, and the classical problem behind thresholds</p>
     <p class="text-lg leading-relaxed mb-6" style="color:var(--muted)">
-      This two-part blog post is my attempt to write down, carefully, what is actually known about sparse attention.
-      Part I makes three arguments. First, that softmax attention must flatten as context grows.
-      Second, that once exact zeros are allowed, a fixed cutoff \(k\) is an arbitrary choice with empirical consequences. 
-      And third, the thresholding methods in use today are all instances of one family of regularized prediction maps. In fact, this family is rooted in a classical resource-allocation problem that optimization has studied for decades (or even centuries, some may say).
+      This two-part post is my attempt to explain sparse attention from its mathematical foundations through
+      its implementation. Part I asks three questions: what happens to softmax attention as context grows while
+      score spread and temperature stay fixed; what changes when the normalizer can produce exact zeros; and
+      how adaptive support differs from a fixed selection budget. Sparsemax and entmax fit into a family of
+      regularized prediction maps with roots in classical resource allocation. Other rules, including top-k
+      and top-p, arrive at thresholds through different constraints. Part II follows these choices into
+      training and GPU execution.
     </p>
     <!-- <div class="pill-row">
       <span class="pill">regularized argmax</span>
@@ -212,7 +215,10 @@
         The transformer's attention layer computes, for each query, a weighted average of value vectors, with
         weights produced by softmax over query-key scores
         <a class="cite" href="https://arxiv.org/abs/1706.03762">(Vaswani et al., 2017)</a>. But why softmax? My honest guess: it is a convenient choice as it is easy to compute and it is the most well-known transformation of raw scores into probability. However, softmax never outputs an exact zero probability, so every token in the context, relevant or not, receives a positive mass. For most of the transformer era this was treated as a harmless implementation detail. 
-        The argument of this series is that it is not a detail. At long context it is a provable failure mode, and the fixes deployed against it are more classical than the literature acknowledges.
+        The argument of this series is that it is not a detail. For a fixed temperature and score spread
+        bounded independently of context length, softmax cannot keep a fixed amount of probability on a fixed
+        number of tokens as the context grows. That limitation motivates looking at normalizers that can give
+        irrelevant tokens exactly zero weight.
       </p>
       <p>
         Why write a detailed post about this? Because of a reflex I keep meeting, in reviews, in reading groups, and
@@ -222,19 +228,18 @@
         This creates a <b>false dichotomy</b> that has costly consequences for training and deploying LLMs today: either use exact softmax attention accelerated by FlashAttention, or give up exactness and resort to a top-\(k\) approximation to beat it. Let us break this dichotomy apart!
       </p>
       <p>
-        In the first part, I will show that top-\(k\) is not what sparse attention <em>is</em>. Instead, it is one member of a family of
-        thresholded maps that is older, richer, and well understood mathematically.
-        For example, sparsemax has been used for attention for 10 years
-        <a class="cite" href="https://arxiv.org/abs/1602.02068">(Martins &amp; Astudillo, 2016)</a>, and α-entmax
-        generalizes both softmax and sparsemax <a class="cite" href="https://arxiv.org/abs/1905.05702">(Peters, Niculae &amp; Martins, 2019)</a>. 
-        <!-- Both replace softmax outright and assign exactly zero weight by construction. -->
-        <a href="sparse-attention-2.html">Part II</a> will show that unstructured, input-dependent sparsity is efficient on
-        modern GPUs, not despite the hardware but because of what the hardware has become. 
-        The belief that unstructured sparsity was slow was reasonable once, but it is not true today. 
-        For example, fused Triton kernels for exact α-entmax attention exist
-        <a class="cite" href="https://arxiv.org/abs/2502.12082">(Gonçalves et al., 2025)</a>, and the current
-        generation can be more than 2x faster than FlashAttention-2 
-        <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026)</a>.
+        Sparsemax and α-entmax are useful examples of sparse attention beyond fixed patterns and hard top-k.
+        Sparsemax has been used for attention since
+        <a class="cite" href="https://arxiv.org/abs/1602.02068">Martins and Astudillo (2016)</a>, and α-entmax
+        connects it to softmax through a family of regularizers
+        <a class="cite" href="https://arxiv.org/abs/1905.05702">(Peters, Niculae and Martins, 2019)</a>.
+        Their exact zeros can also help an implementation skip work, provided the support leaves whole tiles
+        empty and the savings repay
+        the cost of finding it. Fused entmax kernels demonstrate that this can be practical
+        <a class="cite" href="https://arxiv.org/abs/2502.12082">(Gonçalves et al., 2025</a>,
+        <a class="cite" href="https://arxiv.org/abs/2604.15180">2026)</a>.
+        <a href="sparse-attention-2.html">Part II</a> explains the threshold estimates, block masks and bit operations
+        behind those savings, and the workloads in which they pay off.
       </p>
       <!-- <p>
         <strong>How to read this.</strong> The mathematical claims are stated alongside their hypotheses,
@@ -558,7 +563,11 @@
       \log n - \frac{\Delta}{\theta} \;\le\; H(\mathbf p) \;\le\; \log n .$$
       <p>
         <em>Hence every weight is \(\Theta(1/n)\) and \(H(\mathbf p)/\log n \to 1\) as \(n\to\infty\).</em> 
-        This means that entropy converges to its maximum at a rate controlled by the margin \(\Delta/\theta\).
+        The normalized entropy tends to one: its deficit is at most
+        \(\Delta/(\theta\log n)\). The absolute deficit \(\log n-H(\mathbf p)\) need not vanish.
+        Nor do relative weight ratios necessarily approach one, since
+        \(p_i/p_j=e^{(z_i-z_j)/\theta}\). The conclusion concerns the mass each token can retain
+        and entropy relative to its growing maximum.
       </p>
       <details class="dv">
         <summary>Proof</summary>
@@ -583,15 +592,28 @@
         <summary>† Is "bounded scores" the right hypothesis?</summary>
         <div>
           <p>
-            The bound is built on top of an important hypothesis: the scores stay in a range that does not widen with \(n\). 
-
-            Two facts support this hypothesis. 
-            
-            Theoretically, <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025)</a> prove (their Thm. 2.2) that a transformer built from continuous blocks over a finite vocabulary produces bounded scores <em>necessarily</em>, because inputs live in a compact set, continuous layers map compact sets to compact sets, so dot-product scores are bounded no matter what the weights learned.
-            
-            Empirically, the same paper measures the spread in trained models (while processing a ~4,000-token code file): Gemma 2B, range \([2.28, 14.78]\), average \(5.69 \pm 2.05\); Gemma 7B, range \([0.09, 32.74]\), average \(5.82 \pm 2.61\). Plug the average into the dispersion bound. For a head with spread \(\Delta \approx 5.7\), at \(n = 10^6\) the entropy is at least \(\log n - \Delta \approx 13.8 - 5.7 = 8.1\) nats. Normalized entropy is at least \(0.59\), more than halfway to uniform, whatever the input. 
-            
-            Perhaps more convincingly, a score spread cannot grow without limit in a fixed float format. Exhausting that range yields underflow, overflow, or lost precision rather than a principled escape from dispersion.
+            The bound assumes that the scores stay in a range that does not widen with \(n\).
+            There are architectural reasons this can hold, but measurements at one length do not establish
+            a uniform bound at every length.
+          </p>
+          <p>
+            <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025, Thm. 2.2)</a>
+            prove bounded scores for a fixed-depth architecture built from continuous feedforward maps and
+            softmax attention over a finite set of input features. The proof keeps the representations in
+            compact sets independent of sequence length: feedforward maps preserve compactness, and attention
+            forms convex combinations of bounded values. Applying this result to another architecture requires
+            checking those assumptions, including how positional features and any length-dependent score
+            scaling enter the computation.
+          </p>
+          <p>
+            Empirically, <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al.</a>
+            measure score spreads in trained Gemma models on a roughly 4,000-token
+            code file. These measurements show what spreads occurred in that experiment; they are not uniform
+            bounds at longer lengths. As an illustration, if a head's spread remained at most
+            \(\Delta=5.7\) with \(\theta=1\) at \(n=10^6\), the bound would give
+            \(H\ge\log(10^6)-5.7\approx8.1\) nats, or \(H/\log n\ge1-5.7/\log(10^6)\approx0.587\).
+            Whether that assumed spread holds at the longer length requires measurement or an applicable
+            architectural bound.
           </p>
         </div>
       </details>
@@ -679,13 +701,12 @@
       <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="zeros">3.2 What exact zeros change</h3>
       <p>
         <strong>The support bound.</strong>
-        For any distribution \(\mathbf p\) with support \(S(\mathbf p)\),
-        \(H(\mathbf p)\le \log |S(\mathbf p)|\), since the uniform distribution maximizes entropy on a
-        fixed support. Consequently, if the support grows sublinearly with \(n\), normalized entropy cannot
-        converge to one
-        <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026, Prop. 1(iii))</a>.
-        This is the precise thing exact zeros buy: entropy is controlled by the number of selected tokens,
-        not by the full context length.
+        For any distribution \(\mathbf p\) with support \(S\),
+        \(H(\mathbf p)\le\log|S|\), since the uniform distribution maximizes entropy on a fixed support.
+        In particular, if \(|S|\le Cn^\rho\) for constants \(C>0\) and \(0\le\rho<1\), then
+        \(H(\mathbf p)/\log n\le\rho+\log C/\log n\), so its limit superior is at most \(\rho<1\).
+        Fixed support gives \(H/\log n\to0\). Exact zeros make these support bounds possible;
+        they do not, by themselves, ensure that learned attention satisfies them.
       </p>
       <p>
         This argument does not, by itself, favor α-entmax over hard top-\(k\). A fixed top-\(k\) also guarantees
@@ -709,7 +730,7 @@
         <div id="fig4"></div>
         <div class="series-legend" id="fig4legend"></div>
         <p class="fig-caption"><span class="fnum">Fig. 4.</span>
-          Normalized entropy \(H/\log n\) versus context length \(n\) (log scale). The softmax curves climb toward \(1\) (complete dispersion) for every gap \(\Delta \in \{2, 4, 8\}\). Increasing \(\Delta\) shifts the climb right but never changes where it ends.
+          Normalized entropy \(H/\log n\) versus context length \(n\) (log scale). The softmax curves climb toward \(1\) (maximal normalized entropy in the limit) for every gap \(\Delta \in \{2, 4, 8\}\). Increasing \(\Delta\) shifts the climb right but never changes where it ends.
           The dark \(1.5\)-entmax curve satisfies the margin condition for all three gaps (\(\Delta \ge 1\)), so the support stays at the 4 relevant tokens and \(H/\log n = \log 4/\log n \to 0\).
         </p>
       </div>
@@ -759,7 +780,10 @@
       </p>
 
       <p>
-        Since these are our own papers, the caveats deserve the same rigour. The first is that the theory assumes sublinear support growth, which learned heads do not guarantee, and the ASEntmax paper reports no wall-clock measurements (we will get back to this in Part 2). 
+        Since these are our own papers, the caveats deserve the same rigour. The entropy separation requires
+        a support-growth bound such as \(|S|\le Cn^\rho\) with fixed \(\rho<1\), which learned heads do not
+        automatically satisfy. The ASEntmax paper also reports no wall-clock measurements; Part II discusses
+        the work needed to turn sparsity into runtime savings.
         I also think it is interesting that Sort fails beyond 4x the training length for every method, including ours. To me, this is because sparsity does not solve precise global ordering (we need a different kind of attention for that). The gains are also entangled with our NAPE positional encoding (NoPE+ALiBi), which seems to help softmax too.
         The per-task results are not uniformly favorable either. In the AdaSplash-2 paper, entmax scores 1.8 on MK-2 at 32K, compared with 4.2 for softmax. 
         At the same time, it wins decisively on variable tracking, 27.4 versus 7.7, and frequent-word extraction, 45.8 versus 3.3. 
@@ -871,9 +895,9 @@
       <p>
         My read is deliberately narrower than "adaptive is better." The evidence is strongest when adaptive support
         is learned jointly with the model, while the evidence for retrofitting adaptive thresholds onto softmax
-        attention is not as pronounced. This is empirical evidence and it make fixed \(k\) a mistake. 
-        A fixed cap and an adaptive allocation rule answer different questions, and the next section shows that they
-        can coexist.
+        attention is not as pronounced. These comparisons support investigating adaptive allocation, but
+        they do not isolate adaptivity as the only cause of the gains. A fixed budget can still be a useful
+        constraint. The next section shows how that constraint can coexist with an adaptive support.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mt-10 mb-4" id="compose">4.2 Where fixed \(k\) and exact zeros compose</h3>
@@ -987,14 +1011,13 @@ topv.sum().backward()    <span class="cmt"># gradients flow through the values..
         and not on their weights; every input with the same support shares the same piecewise-constant Jacobian. At
         \(\alpha = 1.5\), \(s_i = \sqrt{p_i^\star}\) takes values anywhere in \((0,1]\) and moves smoothly with the
         forward pass, so the gradient still vanishes off the support but grades the surviving tokens by the mass they
-        received. Sparse, and strictly more informative.
+        received. The active weights affect this Jacobian, while sparsemax’s Jacobian is constant within a fixed support region.
       </p>
       <p>
-        Methods that manufacture a gradient for hard top-\(k\) are outside the scope of this series. <a href="sparse-attention-2.html">Part II</a> instead
-        follows what deployed LLMs actually do. DeepSeek-V3.2 and MiniMax's MSA detach their selector inputs from
-        the backbone and train the selectors with KL alignment, while AdaSplash-2 uses the smoothness split above to
-        choose how it refines the threshold. The <a href="#appendix" class="prose-link">appendix</a> traces the much
-        older optimization history behind these threshold equations.
+        Relaxations and gradient estimators for hard top-k are outside the scope of this series. <a href="sparse-attention-2.html">Part II</a>
+        instead follows two concrete training designs: DSA and MSA train separate indexers with KL alignment
+        while detaching the teacher and indexer inputs from the auxiliary gradient. It then explains how
+        conservative threshold estimates and block masks turn a sparse operator into skipped computation.
       </p>
       <details class="dv">
         <summary>Differentiability of α-entmax</summary>
@@ -1012,8 +1035,7 @@ topv.sum().backward()    <span class="cmt"># gradients flow through the values..
             <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, Prop. 2)</a>. At
             \(\alpha=2\), the local gate is a ReLU and is not continuously differentiable. At \(\alpha=1.5\), it is
             a squared ReLU, continuously differentiable but not twice continuously differentiable. Away from support
-            boundaries the map is smoother. This boundary behavior is the smoothness dial that <a href="sparse-attention-2.html">Part II</a> uses when it
-            chooses a threshold solver.
+            boundaries the map is smoother. This boundary behavior matters when choosing a numerical refinement method for the threshold.
             <span class="qed">∎</span>
           </p>
         </div>
@@ -1088,33 +1110,23 @@ topv.sum().backward()    <span class="cmt"># gradients flow through the values..
     <h2 class="font-display text-3xl font-semibold mb-8">6. Conclusion and Next Part</h2>
     <div class="narrative-section">
       <p>
-        Here is Part I in one paragraph. “Sparse attention” names a family, not a trick. Softmax is the Shannon
-        member of a family of regularized maps (§2), and it must flatten as context grows, a theorem whose single
-        hypothesis, bounded score spread, is both provable and measured (§3). Exact zeros escape that bound, and the
-        public evidence favors supports chosen by the scores over any fixed \(k\) (§4), with α-entmax keeping
-        exact, cheap gradients where the hard mask has none (§4.3). Behind every one of these methods sits the same
-        object, a threshold clearing a constraint (§5), and behind the threshold sits a classical allocation problem
-        that optimization solved decades ago (appendix). What the mathematics cannot settle is whether a model built
-        this way trains and serves at competitive speed. 
-        <!-- That is an engineering question, and it has an answer. -->
+        Choosing an attention normalizer determines whether zero weights are possible, how the support responds
+        to the scores, and which gradients reach the model. Under a fixed temperature and bounded score spread,
+        softmax assigns each token vanishing mass as context grows. Sparse maps can avoid that behavior when
+        their support grows slowly enough. A fixed top-k also bounds support; adaptivity is a separate choice
+        about how to allocate it, with evidence that depends on the task and training setup.
       </p>
       <p>
-        That question is the unfinished half of §1’s trap. Recall the dichotomy: either exact softmax attention,
-        accelerated by FlashAttention, or a top-\(k\) approximation that gives up exactness to beat it, with
-        unstructured, input-dependent sparsity written off as too slow to matter. This post dismantled the trap’s
-        first claim by showing what sparse attention actually is.
-        <a href="sparse-attention-2.html">Part II</a> takes on the second, the systems half. It starts with the
-        dead membership gradient from §4.3 and reads
-        two frontier models in their own words. DeepSeek-V3.2's DSA and MiniMax's MSA both train separate selectors
-        with KL alignment to their main attention distributions while detaching the selector inputs from the
-        language-model backbone. Their reasons, and the cost of that choice, are the first part of the story.
+        <a href="sparse-attention-2.html">Part II</a> begins with the training question. DeepSeek’s DSA and MiniMax’s MSA use separate indexers whose
+        discrete selections block the task gradient. They train those indexers by aligning them with the main
+        attention distributions. We will follow their forward computations and distinguish the gradient paths
+        of the language-modeling and alignment losses.
       </p>
       <p>
-        The second part asks how the thresholds in this post are found at scale. It first compares the data flow of a
-        materialized attention pipeline, a fused FlashAttention-style pipeline, and an AdaSplash-style sparse
-        pipeline. It then develops the GPU argument. On the relevant modern accelerators, avoiding memory traffic can
-        justify extra arithmetic, so several systems use coarse statistics to bracket the threshold and refine only
-        where the answer can lie.
+        We then turn to execution: how a conservative threshold estimate identifies candidates, how a block
+        mask records tiles that may contribute, and how bit operations let the output and backward kernels
+        visit those tiles. Selection and threshold finding still cost work. The final question is when the
+        work they save exceeds that cost.
       </p>
       <div class="part-nav">
         <a href="sparse-attention-2.html">
