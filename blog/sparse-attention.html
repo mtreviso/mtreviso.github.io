@@ -115,6 +115,9 @@
   .ref-list li::before{ counter-increment:ref; content:"["counter(ref)"]"; position:absolute; left:0; color:var(--muted); font-variant-numeric:tabular-nums; }
   .ref-list a{ color:var(--teal); text-decoration:none; } .ref-list a:hover{ text-decoration:underline; }
 </style>
+<!-- Contents sidebar + citation popovers (shared by all posts) -->
+<link rel="stylesheet" href="post-extras.css"/>
+<script src="post-extras.js"></script>
 </head>
 
 <body class="bg-slate-50 text-ink font-sans antialiased">
@@ -171,7 +174,7 @@
   </header>
 
   <!-- TOC -->
-  <section class="mb-14">
+  <section class="toc-inline mb-14">
     <div class="toc">
       <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
       <ul>

@@ -1,0 +1,60 @@
+/* Post extras, shared by every post in blog/:
+   1. a minimal "Contents" sidebar in the right margin (built from the h2/h3 headings by post-extras.js)
+   2. a popover that shows the full reference when a citation is hovered, focused, or tapped
+   Relies on the --ink / --teal / --muted / --rule tokens each post already defines. */
+
+/* Anchored jumps should clear the sticky top nav. */
+main section[id], main h2[id], main h3[id], .ref-list li[id]{ scroll-margin-top:5rem; }
+
+/* ---------- contents sidebar ---------- */
+.side-toc{ display:none; }
+
+@media (min-width:1180px){
+  /* The column stays centred while the sidebar fits beside it; on narrower screens it slides left
+     just enough to make room. Nav, breadcrumb and main share .max-w-4xl, so they move together. */
+  .js-side-toc .max-w-4xl{ margin-left:min(calc(50vw - 28rem), calc(100vw - 72.5rem)); margin-right:auto; }
+
+  /* The in-flow table of contents is redundant while the sidebar is showing. */
+  .js-side-toc .toc-inline{ display:none; }
+
+  .side-toc{ display:block; position:absolute; top:2rem; bottom:0; left:100%; width:200px; margin-left:32px; }
+  .side-toc-box{ position:sticky; top:5.25rem; max-height:calc(100vh - 6.75rem); overflow-y:auto;
+    scrollbar-width:thin; scrollbar-color:var(--rule) transparent; }
+  .side-toc-box::-webkit-scrollbar{ width:3px; }
+  .side-toc-box::-webkit-scrollbar-thumb{ background:var(--rule); border-radius:3px; }
+}
+
+.side-toc-title{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted); margin:0 0 12px 18px; }
+.side-toc ol{ list-style:none; margin:0; padding:0; }
+.side-toc-list{ box-shadow:inset 1px 0 0 var(--rule); }
+.side-toc li{ margin:0; }
+.side-toc li.lv2{ margin-top:6px; } .side-toc li.lv2:first-child{ margin-top:0; }
+.side-toc a{ display:block; padding:3px 0 3px 16px; border-left:2px solid transparent; font-size:13px; line-height:1.4;
+  color:#566662; font-weight:400; text-decoration:none; text-align:left; transition:color .15s, border-color .15s; }
+.side-toc li.lv3 > a{ padding-left:28px; font-size:12.5px; color:var(--muted); }
+/* "li >" keeps these at least as specific as the .lv3 colour above, so they win for subsections too */
+.side-toc li > a:hover{ color:var(--teal); }
+.side-toc li > a.active{ color:var(--teal); border-left-color:var(--teal); }
+.side-toc a code{ background:none; border:0; padding:0; font-size:.9em; color:inherit; }
+/* Long posts: only the current section shows its subsections (post-extras.js decides when). */
+.side-toc.is-collapsible li.lv2 > ol{ display:none; }
+.side-toc.is-collapsible li.lv2.open > ol{ display:block; }
+
+/* ---------- citation popover ---------- */
+.cite-pop{ position:absolute; z-index:60; top:0; left:0; width:max-content; max-width:min(380px, calc(100vw - 24px));
+  background:#FFFDF9; border:1px solid var(--rule); border-radius:10px; padding:12px 14px;
+  box-shadow:0 10px 30px rgba(14,31,28,.14), 0 2px 6px rgba(14,31,28,.06);
+  font-size:.84rem; line-height:1.5; color:var(--ink); text-align:left;
+  opacity:0; transform:translateY(4px); transition:opacity .14s ease, transform .14s ease; pointer-events:none; }
+.cite-pop.on{ opacity:1; transform:none; pointer-events:auto; }
+.cite-pop[data-side="below"]{ transform:translateY(-4px); } .cite-pop[data-side="below"].on{ transform:none; }
+.cite-pop-n{ color:var(--muted); font-variant-numeric:tabular-nums; margin-right:.35em; }
+.cite-pop a{ color:var(--teal); text-decoration:none; } .cite-pop a:hover{ text-decoration:underline; }
+.cite-pop-foot{ margin-top:8px; padding-top:7px; border-top:1px solid var(--rule); font-size:.74rem; }
+.cite-pop-foot a{ color:var(--muted); } .cite-pop-foot a:hover{ color:var(--teal); text-decoration:none; }
+.ref-list li{ transition:background-color .6s ease; border-radius:6px; }
+.ref-list li.ref-flash{ background-color:rgba(10,124,106,.10); transition-duration:0s; }
+
+@media (prefers-reduced-motion: reduce){ .cite-pop, .side-toc a, .ref-list li{ transition:none; } }
+@media print{ .side-toc, .cite-pop{ display:none !important; } }

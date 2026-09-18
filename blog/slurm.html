@@ -241,6 +241,9 @@
   .breadcrumb a { color: var(--muted); }
   .breadcrumb a:hover { color: var(--teal); }
 </style>
+<!-- Contents sidebar + citation popovers (shared by all posts) -->
+<link rel="stylesheet" href="post-extras.css"/>
+<script src="post-extras.js"></script>
 </head>
 
 <body class="bg-slate-50 text-ink font-sans antialiased">
@@ -296,7 +299,7 @@
   </header>
 
   <!-- ── Table of Contents ─────────────────────────────────── -->
-  <section class="mb-16">
+  <section class="toc-inline mb-16">
     <div class="toc">
       <h2 class="font-display text-xl font-semibold mb-4">Table of Contents</h2>
       <ul>
@@ -551,7 +554,7 @@ ConstrainDevices=yes     # Control device access</code></pre>
 
       <div class="grid grid-cols-1 gap-5 md:grid-cols-2 my-6">
         <div class="server-site">
-          <h3 class="text-sm font-semibold tracking-wide mb-3" style="color:var(--muted)">Location A</h3>
+          <h3 data-toc-skip class="text-sm font-semibold tracking-wide mb-3" style="color:var(--muted)">Location A</h3>
           <ul class="space-y-3">
             <li class="server-node">
               <div class="flex items-start gap-3">
@@ -581,7 +584,7 @@ ConstrainDevices=yes     # Control device access</code></pre>
           </ul>
         </div>
         <div class="server-site">
-          <h3 class="text-sm font-semibold tracking-wide mb-3" style="color:var(--muted)">Location B</h3>
+          <h3 data-toc-skip class="text-sm font-semibold tracking-wide mb-3" style="color:var(--muted)">Location B</h3>
           <ul class="space-y-3">
             <li class="server-node">
               <div class="flex items-start gap-3">
