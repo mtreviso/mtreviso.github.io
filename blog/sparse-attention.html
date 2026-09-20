@@ -382,12 +382,13 @@
       </details>
       <p>
         From this we can conclude that <em>every one of these maps is a monotone gate applied to "score minus threshold," and the regularizer decides the gate.</em> 
-        <ul class="pts">
-          <li>Shannon entropy gives the exponential gate and forbids zeros; the quadratic gives the linear gate and allows them.</li>
-          <li>Tsallis
+      </p>
+      <ul class="pts">
+        <li>Shannon entropy gives the exponential gate and forbids zeros; the quadratic gives the linear gate and allows them.</li>
+        <li>Tsallis
         interpolates, with the exponent \(1/(\alpha-1)\) controlling how gradually a token enters the support.</li>
-        </ul>
-         
+      </ul>
+      <p>
         Whether zeros are possible at all is decided by one number, the regularizer's slope at the boundary.
         Figure 1 shows what the maps actually do. The <a class="prose-link" href="https://mtreviso.github.io/entmax-demo/simplex_v2.html">interactive simplex explorer</a> lets you vary α and compare the maps, support geometry, probabilities, and gradient surfaces directly.
       </p>
@@ -514,21 +515,22 @@
         <h4>Dense versus compact kernels</h4>
         <p class="sub">The kernel shape (top) decides how far attention reaches; the regression fit (bottom) shows the consequence.</p>
         <div class="seg" id="ker-seg" style="margin-bottom:12px">
-          <button data-ker="gauss" class="on">Gaussian (softmax)</button>
-          <button data-ker="epan">Epanechnikov (sparsemax)</button>
-          <button data-ker="biweight">Biweight (1.5-entmax)</button>
-          <button data-ker="triweight">Triweight (4/3-entmax)</button>
+          <button data-ker="gauss" class="on">Gaussian</button>
+          <button data-ker="epan">Epanechnikov</button>
+          <button data-ker="biweight">Biweight</button>
+          <button data-ker="triweight">Triweight</button>
         </div>
         <div style="display:grid; gap:16px; grid-template-columns:1fr;"><div id="fig2kernel"></div><div id="fig2regress"></div></div>
         <p class="fig-caption"><span class="fnum">Fig. 2.</span>
-          A one-dimensional Nadaraya-Watson regression on 16 fixed noisy points, bandwidth \(h=0.13\), with the
+          A one-dimensional Nadaraya-Watson regression on 16 fixed noisy points, scale \(h=0.13\), with the
           kernel selectable above (the faint dashed curve in the top panel is the Gaussian, kept for reference). The
           Gaussian is strictly positive everywhere, so distant points leak into every estimate; the compact kernels
           of the correspondence above vanish outside the bandwidth, and the fit becomes local, driven only by nearby
-          points. Shown with a fixed bandwidth for clarity; the exact sparsemax/entmax correspondence uses the
-          per-query adaptive bandwidth of Santos et al., which shares the same compact support. This is the
-          regression-flavored version of what §2 built algebraically, and of the failure §3 proves next: a strictly
-          positive kernel cannot stop far tokens from leaking in.
+          points. The Gaussian uses standard deviation \(0.34h\); the compact kernels have support radius \(h\).
+          This illustrates kernel shapes at fixed bandwidths, rather than comparing them at matched smoothing
+          strength. The plotted compact-kernel estimators are not exact sparsemax or entmax: that correspondence
+          uses the per-query adaptive bandwidth of Santos et al. Under that correspondence, Epanechnikov gives
+          sparsemax, biweight gives 1.5-entmax, and triweight gives 4/3-entmax.
         </p>
       </div>
     </div>
@@ -542,7 +544,7 @@
     <div class="narrative-section">
       <p>
         Softmax attention is super ultra mega fast due to FlashAttention (and its many systems optimizations), so why worry about sparse alternatives? Can't we just keep increasing the context length with our plain-old softmax attention?
-        The answer is no, and the reason is encoded by what the softmax map can express when the sequence grows and the scores stay in a bounded range. Lets dig into this.
+        The answer is no, and the reason is encoded by what the softmax map can express when the sequence grows and the scores stay in a bounded range. Let's dig into this.
       </p>
 
       <h3 class="font-display text-2xl font-semibold mt-6 mb-4" id="dispprop">3.1 The dispersion bound</h3>
@@ -646,7 +648,7 @@
 
       <p>
         The bound leaves two levers for us to work with. 
-
+      </p>
         <ul class="pts">
           <li>
             <strong>Lever one: grow the spread with \(n\).</strong> If
@@ -656,8 +658,6 @@
             entropy-invariant scalings <a class="cite" href="https://arxiv.org/abs/2501.08570">(Li et al., 2025)</a>,
             position-dependent scale-invariant transformations <a class="cite" href="https://arxiv.org/abs/2505.17083">(Anson et al., 2025)</a>,
             and the inference-time adaptive temperature of <a class="cite" href="https://arxiv.org/abs/2410.01104">Veličković et al. (2025)</a>.
-            The Aitchison analysis of <a class="cite" href="https://icml.cc/virtual/2026/poster/66654">Hilton-Jones et al. (2026)</a> also puts a floor under the whole family: producing a sharp attention distribution
-            requires logit scaling of at least \(\Omega(\sqrt{\log L})\). 
             These fixes are principled and can work well, however, note that sharpness at length \(n\) comes at the cost of knowing the coefficient \(n\), along with many careful tweaks to the hyperparameters.
           </li>
 
@@ -667,10 +667,20 @@
             entropy is governed by the support rather than by \(n\). 
           </li>
         </ul>
-
+      <p>
         Interestingly, the levers are not rivals! ASEntmax <a class="cite" href="https://arxiv.org/abs/2506.16640">(Vasylenko et al., 2026)</a> pulls both at once by using α-entmax for the exact zeros and a learned per-head scaling \(\alpha\text{-entmax}\!\big((\delta + \beta(\log n)^{\gamma})\,\mathbf z\big)\). In that way, the support decides what the entropy can be and the scaling decides what clears the threshold at each length.<span class="mref">‡</span>
       </p>
 
+      <details class="fn">
+        <summary>A related view through Aitchison geometry</summary>
+        <div>
+          <p>
+            The Aitchison analysis of <a class="cite" href="https://icml.cc/virtual/2026/poster/66654">Hilton-Jones et al. (2026)</a>
+            derives a lower bound of \(\Omega(\sqrt{\log L})\) on the logit scaling needed to produce a sharp
+            attention distribution in their setting, where \(L\) denotes context length.
+          </p>
+        </div>
+      </details>
 
       <!-- <p>
         One caveat the bound itself invites: dispersion is a statement about <em>mass</em>. The ratios between
@@ -696,7 +706,7 @@
             Still, sharper attention is not always better. <a class="cite" href="https://arxiv.org/abs/2303.06296">Zhai
             et al. (2023)</a> shows <em>entropy collapse</em>, a training instability in which attention becomes too
             concentrated. Sparse attention therefore has to navigate both extremes. Attention that is too diffuse
-            breaks down as context grows; attention that becomes too sharp can destabilize training (I'm looking at you top-k 👀).
+            breaks down as context grows; attention that becomes too sharp can destabilize training.
           </p>
         </div>
       </details>
@@ -778,8 +788,8 @@
       </div>
 
       <p>
-        In AdaSplash-2 <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, table 1)</a> we carry a larger
-        scale experiment, with 1B-parameter models trained on 50B tokens and context extended to 32K. The entmax+NAPE models average 39.4 on RULER, compared with 36.8 for softmax+NAPE and 27.3 for softmax+RoPE.
+        In AdaSplash-2 <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026, table 1)</a> we run an experiment at a larger
+        scale, with 1B-parameter models trained on 50B tokens and context extended to 32K. The entmax+NAPE models average 39.4 on RULER, compared with 36.8 for softmax+NAPE and 27.3 for softmax+RoPE.
       </p>
 
       <p>
@@ -831,12 +841,12 @@
       <ul class="pts">
         <li>
           <strong>Heads and layers learn different sparsity profiles.</strong>
-          When \(\alpha\) is independently for each head, they learn drastically different distributions, with some remaining near softmax and others moving toward sparsemax
+          When \(\alpha\) is learned independently for each head, they learn drastically different distributions, with some remaining near softmax and others moving toward sparsemax
           <a class="cite" href="https://arxiv.org/abs/1909.00015">(Correia et al., 2019)</a>.
           DashAttention shows the same variation across depth. Without a hand-written per-layer schedule,
           its router learns denser attention in early layers and sparser attention in middle layers
           <a class="cite" href="https://arxiv.org/abs/2605.18753">(Huang et al., 2026, Fig. 5)</a>.
-          Test-time routing between soft and sparse attention provides another version of this evidence
+          A router trained on a frozen backbone to choose between full and sparse attention at test time provides another version of this evidence
           <a class="cite" href="https://arxiv.org/abs/2601.17367">(Tang et al., 2026)</a>.
           <!-- None of these results proves that adaptivity is necessary, but they all push against the assumption that one sparsity level should fit every head and layer. -->
         </li>
@@ -862,9 +872,6 @@
           <!-- That supports adaptivity.  -->
           
         </li>
-
-
-      </p>
 
 
       <!-- <p>
@@ -1093,7 +1100,7 @@ topv.sum().backward()    <span class="cmt"># gradients flow through the values..
         </li>
         <li>
           <strong>How fast can the threshold be found at scale?</strong> At \(n\) in the millions, inside a fused
-          kernel, with the scores streaming past, this is much of a system problem as a mathematical one. 
+          kernel, with the scores streaming past, this is as much a systems problem as a mathematical one.
         </li>
       </ul>
       <p>

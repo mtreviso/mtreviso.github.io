@@ -56,24 +56,6 @@
       box-shadow: 0 8px 24px rgba(10, 124, 106, 0.08);
     }
 
-    /* Series card: a non-link container holding one subcard per part */
-    .series-card {
-      border: 1px solid #D5CFC3;
-    }
-    .subcard {
-      display: block;
-      border: 1px solid #D5CFC3;
-      border-radius: 1rem;
-      padding: 1.05rem 1.15rem;
-      background: rgba(255, 255, 255, 0.55);
-      transition: all 0.25s ease;
-    }
-    .subcard:hover {
-      border-color: #0A7C6A;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(10, 124, 106, 0.08);
-    }
-
     .tag {
       display: inline-flex;
       align-items: center;
@@ -131,55 +113,56 @@
     <!-- Posts -->
     <section class="space-y-6 fade-up delay-1">
 
-      <div class="series-card rounded-2xl p-7 bg-white/40">
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <time class="text-xs text-muted font-mono">August 2026</time>
-          <span class="text-rule">·</span>
-          <span class="text-xs text-muted">Sparse Attention, From Scratch · A series in two parts</span>
-        </div>
-        <h2 class="font-display text-xl font-semibold mb-3 leading-snug">
-          Sparse Attention
-        </h2>
-        <p class="text-muted text-sm leading-relaxed mb-5">
-          A math-first account of what is actually known about sparse attention: what is proven, what is
-          measured, and what is engineered around. Proofs fold away a click at a time, numbers carry their
-          conditions, and the figures are computed live in the page.
-        </p>
-        <div class="grid sm:grid-cols-2 gap-3 mb-5">
-          <a href="blog/sparse-attention.html" class="subcard">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[0.7rem] font-semibold uppercase tracking-wider text-teal">Part I</span>
-              <i class="fas fa-arrow-right text-teal text-sm"></i>
+      <a href="blog/sparse-attention.html" class="post-card block rounded-2xl p-7 bg-white/40">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <time class="text-xs text-muted font-mono" datetime="2026-08">August 2026</time>
+              <span class="text-rule">·</span>
+              <span class="text-xs font-medium text-teal">Sparse Attention · Part I</span>
             </div>
-            <div class="font-display font-semibold text-[0.95rem] leading-snug mb-1.5">
+            <h2 class="font-display text-xl font-semibold mb-3 leading-snug">
               Why Sparse, Why Adaptive, and the Classical Problem Behind Thresholds
-            </div>
-            <p class="text-muted text-xs leading-relaxed">
-              The mathematics. Softmax and α-entmax from one regularized family, a proof that softmax must
-              disperse at long context, and the classical allocation problem behind every threshold.
+            </h2>
+            <p class="text-muted text-sm leading-relaxed mb-4">
+              Softmax and α-entmax from one regularized family, why softmax disperses under fixed score spread and temperature, and the classical allocation problem behind thresholds.
             </p>
-          </a>
-          <a href="blog/sparse-attention-2.html" class="subcard">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[0.7rem] font-semibold uppercase tracking-wider text-teal">Part II</span>
-              <i class="fas fa-arrow-right text-teal text-sm"></i>
+            <div class="flex gap-2 flex-wrap">
+              <span class="tag">Sparse Attention</span>
+              <span class="tag">α-entmax</span>
+              <span class="tag">Optimization</span>
             </div>
-            <div class="font-display font-semibold text-[0.95rem] leading-snug mb-1.5">
+          </div>
+          <div class="text-teal text-lg mt-1 shrink-0" aria-hidden="true">
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+      </a>
+
+      <a href="blog/sparse-attention-2.html" class="post-card block rounded-2xl p-7 bg-white/40">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <time class="text-xs text-muted font-mono" datetime="2026-08">August 2026</time>
+              <span class="text-rule">·</span>
+              <span class="text-xs font-medium text-teal">Sparse Attention · Part II</span>
+            </div>
+            <h2 class="font-display text-xl font-semibold mb-3 leading-snug">
               How Sparse Attention Runs Fast and How Frontier Labs Do It
-            </div>
-            <p class="text-muted text-xs leading-relaxed">
-              The systems. Detach-and-distill in the frontier labs&rsquo; own words, the memory-vs-compute
-              inversion, and AdaSplash-2 up close, from SRAM histograms to bit-packed block masks.
+            </h2>
+            <p class="text-muted text-sm leading-relaxed mb-4">
+              How DeepSeek and MiniMax train sparse indexers, when sparsity saves computation, and how AdaSplash-2 uses threshold estimates and block masks.
             </p>
-          </a>
+            <div class="flex gap-2 flex-wrap">
+              <span class="tag">Sparse Attention</span>
+              <span class="tag">GPU Kernels</span>
+            </div>
+          </div>
+          <div class="text-teal text-lg mt-1 shrink-0" aria-hidden="true">
+            <i class="fas fa-arrow-right"></i>
+          </div>
         </div>
-        <div class="flex gap-2 flex-wrap">
-          <span class="tag">Sparse Attention</span>
-          <span class="tag">α-entmax</span>
-          <span class="tag">GPU Kernels</span>
-          <span class="tag">Optimization</span>
-        </div>
-      </div>
+      </a>
 
       <a href="blog/slurm.html" class="post-card block rounded-2xl p-7 bg-white/40">
         <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

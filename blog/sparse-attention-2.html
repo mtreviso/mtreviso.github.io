@@ -384,7 +384,7 @@
       </p>
       $$\mathcal L_{\mathrm{KL}}=
       \frac{1}{NH_{kv}}\sum_{i=1}^{N}\sum_{r=1}^{H_{kv}}
-      D_{\mathrm{KL}}\!\left(\operatorname{stopgrad}(P^{(r)}_{i,:})\,middle\|\,
+      D_{\mathrm{KL}}\!\left(\operatorname{stopgrad}(P^{(r)}_{i,:})\,\middle\|\,
       P^{\mathrm{idx},(r)}_{i,:}\right).$$
       <p>
         There are two gradient paths to block. Detaching the teacher prevents this loss from updating the
@@ -572,6 +572,9 @@
         the normalization equation on the histogram, then refines the threshold using the actual scores
         <a class="cite" href="https://arxiv.org/abs/2604.15180">(Gonçalves et al., 2026)</a>.
         The histogram is a cheaper initialization. Its approximate weights are not the final answer.
+        In the published implementation, finding row maxima and building histograms are separate scans,
+        followed by threshold refinement and the sparse output pass, so even a single refinement iteration
+        follows those earlier scans.
       </p>
       <details class="dv" id="histogram-details">
         <summary>The histogram bound and a worked example</summary>
@@ -819,7 +822,6 @@
         <tr><td class="m"><a class="cite" href="https://openreview.net/forum?id=r8YhlMRUR2">FFD</a></td><td>decode</td><td>block</td><td>2-bit thumbnail vs. pseudo-max, top-δ</td><td>yes</td><td class="ap">approximates dense softmax</td><td>relative-score filtering with higher-precision refinement</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2512.12087">BLASST</a></td><td>prefill + decode</td><td>block</td><td>running-max gap \(\ln\lambda\)</td><td>yes</td><td class="ap">approximates dense softmax</td><td>skip blocks inside FlashAttention’s loop (§4.2)</td></tr>
         <tr><td class="m"><a class="cite" href="https://openreview.net/forum?id=lK2AzLDJal">TileSparse</a></td><td>decode (MLA)</td><td>compute tile</td><td>tile-level threshold, AutoTuner</td><td>yes</td><td class="ap">approximates dense softmax</td><td>choose tiles to balance sparsity and arithmetic intensity</td></tr>
-        <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2601.17367">Elastic Attention</a></td><td>test time</td><td>head</td><td>per-head sparsity-ratio routing</td><td>partly</td><td class="ap">approximates dense softmax</td><td>adapt each head’s sparsity without retraining</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2508.07101">LessIsMore</a></td><td>decode (reasoning)</td><td>token</td><td>cross-head unified selection</td><td>yes</td><td class="ap">approximates dense softmax</td><td>one shared token set across heads for reasoning</td></tr>
         <tr class="grp"><td colspan="7">Serving kernels for trained sparse models; engineering the scan, with semantics shown per row</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2607.11976">LiteTopK</a></td><td>prefill</td><td>token (top-\(k\))</td><td>rescore frequent prior-chunk token IDs; histogram filter</td><td>yes</td><td class="ex">exact top-\(k\)</td><td>fuse scoring, candidate filtering and final selection (§4.4)</td></tr>
@@ -827,6 +829,7 @@
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2605.02568">StreamIndex</a></td><td>prefill</td><td>token (top-\(k\))</td><td>chunked partition–merge</td><td>yes</td><td class="fx">streaming top-\(k\); empirical set agreement</td><td>avoid the full score tensor (§4.4)</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2603.12201">IndexCache</a></td><td>prefill</td><td>layer</td><td>cross-layer index reuse</td><td>yes</td><td class="ap">approximates fresh indices</td><td>reuse indices instead of selecting at every layer (§4.4)</td></tr>
         <tr class="grp"><td colspan="7">Trained retrofit — adapt an existing dense model using additional training</td></tr>
+        <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2601.17367">Elastic Attention</a></td><td>test time</td><td>head</td><td>trained router choosing full or sparse attention</td><td>partly</td><td class="ap">approximates dense softmax</td><td>train the router on a frozen backbone; adapt allocation at inference</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2410.13276">SeerAttention</a> (<a class="cite" href="https://arxiv.org/abs/2506.08889">-R</a>)</td><td>prefill (R: decode)</td><td>block</td><td>self-distilled learned gates</td><td>yes</td><td class="ap">approximates dense softmax</td><td>learn the model’s own sparsity, backbone frozen (§3.3)</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2410.10819">DuoAttention</a></td><td>decode</td><td>head</td><td>learned retrieval/streaming split</td><td>partly</td><td class="ap">approximates dense softmax</td><td>full cache only for retrieval heads (§3.3)</td></tr>
         <tr><td class="m"><a class="cite" href="https://arxiv.org/abs/2403.09636">DMC</a></td><td>decode</td><td>token</td><td>learned append-vs-merge</td><td>partly</td><td class="ap">approximates dense softmax</td><td>retrofit-trained eviction and merging</td></tr>
