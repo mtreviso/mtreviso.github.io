@@ -106,10 +106,10 @@
     <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
       <a href="index.html" class="font-display font-semibold text-lg text-ink hover:text-teal transition-colors">Marcos Treviso</a>
       <div class="flex items-center gap-6 text-sm text-muted">
-        <a href="#news" class="hover:text-ink transition-colors">News</a>
-        <a href="#publications" class="hover:text-ink transition-colors">Publications</a>
-        <a href="#students" class="hover:text-ink transition-colors">Students</a>
-        <a href="#teaching" class="hover:text-ink transition-colors">Teaching</a>
+        <a href="index.html#news" class="hover:text-ink transition-colors">News</a>
+        <a href="index.html#publications" class="hover:text-ink transition-colors">Publications</a>
+        <a href="index.html#students" class="hover:text-ink transition-colors">Students</a>
+        <a href="index.html#teaching" class="hover:text-ink transition-colors">Teaching</a>
         <!-- <a href="#projects" class="hover:text-ink transition-colors">Projects</a> -->
         <a href="blog.html" class="text-ink font-medium">Blog</a>
         <a href="CV.pdf" class="hover:text-ink transition-colors" target="_blank">CV</a>
@@ -130,6 +130,36 @@
 
     <!-- Posts -->
     <section class="space-y-6 fade-up delay-1">
+
+      <a href="blog/wallhacks-bayesian-openmohaa.html" class="post-card block rounded-2xl p-7 bg-white/40">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <time class="text-xs text-muted font-mono">September 2026</time>
+              <span class="text-rule">·</span>
+              <span class="text-xs text-muted">110 min read</span>
+            </div>
+            <h2 class="font-display text-xl font-semibold mb-3 leading-snug">
+              You Cannot Hide a Player and Show Them at the Same Time
+            </h2>
+            <p class="text-muted text-sm leading-relaxed mb-4">
+              A server can starve wallhacks by withholding hidden players, but the honest client then needs
+              the data early enough to interpolate. An attempt to understand OpenMoHAA's server-side visibility
+              filtering from its source, with interactive figures, a comparison with ioquake3, and a Bayesian
+              way to choose how early "early enough" should be.
+            </p>
+            <div class="flex gap-2">
+              <span class="tag">Netcode</span>
+              <span class="tag">OpenMoHAA</span>
+              <span class="tag">Anti-cheat</span>
+              <span class="tag">Decision theory</span>
+            </div>
+          </div>
+          <div class="text-teal text-lg mt-1 shrink-0">
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+      </a>
 
       <div class="series-card rounded-2xl p-7 bg-white/40">
         <div class="flex flex-wrap items-center gap-2 mb-3">

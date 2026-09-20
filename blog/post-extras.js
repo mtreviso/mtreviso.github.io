@@ -1,16 +1,16 @@
 /* Post extras, shared by every post in blog/ (styles live in post-extras.css):
-   1. builds the "Contents" sidebar from the h2/h3 headings inside <main>
-   2. shows the full reference in a popover when a citation (a.cite) is hovered, focused, or tapped
-   Loaded from <head> so the class below is set before first paint and the in-flow TOC never flashes. */
+   1. builds the "Contents" rail from the h2/h3 headings inside <main>: a dash per heading at the screen edge,
+      which opens into a card listing them on hover or click
+   2. shows the full reference in a popover when a citation (a.cite) is hovered, focused, or tapped */
 (function(){
   'use strict';
-  document.documentElement.classList.add('js-side-toc');
 
-  var HOVER_MS = 350;   // how long the pointer must rest on a citation before the popover opens
-  var LEAVE_MS = 220;   // grace period to travel from the citation into the popover
-  var ACTIVE_Y = 120;   // a heading becomes "current" once it passes this many px from the top
+  var SIDE     = 'left';   // which screen edge the contents rail sits on: 'left' or 'right'
+  var HOVER_MS = 350;      // how long the pointer must rest on a citation before the popover opens
+  var LEAVE_MS = 220;      // grace period to travel from the citation into the popover
+  var ACTIVE_Y = 120;      // a heading becomes "current" once it passes this many px from the top
 
-  /* ======================= contents sidebar ======================= */
+  /* ======================= contents rail ======================= */
 
   function slugify(s){
     return s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'')
@@ -46,28 +46,27 @@
     if(heads.length < 2) return;
 
     var generated = [];
-    var aside = document.createElement('aside'); aside.className = 'side-toc';
-    var box = document.createElement('div'); box.className = 'side-toc-box';
-    var nav = document.createElement('nav'); nav.setAttribute('aria-label','Contents');
+    var aside = document.createElement('aside'); aside.className = 'side-toc'; aside.dataset.side = SIDE;
+    var rail = document.createElement('button'); rail.type = 'button'; rail.className = 'side-toc-rail';
+    rail.setAttribute('aria-label','Table of contents'); rail.setAttribute('aria-expanded','false'); rail.setAttribute('aria-controls','side-toc-panel');
+    var panel = document.createElement('div'); panel.className = 'side-toc-panel'; panel.id = 'side-toc-panel';
+    var card = document.createElement('div'); card.className = 'side-toc-card';
+    card.setAttribute('role','navigation'); card.setAttribute('aria-label','Contents');
     var title = document.createElement('div'); title.className = 'side-toc-title'; title.textContent = 'Contents';
-    var list = document.createElement('ol'); list.className = 'side-toc-list';
-    nav.appendChild(title); nav.appendChild(list); box.appendChild(nav); aside.appendChild(box);
+    var list = document.createElement('ol');
+    card.appendChild(title); card.appendChild(list); panel.appendChild(card);
+    aside.appendChild(rail); aside.appendChild(panel);
 
-    var entries = [], parentLi = null, subList = null;
-    heads.forEach(function(h){
-      var lv = h.tagName === 'H2' ? 2 : 3;
-      var li = document.createElement('li'); li.className = 'lv' + lv;
+    var entries = heads.map(function(h){
+      var lv = h.tagName === 'H2' ? 'lv2' : 'lv3';
+      var dash = document.createElement('i'); dash.className = lv; rail.appendChild(dash);
+      var li = document.createElement('li'); li.className = lv;
       var a = document.createElement('a'); a.href = '#' + anchorFor(h, generated);
       a.append.apply(a, Array.from(labelOf(h).childNodes));
-      li.appendChild(a);
-      if(lv === 2 || !parentLi){ list.appendChild(li); parentLi = lv === 2 ? li : null; subList = null; }
-      else{
-        if(!subList){ subList = document.createElement('ol'); parentLi.appendChild(subList); }
-        subList.appendChild(li);
-      }
-      entries.push({ h:h, a:a, top: lv === 2 ? li : parentLi });
+      li.appendChild(a); list.appendChild(li);
+      return { h:h, a:a, dash:dash };
     });
-    main.appendChild(aside);
+    document.body.appendChild(aside);
 
     /* A heading id minted above did not exist when the browser resolved the URL hash. */
     if(location.hash && generated.indexOf(decodeURIComponent(location.hash.slice(1))) !== -1){
@@ -75,11 +74,15 @@
       if(t) t.scrollIntoView();
     }
 
-    /* Show every subsection when the whole list fits; otherwise only the current section's. */
+    /* Tighten the spacing between dashes on long posts so the rail fits the window;
+       if even the tightest spacing is too tall, show the section-level dashes only. */
     function fit(){
-      aside.classList.remove('is-collapsible');
-      if(box.clientHeight && list.scrollHeight + title.offsetHeight + 12 > window.innerHeight - 108)
-        aside.classList.add('is-collapsible');
+      var room = window.innerHeight - 170 - 24;   // sticky nav, breathing room, the rail's own padding
+      var gapFor = function(n){ return n < 2 ? 12 : Math.floor((room - n * 1.5) / (n - 1)); };
+      var gap = gapFor(entries.length), h2Only = gap < 3;
+      if(h2Only) gap = gapFor(heads.filter(function(h){ return h.tagName === 'H2'; }).length);
+      aside.classList.toggle('h2-only', h2Only);
+      rail.style.setProperty('--toc-gap', Math.max(3, Math.min(12, gap)) + 'px');
     }
 
     var current = null;
@@ -91,22 +94,42 @@
       if(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) idx = entries.length - 1;
       var e = idx < 0 ? null : entries[idx];
       if(e === current) return;
-      if(current){ current.a.classList.remove('active'); current.a.removeAttribute('aria-current'); if(current.top) current.top.classList.remove('open'); }
+      if(current){ current.a.classList.remove('active'); current.a.removeAttribute('aria-current'); current.dash.classList.remove('active'); }
       current = e;
       if(!e) return;
-      e.a.classList.add('active'); e.a.setAttribute('aria-current','location');
-      if(e.top) e.top.classList.add('open');
-      /* keep the current entry in view inside the sidebar's own scroll area */
-      var r = e.a.getBoundingClientRect(), b = box.getBoundingClientRect();
-      if(r.top < b.top + 8) box.scrollTop -= (b.top + 8 - r.top);
-      else if(r.bottom > b.bottom - 8) box.scrollTop += (r.bottom - b.bottom + 8);
+      e.a.classList.add('active'); e.a.setAttribute('aria-current','location'); e.dash.classList.add('active');
     }
+
+    /* Hovering opens the card for as long as the pointer stays on the widget; clicking the rail pins it open
+       (that is also the touch and keyboard path) until a second click, an outside click, Escape, or a jump. */
+    var isOpen = false, pinned = false, openT = 0, closeT = 0;
+    function open(){
+      clearTimeout(closeT);
+      if(isOpen) return;
+      isOpen = true; aside.classList.add('open'); rail.setAttribute('aria-expanded','true');
+      if(current) card.scrollTop = current.a.offsetTop - card.clientHeight / 2 + current.a.offsetHeight / 2;
+    }
+    function close(){
+      clearTimeout(openT); clearTimeout(closeT);
+      isOpen = false; pinned = false; aside.classList.remove('open'); rail.setAttribute('aria-expanded','false');
+    }
+    aside.addEventListener('mouseenter', function(){ clearTimeout(closeT); openT = setTimeout(open, 80); });
+    aside.addEventListener('mouseleave', function(){ clearTimeout(openT); if(!pinned) closeT = setTimeout(close, 250); });
+    rail.addEventListener('click', function(){ if(isOpen && pinned) close(); else { pinned = true; open(); } });
+    list.addEventListener('click', function(e){ if(e.target.closest('a')) close(); });
+    aside.addEventListener('focusout', function(e){ if(e.relatedTarget && !aside.contains(e.relatedTarget)) close(); });
+    document.addEventListener('pointerdown', function(e){ if(isOpen && !aside.contains(e.target)) close(); });
+    document.addEventListener('keydown', function(e){
+      if(e.key !== 'Escape' || !isOpen) return;
+      if(aside.contains(document.activeElement)) rail.focus();
+      close();
+    });
 
     var ticking = false;
     function onScroll(){ if(ticking) return; ticking = true; requestAnimationFrame(function(){ ticking = false; sync(); }); }
     window.addEventListener('scroll', onScroll, { passive:true });
     window.addEventListener('resize', function(){ fit(); onScroll(); });
-    window.addEventListener('load', function(){ fit(); sync(); });   // fonts and KaTeX change the heights
+    window.addEventListener('load', sync);   // late-loading figures and KaTeX move the headings
     fit(); sync();
   }
 
