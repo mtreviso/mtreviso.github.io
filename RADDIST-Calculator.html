@@ -1,0 +1,705 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>RADDIST Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* White theme only (requested). Layout: a working ledger. Inputs grouped by vertente on the left, a sticky scoreboard on the right (stacks on phones with a bottom score bar). */
+:root{
+  --paper:#ffffff; --surface:#ffffff; --sunk:#f4f6f8; --ink:#15212b; --muted:#5a6a77;
+  --line:#d7dfe5; --line-strong:#b6c3cc; --accent:#0a5bb5; --accent-soft:#e2ecf8;
+  --vE:#0a5bb5; --vI:#6a46bf; --vT:#0d7c70; --vG:#a3570e;
+  --ex:#0e7a49; --mb:#1f7896; --bo:#a86b0c; --in:#bf3a2b;
+  color-scheme:light;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num,b[data-m],b[data-d],b[data-cv],.val{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.fl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Header */
+.top{padding-block:28px 18px}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.top h1{font-size:clamp(30px,5vw,46px);font-weight:800;font-stretch:78%;letter-spacing:-.01em;line-height:1.02;margin-top:6px}
+.top p{max-width:68ch;color:var(--muted);margin:10px 0 0}
+.banner{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:10px 14px;border:1px dashed var(--line-strong);border-radius:8px;background:var(--sunk);font-size:14px}
+.banner span{flex:1 1 260px}
+
+/* Profile strip */
+.profile{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 18px;padding-block:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:26px}
+.pf{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pf.chk{flex-direction:row;align-items:flex-start;gap:8px;font-size:13.5px;line-height:1.35}
+.pf.chk input{margin-top:3px}
+
+input[type=text],select,textarea{background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:6px 9px;min-height:34px;width:100%;min-width:0}
+select{padding-right:6px}
+input[type=text]:hover,select:hover{border-color:var(--muted)}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none}
+input::placeholder{color:var(--muted);opacity:.7}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:30px;align-items:start;padding-bottom:60px}
+main{display:flex;flex-direction:column;gap:38px;min-width:0}
+
+/* Vertente */
+.vert{display:flex;flex-direction:column;gap:14px;min-width:0}
+.vh{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.vtag{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:20px;color:var(--surface);background:var(--vc)}
+.vh h2{font-size:24px;font-weight:750;font-stretch:85%}
+.vh .vpt{color:var(--muted);font-size:13px}
+.vh .vscore{margin-left:auto;text-align:right;font-size:13px;color:var(--muted)}
+.vh .vscore b{font-family:var(--f-mono);color:var(--ink);font-size:16px;font-weight:600}
+
+/* Criterion card */
+.crit{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0;overflow:hidden}
+.ch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-start;padding:14px 16px 10px}
+.ct{flex:1 1 240px;min-width:0}
+.ct h3{font-size:18px;font-weight:650;font-stretch:90%}
+.cpt{font-size:12.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--f-mono);font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--sunk);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+.extras{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;padding:10px 16px;background:var(--sunk);border-top:1px solid var(--line)}
+.cnote{margin:0;padding:8px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+.rows{border-top:1px solid var(--line)}
+.empty{padding:14px 16px;color:var(--muted);font-size:13.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-end;padding:10px 16px}
+.row+.row{border-top:1px solid var(--line)}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.f-desc{flex:1 1 150px}
+.f-sel{flex:3 1 230px}
+.f-num{flex:0 0 92px}
+.f-chk{flex:0 1 auto;flex-direction:row;align-items:center;gap:6px;min-height:34px;font-size:13px;line-height:1.25;max-width:230px}
+.f-sem{flex:0 0 auto}
+.sems{display:flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden}
+.semb{position:relative;display:block}
+.semb input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.semb span{display:block;min-width:34px;padding:0 6px;line-height:32px;text-align:center;font-family:var(--f-mono);font-size:12px;color:var(--muted);background:var(--surface)}
+.semb+.semb span{border-left:1px solid var(--line)}
+.semb input:checked+span{background:var(--accent);color:var(--surface);font-weight:600}
+.semb input:focus-visible+span{outline:2px solid var(--accent);outline-offset:-2px}
+.rv{margin-left:auto;display:flex;align-items:center;gap:6px;min-height:34px}
+.val{font-size:13.5px;min-width:56px;text-align:right}
+.del{border:1px solid transparent;background:none;border-radius:6px;width:30px;height:30px;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
+.del:hover{border-color:var(--line-strong);color:var(--in)}
+.cadd{padding:4px 12px 10px}
+.addb{background:none;border:1px dashed var(--line-strong);border-radius:6px;padding:5px 12px;color:var(--accent);font-weight:500;cursor:pointer;font-size:13.5px}
+.addb:hover{background:var(--accent-soft);border-style:solid}
+.cf{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;align-items:end;padding:12px 16px 14px;border-top:1px solid var(--line);background:var(--sunk)}
+.qsel{display:flex;flex-direction:column;gap:3px;min-width:180px}
+.res{display:flex;flex-wrap:wrap;gap:6px 22px;justify-content:flex-end;align-items:flex-end}
+.res>div{display:flex;flex-direction:column;align-items:flex-end}
+.res b{font-size:15px;font-weight:500}
+.res .cval b{font-size:22px;font-weight:600;color:var(--vc)}
+.cbar{grid-column:1/-1;position:relative;height:6px;border-radius:3px;background:var(--line)}
+.cbar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--vc);transition:width .25s}
+.cbar s{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55;text-decoration:none}
+@media (prefers-reduced-motion: reduce){.cbar i,.sbar i,.scale i{transition:none}}
+
+/* Summary */
+aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.ciw{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:4px}
+#ci{font-family:var(--f-display);font-weight:800;font-stretch:80%;font-size:64px;line-height:1;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:600;font-size:14px;color:var(--mc);background:color-mix(in srgb,var(--mc) 14%,transparent);border:1px solid color-mix(in srgb,var(--mc) 35%,transparent)}
+.m-ex{--mc:var(--ex)} .m-mb{--mc:var(--mb)} .m-bo{--mc:var(--bo)} .m-in{--mc:var(--in)}
+.scale{position:relative;height:10px;border-radius:5px;margin:18px 0 22px;background:var(--line)}
+.scale i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--mc,var(--accent));transition:width .3s}
+.scale u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.6;text-decoration:none}
+.scale u span{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.gap{font-size:13.5px;color:var(--muted);margin:0}
+.card h3{font-size:14px;font-weight:650;font-stretch:90%;letter-spacing:.02em;margin:0 0 8px;text-transform:uppercase}
+table.vt{width:100%;border-collapse:collapse;font-size:13.5px}
+.vt th{font-weight:500;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;text-align:right;padding:0 0 6px}
+.vt th:first-child,.vt td:first-child{text-align:left}
+.vt td{padding:6px 0;border-top:1px solid var(--line);text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.vt td:first-child{font-family:var(--f-body)}
+.vt td small{display:block;color:var(--muted);font-size:10.5px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--vc);margin-right:7px;vertical-align:1px}
+.vt tfoot td{font-weight:600;border-top:1px solid var(--line-strong)}
+.clist{display:flex;flex-direction:column;gap:9px;margin:0;padding:0;list-style:none}
+.clist li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;align-items:baseline}
+.clist li b{font-family:var(--f-mono);font-weight:500;font-variant-numeric:tabular-nums}
+.sbar{grid-column:1/-1;position:relative;height:4px;border-radius:2px;background:var(--line)}
+.sbar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--vc);transition:width .25s}
+.sbar s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.45}
+.hint{font-size:12px;color:var(--muted);margin:10px 0 0}
+.warn{font-size:13px;color:var(--in);margin:8px 0 0}
+
+/* Tools & notes */
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13.5px;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.danger{color:var(--in)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+details.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.panel>summary{cursor:pointer;padding:14px 16px;font-family:var(--f-display);font-weight:650;font-stretch:90%;font-size:17px;list-style-position:inside}
+details.panel>div{padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
+.ptable{overflow-x:auto}
+.ptable table{border-collapse:collapse;font-size:13.5px;min-width:420px;width:100%}
+.ptable th{text-align:left;font-weight:500;color:var(--muted);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;padding:4px 8px 6px 0}
+.ptable td{padding:4px 8px 4px 0;border-top:1px solid var(--line)}
+.ptable input{width:90px}
+.prow{display:flex;flex-wrap:wrap;gap:10px 16px}
+.prow .pf{flex:0 0 120px}
+.notes{font-size:13.5px;color:var(--muted);max-width:75ch}
+.notes code{font-family:var(--f-mono);font-size:12.5px;color:var(--ink);background:var(--sunk);padding:1px 5px;border-radius:4px}
+.notes ul{padding-left:18px;margin:6px 0}
+.notes li{margin:4px 0}
+textarea{min-height:90px;font-family:var(--f-mono);font-size:12px}
+
+.minibar{display:none}
+@media (max-width:1000px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  aside{position:static}
+  body{padding-bottom:70px}
+  .minibar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;align-items:center;gap:12px;
+    padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+    background:var(--surface);border-top:1px solid var(--line-strong)}
+  .minibar b{font-family:var(--f-display);font-weight:800;font-stretch:80%;font-size:26px;font-variant-numeric:tabular-nums}
+  .minibar a{margin-left:auto;color:var(--accent);font-weight:500;font-size:14px}
+}
+@media (max-width:560px){
+  .cf{grid-template-columns:1fr}
+  .res{justify-content:flex-start}
+  .res>div{align-items:flex-start}
+  .f-num{flex:1 1 84px}
+  .vh .vscore{margin-left:0;text-align:left;flex-basis:100%}
+}
+</style>
+
+<header class="top wrap">
+  <div class="eyebrow">Instituto Superior Técnico · Despacho n.º 3855/2017 · DR 2.ª série, 8 maio 2017</div>
+  <h1>RADDIST Calculator</h1>
+  <p>Enter your activity for the triennium. Each criterion converts to a value C, the weights are chosen within their allowed ranges to maximise your intermediate score CI, and CI sets the final mention.</p>
+  <div class="banner" id="banner" hidden>
+    <span>These are example figures for a fictional associate professor, not yours. Clear them to start from zero.</span>
+    <button class="btn danger" id="btn-clear-top" type="button">Clear all</button>
+    <button class="btn" id="btn-dismiss" type="button">Keep and edit</button>
+  </div>
+</header>
+
+<section class="wrap"><div class="profile" id="profile"></div></section>
+
+<div class="wrap layout">
+  <main id="main"></main>
+  <aside id="summary" aria-label="Score summary">
+    <div class="card">
+      <div class="eyebrow">Classificação intermédia · CI</div>
+      <div class="ciw"><span id="ci">0</span><span class="pill" id="cf">—</span></div>
+      <div class="scale" id="scale"><i id="scale-fill"></i></div>
+      <p class="gap" id="gap"></p>
+    </div>
+    <div class="card">
+      <h3>Optimal weights by vertente</h3>
+      <table class="vt">
+        <thead><tr><th>Vertente</th><th>Score</th><th>Weight α</th><th>Adds</th></tr></thead>
+        <tbody id="vt-body"></tbody>
+        <tfoot><tr><td>Total</td><td></td><td id="vt-wsum"></td><td id="vt-total"></td></tr></tfoot>
+      </table>
+      <p class="warn" id="alpha-warn" hidden></p>
+      <p class="hint">Score = Σ αx,y · C within the vertente. Weights are set to maximise CI (art. 30.º, n.º 1, c).</p>
+    </div>
+    <div class="card">
+      <h3>Criteria values C</h3>
+      <ul class="clist" id="clist"></ul>
+      <p class="hint">Bar runs to the ceiling K. The tick marks the target (C = 100).</p>
+    </div>
+  </aside>
+</div>
+
+<div class="minibar" aria-hidden="false">
+  <span class="eyebrow">CI</span><b id="mini-ci">0</b><span class="pill" id="mini-cf">—</span>
+  <a href="#summary">Breakdown</a>
+</div>
+
+<script>
+/* ---------- constants from the regulation ---------- */
+const QL=[[1.5,'Muito Positivo · 1.5'],[1.25,'Positivo · 1.25'],[1,'Neutro · 1.0'],[0.75,'Negativo · 0.75'],[0.5,'Muito Negativo · 0.5']];
+const AREAS={
+  other:{l:'Other disciplinary areas',pu:8,pj:1.25},
+  phys:{l:'DF, DBE, DECN, QFMN or SEMAQ',pu:12,pj:1.25},
+  mat:{l:'Mathematics',pu:6,pj:0.7},
+  arq:{l:'Architecture',pu:4,pj:1.25}
+};
+const CATS={
+  A:{l:'Assistant Prof. in probation, Assistant, Invited',g:[0,.10]},
+  B:{l:'Assistant Prof. (permanent, no Agregação)',g:[.05,.20]},
+  C:{l:'Assistant Prof. with Agregação, Associate Prof.',g:[.075,.20]},
+  D:{l:'Full Professor (Catedrático)',g:[.10,.20]}
+};
+const VERTS={
+  E:{l:'Teaching',pt:'Ensino',c:['cp','ao','uc']},
+  I:{l:'Research',pt:'Investigação',c:['pu','pj']},
+  T:{l:'Knowledge transfer',pt:'Transferência de conhecimento',c:['pt','sc']},
+  G:{l:'University management',pt:'Gestão universitária',c:['gu']}
+};
+const DEF_THR={bom:25,mb:55,ex:110};
+
+//<calc>
+const num=(x,d=0)=>{const v=parseFloat(String(x??'').replace(/[\s_]/g,'').replace(',','.'));return Number.isFinite(v)?v:d};
+const blank=x=>String(x??'').trim()==='';
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const mk=a=>a.map(([k,T,l])=>({k,T,l}));
+const tOf=(list,k)=>list.find(t=>t.k===k)||list[0];
+const sum=a=>a.reduce((s,x)=>s+x,0);
+
+const CP_T=mk([
+ ['book_en',6,'Teaching book in English, international commercial publisher'],
+ ['book',5,'Teaching book, commercial publisher'],
+ ['text',1.25,'Full-syllabus teaching text on Fénix, or editing a teaching book'],
+ ['chap',1,'Teaching-book chapter, or pedagogical article in an indexed journal'],
+ ['reed',0.6,'Re-edition or translation of a teaching book'],
+ ['elearn',null,'E-learning content (≥ 20 % of a UC), value set by the CP'],
+ ['app',0.3,'Software or experimental prototype adopted in UCs (1/year)'],
+ ['art',0.2,'Pedagogical article in a non-indexed journal']
+]);
+const PU_T=mk([
+ ['A',3,'Journal article, type A (Q1)'],
+ ['B',2,'Journal article, type B (Q2)'],
+ ['C',1,'Journal article, type C (Q3)'],
+ ['D',0.5,'Journal article, type D (Q4 / other indexed)'],
+ ['book',5.5,'International R&D book'],
+ ['chap',1,'International R&D book chapter, or editing an R&D book'],
+ ['special',0.5,'Editing a special issue, or international proceedings with ISBN'],
+ ['conf',0.2,'International conference paper, or journal outside A–D'],
+ ['nconf',0.05,'National conference paper'],
+ ['recog',null,'International recognition (prize, fellow, plenary, editor…)']
+]);
+const PJ_T=mk([
+ ['gen',2.5,'Overall PI, international R&D project'],
+ ['loc',1.6,'Local PI, international R&D project'],
+ ['nat',1,'PI, national R&D project (FCT, ANI…)'],
+ ['partner',0.6,'PI, partnership project (CMU, MIT, UT Austin…)'],
+ ['coop',0.4,'PI, transnational cooperation (bilateral actions)'],
+ ['part',0.25,'Participant in R&D, partnership or cooperation project'],
+ ['unit',0.15,'Member of an FCT unit rated Excecional/Excelente/Muito Bom (1/triennium)']
+]);
+const PT_T=mk([
+ ['pat_i',9,'International patent, model or industrial design'],
+ ['leg_i',6,'International legislative project'],
+ ['norm_i',6,'International technical standard'],
+ ['book',6,'Technical-scientific outreach book'],
+ ['pat_n',2.25,'National patent, model or industrial design'],
+ ['leg_n',2.25,'National legislative project'],
+ ['norm_n',2.25,'National technical standard'],
+ ['edbook',2.25,'Editor of a technical-scientific outreach book'],
+ ['other',0.5,'Other outreach publication (not project reports)']
+]);
+const SC_T=mk([
+ ['incub',3,'Incubation / creation of a technology-based company'],
+ ['sale',1.5,'Sale or licensing of a patent'],
+ ['roy',1.5,'Royalties from IP or copyright (books, software)'],
+ ['design',1.5,'Design and production of engineering, management or architecture works'],
+ ['r_serv',1,'Lead, provision of services'],
+ ['r_cons',1,'Lead, technical consulting'],
+ ['r_train',1,'Lead, professional training action'],
+ ['r_div',1,'Lead, science & technology outreach action'],
+ ['p_serv',0.25,'Participant, provision of services'],
+ ['p_cons',0.25,'Participant, technical consulting'],
+ ['p_train',0.25,'Trainer in a professional training action'],
+ ['p_div',0.25,'Team member, outreach action']
+]);
+const GU_G=[
+ {g:'University bodies',t:9,items:[['reitor','Rector (Reitor)',24.75],['vreitor','Vice-Rector',24.75],['preitor','Pro-Rector',4.1],['cgeral','General Council member',5.5],['senperm','Senate Standing Committee member',3.4],['senado','Senate member',1.375]]},
+ {g:'School bodies (IST)',t:9,items:[['pce','President, School Council (CE)',24.75],['pist','President of IST',24.75],['pcc','President, Scientific Council (CC)',24.75],['pcp','President, Pedagogical Council (CP)',24.75],['pae','President, School Assembly (AE)',6.2],['vpcg','Vice-President, Management Board (CG)',24.75],['mcg','Other Management Board member',24.75],['pciist','President, CIIST',24.75],['vpce','Vice-President, School Council',6.875],['mce','School Council member',5.5],['vpcc','Vice-President, CC',9],['vpcp','Vice-President, CP',8.25],['vcecp','CP Executive Committee member',4.1],['vpciist','Vice-President, CIIST',8.25],['ccadd','CCADD member',1],['campus','Campus Management Committee member',8.25],['acampus','Campus Management Committee adviser',2.1],['pequiv','President, Equivalences Committee',4.1],['mcc','Scientific Council member',4.1],['mcp','Pedagogical Council member',4.1],['mae','School Assembly member',0.3],['diradj','Other deputy director',2.75],['atrib','Assigned by governing bodies (1–12.375 h)','manual']]},
+ {g:'Units and programmes',t:9,items:[['pdep','Department President',12.375],['bdep','Department grant (management, labs, libraries)','f:dep'],['bui','Research unit direction grant','f:ui'],['bmi','Integrated Master coordination grant','f:mi'],['bcurso','1st/2nd/3rd cycle programme coordination grant','f:curso'],['barea','Disciplinary area / section grant','f:area']]},
+ {g:'Other',t:9,items:[['outro','Other position (art. 73.º ECDU, scientific bodies)','manual'],['pos','Year after leaving a position with Hs ≥ 9 (half its hours)','manual']]},
+ {g:'Temporary · Table 10 (max 3 h per semester)',t:10,items:[['tutor','Tutor (per 15 students)',0.5],['jconc','Jury, academic competition',0.5],['jagr','Jury, Agregação exam',0.5],['jphd','PhD jury (not as supervisor)',0.5],['jmsc','MSc jury (not as supervisor)',0.15],['avint','Evaluator, international R&D programme',0.5],['avnat','Evaluator, national R&D programme',0.25],['editor','Editor-in-chief / associate editor, indexed journal',0.5],['cape','Assistant Prof. probation committee (1/year)',1]]}
+];
+const GU={};GU_G.forEach(g=>g.items.forEach(([k,l,h])=>GU[k]={k,l,h,t:g.t}));
+const GU_F={
+ dep:{p:'Teaching staff FTE',f:p=>1.375*(6+6*p/25)},
+ ui:{p:'PhD researchers',f:p=>1.375*(1.5+1.5*p/25)},
+ mi:{p:'Enrolled students',f:p=>1.375*(4+4*p/750),intl:true},
+ curso:{p:'Enrolled students',f:p=>1.375*(2+2*p/375),intl:true},
+ area:{p:'Teaching staff FTE',f:p=>1.375*(2+p/15)}
+};
+function guHs(r){
+  const g=GU[r.pos]||GU.mcc;
+  if(g.h==='manual') return num(r.manual,0);
+  if(typeof g.h==='string'&&g.h.startsWith('f:')){
+    const F=GU_F[g.h.slice(2)];let h=F.f(num(r.param,0));
+    if(F.intl&&r.intl) h*=1.1;
+    return h*num(r.share,100)/100;
+  }
+  return g.t===10? g.h*num(r.qty,1) : g.h;
+}
+
+const CRIT={
+ cp:{v:'E',name:'Teaching materials',pt:'Conteúdos pedagógicos',art:'Art. 14.º',w:[1,6],mu:1.5,K:500,
+   value(r){const t=tOf(CP_T,r.type);const T=t.k==='elearn'?clamp(num(r.val,1.25),1.25,6):t.T;
+     const A=Math.max(1,Math.round(num(r.authors,1)));const Z=A===1?1.25:(r.ext?3/A:2/A);return T*Z}},
+ ao:{v:'E',name:'Student supervision',pt:'Acompanhamento e orientação de alunos',art:'Art. 15.º',w:[2,6],mu:6,K:400,
+   value(r){const phd=r.kind==='phd';const T=phd?4:r.kind==='msc'?1:num(r.ects,0)/30;
+     const n=Math.max(1,num(r.n,1));const O=phd?(r.role==='cosup'?0.5/n:1):1/n;return T*O}},
+ uc:{v:'E',name:'Courses taught',pt:'Unidades curriculares',art:'Art. 16.º',w:[3,6],mu:7.5,K:300,
+   value(r){const st=num(r.students,0);const T=r.role==='resp'?1+st/1000:1+st/3000;const Hs=num(r.hs,0);
+     let I=1;if(!blank(r.quc)){const q=num(r.quc,0);I=q<5?0.5:q>=9?2:1+(q-5)/8}
+     const L=r.en?1.15:1;let A=1;if(!blank(r.ratio)){const x=num(r.ratio,1);A=clamp(x,0.8,1.2)}
+     return T*Hs*I*L*A},
+   M(rows,vals,X){const P=1+0.15*num(X.D,0);return P/6*(sum(vals)+7.5*num(X.sab,0))}},
+ pu:{v:'I',name:'Publications',pt:'Publicações internacionais',art:'Art. 17.º',w:[6,8],mu:8,K:700,
+   value(r,X){const t=tOf(PU_T,r.type);if(t.k==='recog')return clamp(num(r.val,1),1,10);
+     const A=Math.max(1,Math.round(num(r.authors,1)));
+     const Z=A===1?1.5:A===2?1.25:A<=30?(r.ext?3.5/A:3/A):0.1;
+     const C=(r.corr&&A>=2&&X.corr)?1.2:1;return Z*t.T*C},
+   M(rows,vals,X){const rho=num(X.rho,6)||6;return Math.sqrt(Math.max(0,num(X.R,0)))/rho+sum(vals)}},
+ pj:{v:'I',name:'Research projects',pt:'Projetos científicos',art:'Art. 18.º',w:[2,8],mu:1.25,K:500,
+   value(r,X){const t=tOf(PJ_T,r.type);const V=t.k==='unit'?0:num(r.V,0);const A=num(r.A,1);
+     const Z=A<=2?1:2/A;return t.T+Z*V/(num(X.Cref,100)||100)}},
+ pt:{v:'T',name:'IP, standards and technical publications',pt:'Propriedade industrial, legislação, normas e publicações técnicas',art:'Art. 19.º',w:[1,3],mu:9,K:300,
+   value(r){const t=tOf(PT_T,r.type);const A=num(r.authors,1);const Z=A<=2?1:A<=20?2/A:0.1;return Z*t.T}},
+ sc:{v:'T',name:'Services, consulting, design and outreach',pt:'Prestação de serviços, consultoria, conceção e projeto e divulgação',art:'Art. 20.º',w:[2,3],mu:6,K:300,
+   V(r){return r.type==='incub'?20*num(r.fte,0):num(r.V,0)},
+   value(r){const t=tOf(SC_T,r.type);const A=num(r.A,1);const Z=A<=2?1:2/A;
+     const I=r.scope==='intl'?1.1:r.scope==='abroad'?1.2:1;return (t.T+Z*this.V(r)/20)*I},
+   M(rows,vals){const tv=sum(rows.map(r=>this.V(r)));return tv>2.5?sum(vals):0}},
+ gu:{v:'G',name:'Management positions',pt:'Gestão universitária',art:'Art. 21.º',w:[1,1],mu:4.5,K:600,
+   value(r){return guHs(r)},
+   M(rows){let tot=0;for(let s=0;s<6;s++){const on=rows.filter(r=>r.sem&&r.sem[s]);
+       const t9=on.filter(r=>(GU[r.pos]||GU.mcc).t===9).map(guHs),t10=on.filter(r=>(GU[r.pos]||GU.mcc).t===10).map(guHs);
+       const cap9=Math.max(13.5,...t9,0);tot+=Math.min(sum(t9),cap9)+Math.min(sum(t10),3)}
+     return tot/6}}
+};
+
+function getMu(S,c){const o=S.o.mu[c];if(!blank(o))return num(o,CRIT[c].mu);
+  if(c==='pu')return AREAS[S.p.area].pu; if(c==='pj')return AREAS[S.p.area].pj;
+  if(c==='uc')return 7.5*clamp(num(S.p.pct,100),1,100)/100; return CRIT[c].mu}
+function getK(S,c){const o=S.o.K[c];return blank(o)?CRIT[c].K:num(o,CRIT[c].K)}
+function defRange(S,v){const alt=!!S.p.alt;
+  if(v==='E')return alt?[.2,.75]:[.2,.4]; if(v==='I')return alt?[.2,.4]:[.4,.6];
+  if(v==='T')return [.05,.3]; return CATS[S.p.cat].g}
+function getRange(S,v){const d=defRange(S,v);const a=S.o.amin[v],b=S.o.amax[v];
+  return [blank(a)?d[0]:num(a,0)/100, blank(b)?d[1]:num(b,0)/100]}
+function getThr(S){const t={};for(const k in DEF_THR)t[k]=blank(S.o.thr[k])?DEF_THR[k]:num(S.o.thr[k],DEF_THR[k]);return t}
+
+function compute(S){
+  const out={c:{},v:{}};
+  for(const c in CRIT){const K=CRIT[c],rows=S.rows[c]||[];
+    const vals=rows.map(r=>K.value.call(K,r,S.x));
+    const M=K.M?K.M.call(K,rows,vals,S.x):sum(vals);
+    const Q=S.q[c]??1, D=Q*M, mu=getMu(S,c), Kc=getK(S,c);
+    out.c[c]={vals,M,Q,D,mu,K:Kc,C:mu>0?Math.min(100*D/mu,Kc):0}}
+  const mins={},maxs={};
+  for(const v in VERTS){const sc=sum(VERTS[v].c.map(c=>CRIT[c].w[0]/CRIT[c].w[1]*out.c[c].C));
+    const [a,b]=getRange(S,v);mins[v]=a;maxs[v]=Math.max(a,b);out.v[v]={S:sc,min:a,max:Math.max(a,b)}}
+  const smin=sum(Object.values(mins)),smax=sum(Object.values(maxs));
+  out.feasible=smin<=1+1e-9&&smax>=1-1e-9;
+  let rem=1-smin;const order=Object.keys(VERTS).sort((x,y)=>out.v[y].S-out.v[x].S);
+  for(const v of Object.keys(VERTS))out.v[v].a=mins[v];
+  for(const v of order){const add=Math.max(0,Math.min(maxs[v]-mins[v],rem));out.v[v].a+=add;rem-=add}
+  out.raw=sum(Object.keys(VERTS).map(v=>out.v[v].a*out.v[v].S));
+  out.CI=Math.round(out.raw+1e-9);
+  const t=getThr(S);out.thr=t;
+  out.CF=out.CI>=t.ex?'ex':out.CI>=t.mb?'mb':out.CI>=t.bom?'bo':'in';
+  return out;
+}
+//</calc>
+
+const MENTION={ex:'Excelente',mb:'Muito Bom',bo:'Bom',in:'Inadequado'};
+
+/* ---------- field definitions ---------- */
+const optsOf=list=>list.map(t=>({k:t.k,l:`${t.l} · ${t.T==null?(t.k==='elearn'?'1.25–6':'1–10'):t.T}`}));
+const F={
+  desc:ph=>({key:'desc',type:'text',label:'Description',ph}),
+  sel:(key,label,opts,x={})=>({key,type:'sel',label,opts,...x}),
+  num:(key,label,x={})=>({key,type:'num',label,...x}),
+  chk:(key,label,x={})=>({key,type:'chk',label,...x})
+};
+const FIELDS={
+  cp:[F.desc('e.g. Lecture notes, Fluid Mechanics'),F.sel('type','Type · T',optsOf(CP_T)),
+      F.num('val','T value',{ph:'1.25–6',show:r=>r.type==='elearn'}),F.num('authors','Authors'),
+      F.chk('ext','Co-author from another institution or area',{show:r=>num(r.authors,1)>=2})],
+  ao:[F.desc('Student name or thesis'),
+      F.sel('kind','Supervision type · T',[{k:'phd',l:'PhD · 4'},{k:'msc',l:'MSc dissertation · 1'},{k:'proj',l:'MSc/BSc project or seminar · ECTS/30'}]),
+      F.num('ects','ECTS',{show:r=>r.kind==='proj'}),
+      F.sel('role','Role · O',[{k:'sup',l:'Supervisor · 1'},{k:'cosup',l:'Co-supervisor · 0.5/Nco'}],{show:r=>r.kind==='phd'}),
+      F.num('n',r=>r.kind==='phd'?'Co-supervisors':'Supervisors',{show:r=>!(r.kind==='phd'&&r.role!=='cosup')})],
+  uc:[F.desc('Course, semester'),
+      F.sel('role','Participation · T',[{k:'resp',l:'Teaching and responsibility · 1 + students/1000'},{k:'lec',l:'Teaching only · 1 + students/3000'}]),
+      F.num('students','Students'),F.num('hs','Hours/week'),F.num('quc','QUC 1–9',{ph:'none'}),F.num('ratio','ρi / ρd',{ph:'1'}),
+      F.chk('en','Taught in English (mandatory)')],
+  pu:[F.desc('Title or venue'),F.sel('type','Type · T',optsOf(PU_T)),
+      F.num('val','Value 1–10',{show:r=>r.type==='recog'}),
+      F.num('authors','Authors',{show:r=>r.type!=='recog'}),
+      F.chk('ext','Co-author abroad or from another area',{show:r=>r.type!=='recog'&&num(r.authors,1)>=3&&num(r.authors,1)<=30}),
+      F.chk('corr','Corresponding author',{show:r=>r.type!=='recog'&&num(r.authors,1)>=2})],
+  pj:[F.desc('Project acronym'),F.sel('type','Participation · T',optsOf(PJ_T)),
+      F.num('V','Funding k€',{show:r=>r.type!=='unit'}),F.num('A','PhDs from your inst.',{show:r=>r.type!=='unit'})],
+  pt:[F.desc('Patent, standard or publication'),F.sel('type','Type · T',optsOf(PT_T)),F.num('authors','Authors')],
+  sc:[F.desc('Client or action'),F.sel('type','Action · T',optsOf(SC_T)),
+      F.num('V','Funding k€',{show:r=>r.type!=='incub'}),F.num('fte','FTE jobs',{show:r=>r.type==='incub'}),
+      F.num('A','Team (your inst.)'),
+      F.sel('scope','Scope · I',[{k:'nat',l:'National · 1'},{k:'intl',l:'International · 1.1'},{k:'abroad',l:'Carried out abroad · 1.2'}])],
+  gu:[F.desc('Notes'),
+      F.sel('pos','Position · Hs',null,{groups:GU_G.map(g=>({g:g.g,opts:g.items.map(([k,l,h])=>({k,l:`${l}${typeof h==='number'?' · '+h:''}`}))}))}),
+      F.num('param',r=>{const g=GU[r.pos];return g&&typeof g.h==='string'&&g.h.startsWith('f:')?GU_F[g.h.slice(2)].p:'Parameter'},{show:r=>{const g=GU[r.pos];return !!g&&typeof g.h==='string'&&g.h.startsWith('f:')}}),
+      F.chk('intl','International partnership ×1.1',{show:r=>['bmi','bcurso'].includes(r.pos)}),
+      F.num('share','Your share %',{show:r=>{const g=GU[r.pos];return !!g&&typeof g.h==='string'&&g.h.startsWith('f:')}}),
+      F.num('manual','Hours/week',{show:r=>GU[r.pos]?.h==='manual'}),
+      F.num('qty','Count',{show:r=>GU[r.pos]?.t===10}),
+      {key:'sem',type:'sem',label:'Semesters held'}]
+};
+const ROW_DEF={
+  cp:{desc:'',type:'chap',val:'',authors:'1',ext:false},
+  ao:{desc:'',kind:'msc',ects:'12',role:'sup',n:'1'},
+  uc:{desc:'',role:'lec',students:'',hs:'',quc:'',ratio:'',en:false},
+  pu:{desc:'',type:'A',val:'',authors:'1',ext:false,corr:false},
+  pj:{desc:'',type:'nat',V:'',A:'1'},
+  pt:{desc:'',type:'other',authors:'1'},
+  sc:{desc:'',type:'r_serv',V:'',fte:'',A:'1',scope:'nat'},
+  gu:{desc:'',pos:'mcc',param:'',intl:false,share:'100',manual:'',qty:'1',sem:[true,true,true,true,true,true]}
+};
+const EXTRAS={
+  uc:[{k:'D',l:'Teaching excellence diplomas (D)',t:'num'},{k:'sab',l:'Sabbatical semesters',t:'num'}],
+  pu:[{k:'R',l:'Citations in the period (R)',t:'num'},{k:'rho',l:'ρ (area citation ref.)',t:'num',ph:'6'},{k:'corr',l:'My area applies the corresponding-author factor (1.2)',t:'chk'}],
+  pj:[{k:'Cref',l:'C (reference value, k€)',t:'num',ph:'100'}]
+};
+const NOTES={
+  cp:'Only items in the IST publications database count. Z = 1.25 for a sole author; 3/A with an external co-author; 2/A otherwise.',
+  ao:'Only supervisions completed successfully in the period. Projects and seminars count only when not already counted as teaching load.',
+  uc:'One row per course per semester. Leave QUC blank if there was no survey (I = 1). Each sabbatical semester counts as 7.5 h/week with all factors at 1.',
+  pu:'M = √R / ρ + Σ Z·T·C. Count each publication only in the period of its official publication date.',
+  pj:'Completed projects with funding of at least 2.5 k€. Enter V as the amount received by your institution, in thousands of euros.',
+  sc:'This criterion scores zero unless total funding across all actions exceeds 2.5 k€. For company incubation, V = 20 × FTE jobs.',
+  gu:'Hours are counted per semester: Table 9 positions are capped at 13.5 h (or the largest single position), Table 10 tasks at 3 h. M = Σ Hs / 6.'
+};
+
+/* ---------- state ---------- */
+const KEY='raddist-calc-v1';
+function emptyState(){return{example:false,p:{area:'other',cat:'C',alt:false,pct:'100'},x:{D:'0',sab:'0',R:'',rho:'',corr:true,Cref:''},
+  q:{cp:1,ao:1,uc:1,pu:1,pj:1,pt:1,sc:1,gu:1},o:{mu:{},K:{},amin:{},amax:{},thr:{}},
+  rows:{cp:[],ao:[],uc:[],pu:[],pj:[],pt:[],sc:[],gu:[]}}}
+function R(c,o){return Object.assign(JSON.parse(JSON.stringify(ROW_DEF[c])),o)}
+function exampleState(){const s=emptyState();s.example=true;
+  s.q={cp:1,ao:1,uc:1.25,pu:1,pj:1,pt:1,sc:1,gu:1};
+  s.x.R='90';s.x.D='0';
+  s.rows.cp=[R('cp',{desc:'Lecture notes, Heat Transfer',type:'text'})];
+  s.rows.ao=[R('ao',{desc:'PhD, J. Reis (co-supervised)',kind:'phd',role:'cosup',n:'1'}),
+    R('ao',{desc:'MSc, A. Lopes',kind:'msc',n:'1'}),R('ao',{desc:'MSc, R. Pinto',kind:'msc',n:'2'}),R('ao',{desc:'MSc, S. Matos',kind:'msc',n:'2'}),
+    R('ao',{desc:'BSc project, 2 students',kind:'proj',ects:'12',n:'1'})];
+  s.rows.uc=[R('uc',{desc:'Heat Transfer, S1',role:'resp',students:'420',hs:'4',quc:'6.8',ratio:'1.1'}),
+    R('uc',{desc:'Energy Systems, S2',role:'resp',students:'210',hs:'4.5',quc:'6.9'}),
+    R('uc',{desc:'Heat Transfer, S3',role:'resp',students:'440',hs:'4',quc:'7.1',ratio:'1.1'}),
+    R('uc',{desc:'Combustion, S4',role:'lec',students:'95',hs:'4.5',quc:'7.6',en:true}),
+    R('uc',{desc:'Heat Transfer, S5',role:'resp',students:'410',hs:'4',quc:'7.0'}),
+    R('uc',{desc:'Thermodynamics, S6',role:'lec',students:'140',hs:'4.5'})];
+  s.rows.pu=[R('pu',{desc:'Int. J. Heat Mass Transfer',type:'A',authors:'4',ext:true,corr:true}),
+    R('pu',{desc:'Applied Thermal Eng.',type:'A',authors:'3'}),
+    R('pu',{desc:'Exp. Thermal Fluid Sci.',type:'B',authors:'3',corr:true}),R('pu',{desc:'Heat Transfer Eng.',type:'C',authors:'2'}),
+    R('pu',{desc:'Int. Heat Transfer Conf.',type:'conf',authors:'4'}),R('pu',{desc:'ECOS conference',type:'conf',authors:'3'})];
+  s.rows.pj=[R('pj',{desc:'FCT project (participant)',type:'part',V:'60',A:'4'}),
+    R('pj',{desc:'Research unit rated Excelente',type:'unit'})];
+  s.rows.sc=[R('sc',{desc:'Thermal audit, industrial client',type:'r_serv',V:'18',A:'2'}),
+    R('sc',{desc:'Science fair workshop',type:'p_div',V:'0',A:'3'})];
+  s.rows.gu=[R('gu',{pos:'mcc',sem:[false,false,true,true,true,true]}),
+    R('gu',{desc:'Two PhD juries',pos:'jphd',qty:'2',sem:[false,true,false,false,false,false]}),
+    R('gu',{desc:'MSc juries',pos:'jmsc',qty:'4',sem:[true,false,true,false,true,false]}),
+    R('gu',{desc:'Tutor, 1 group',pos:'tutor',qty:'1'})];
+  return s}
+function load(){try{const t=localStorage.getItem(KEY);if(!t)return null;return merge(JSON.parse(t))}catch(e){return null}}
+function merge(o){const s=emptyState();if(!o||typeof o!=='object')return s;
+  s.example=!!o.example;Object.assign(s.p,o.p||{});Object.assign(s.x,o.x||{});Object.assign(s.q,o.q||{});
+  for(const g in s.o)Object.assign(s.o[g],(o.o||{})[g]||{});
+  for(const c in s.rows)if(Array.isArray(o.rows?.[c]))s.rows[c]=o.rows[c].map(r=>Object.assign(JSON.parse(JSON.stringify(ROW_DEF[c])),r));
+  if(!AREAS[s.p.area])s.p.area='other';if(!CATS[s.p.cat])s.p.cat='C';return s}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let S=load()||exampleState();
+
+/* ---------- rendering ---------- */
+const $=(q,r=document)=>r.querySelector(q);
+const $$=(q,r=document)=>[...r.querySelectorAll(q)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(n,d=2)=>Number.isFinite(n)?n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}):'—';
+const fmtF=(n,d=2)=>Number.isFinite(n)?n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const lab=(f,r)=>typeof f.label==='function'?f.label(r):f.label;
+
+function renderProfile(){
+  $('#profile').innerHTML=`
+  <label class="pf"><span class="fl">Disciplinary area</span>
+    <select id="p-area" data-p="area">${Object.entries(AREAS).map(([k,a])=>`<option value="${k}"${S.p.area===k?' selected':''}>${a.l}</option>`).join('')}</select></label>
+  <label class="pf"><span class="fl">Category</span>
+    <select id="p-cat" data-p="cat">${Object.entries(CATS).map(([k,a])=>`<option value="${k}"${S.p.cat===k?' selected':''}>${a.l}</option>`).join('')}</select></label>
+  <label class="pf"><span class="fl">Teaching contract % (invited staff)</span>
+    <input type="text" inputmode="decimal" id="p-pct" data-p="pct" value="${esc(S.p.pct)}"></label>
+  <label class="pf chk"><input type="checkbox" id="p-alt" data-p="alt"${S.p.alt?' checked':''}>
+    <span>Permanent contract, no teaching-load reduction for evaluation in any semester. Ensino 20–75 %, Investigação 20–40 %.</span></label>`;
+}
+
+function fieldHTML(c,i,f,r){
+  const id=`${c}-${i}-${f.key}`,hid=f.show&&!f.show(r)?' hidden':'',d=`data-c="${c}" data-i="${i}" data-k="${f.key}"`;
+  const L=esc(lab(f,r));
+  if(f.type==='text')return `<label class="f f-desc" data-f="${f.key}"${hid}><span class="fl">${L}</span><input type="text" id="${id}" ${d} value="${esc(r[f.key])}" placeholder="${esc(f.ph||'')}"></label>`;
+  if(f.type==='num')return `<label class="f f-num" data-f="${f.key}"${hid}><span class="fl">${L}</span><input type="text" inputmode="decimal" id="${id}" ${d} value="${esc(r[f.key])}" placeholder="${esc(f.ph||'')}"></label>`;
+  if(f.type==='chk')return `<label class="f f-chk" data-f="${f.key}"${hid}><input type="checkbox" id="${id}" ${d}${r[f.key]?' checked':''}><span>${L}</span></label>`;
+  if(f.type==='sel'){const o=x=>`<option value="${x.k}"${r[f.key]===x.k?' selected':''}>${esc(x.l)}</option>`;
+    const inner=f.groups?f.groups.map(g=>`<optgroup label="${esc(g.g)}">${g.opts.map(o).join('')}</optgroup>`).join(''):f.opts.map(o).join('');
+    return `<label class="f f-sel" data-f="${f.key}"${hid}><span class="fl">${L}</span><select id="${id}" ${d}>${inner}</select></label>`}
+  if(f.type==='sem')return `<div class="f f-sem" data-f="sem"><span class="fl">${L}</span><div class="sems">${[0,1,2,3,4,5].map(s=>
+    `<label class="semb"><input type="checkbox" id="${id}-${s}" ${d} data-s="${s}" aria-label="Semester ${s+1}"${r.sem&&r.sem[s]?' checked':''}><span>S${s+1}</span></label>`).join('')}</div></div>`;
+}
+function rowHTML(c,i,r){return `<div class="row" data-row="${c}:${i}">${FIELDS[c].map(f=>fieldHTML(c,i,f,r)).join('')}
+  <div class="rv"><span class="val" data-val="${c}:${i}" title="${c==='gu'?'Hours per semester':'Contribution to M'}"></span><button type="button" class="del" data-del="${c}:${i}" aria-label="Remove item">×</button></div></div>`}
+function extraHTML(x){const id='x-'+x.k;
+  if(x.t==='chk')return `<label class="f f-chk"><input type="checkbox" id="${id}" data-x="${x.k}"${S.x[x.k]?' checked':''}><span>${esc(x.l)}</span></label>`;
+  return `<label class="f" style="flex:0 1 190px"><span class="fl">${esc(x.l)}</span><input type="text" inputmode="decimal" id="${id}" data-x="${x.k}" value="${esc(S.x[x.k])}" placeholder="${esc(x.ph||'0')}"></label>`}
+
+function renderCrit(c){
+  const K=CRIT[c],rows=S.rows[c],el=$('#crit-'+c);
+  el.innerHTML=`
+  <div class="ch"><div class="ct"><h3>${K.name}</h3><div class="cpt">${K.pt} · ${K.art}</div></div>
+    <div class="chips"><span class="chip">target μ <b data-mu="${c}"></b></span><span class="chip">ceiling K <b data-k2="${c}"></b></span><span class="chip">weight <b>${K.w[0]}/${K.w[1]}</b></span></div></div>
+  ${EXTRAS[c]?`<div class="extras">${EXTRAS[c].map(extraHTML).join('')}</div>`:''}
+  ${NOTES[c]?`<p class="cnote">${NOTES[c]}</p>`:''}
+  <div class="rows">${rows.length?rows.map((r,i)=>rowHTML(c,i,r)).join(''):`<div class="empty">Nothing entered yet.</div>`}</div>
+  <div class="cadd"><button type="button" class="addb" data-add="${c}">+ Add item</button></div>
+  <div class="cf">
+    <label class="qsel"><span class="fl">Quality Q (art. 22.º)</span><select id="q-${c}" data-q="${c}">${QL.map(([v,l])=>`<option value="${v}"${(S.q[c]??1)===v?' selected':''}>${l}</option>`).join('')}</select></label>
+    <div class="res"><div><span class="fl">M</span><b data-m="${c}"></b></div><div><span class="fl">D = Q × M</span><b data-d="${c}"></b></div><div class="cval"><span class="fl">Value C</span><b data-cv="${c}"></b></div></div>
+    <div class="cbar"><i data-bar="${c}"></i><s data-tick="${c}"></s></div>
+  </div>`;
+}
+
+function renderMain(){
+  $('#main').innerHTML=Object.entries(VERTS).map(([v,V])=>`
+  <section class="vert" style="--vc:var(--v${v})" aria-labelledby="vh-${v}">
+    <div class="vh"><span class="vtag">${v}</span><div><h2 id="vh-${v}">${V.l}</h2><div class="vpt">${V.pt} · weight <span data-range="${v}"></span></div></div>
+      <div class="vscore">Vertente score <b data-vs="${v}"></b></div></div>
+    ${V.c.map(c=>`<div class="crit" id="crit-${c}"></div>`).join('')}
+  </section>`).join('')+`
+  <details class="panel" id="adv"><summary>Parameters (CCADD and Scientific Council)</summary><div id="adv-body"></div></details>
+  <details class="panel"><summary>Save, back up or reset</summary><div>
+    <p class="notes">Your entries are saved automatically in this browser only. To move them to another device, copy the data and paste it into the box there.</p>
+    <div class="tools"><button type="button" class="btn" id="btn-copy">Copy data</button><button type="button" class="btn" id="btn-import">Import pasted data</button>
+      <button type="button" class="btn" id="btn-example">Load example</button><button type="button" class="btn danger" id="btn-clear">Clear all</button></div>
+    <textarea id="io" aria-label="Data for backup or import" placeholder="Paste backed-up data here, then press Import pasted data."></textarea>
+    <p class="notes" id="io-msg" role="status"></p></div></details>
+  <details class="panel"><summary>How the score is calculated</summary><div class="notes">
+    <ul>
+      <li>Each criterion: <code>D = Q × M</code>, then <code>C = min(100 × D / μ, K)</code>. Reaching the target μ gives C = 100 (Annex, n.º 1).</li>
+      <li>Within a vertente the criteria have fixed weights (Table A3). The vertente weights α are chosen inside their ranges to maximise <code>CI = Σ α · score</code>, rounded to the nearest integer.</li>
+      <li>Mention: Excelente if CI ≥ 110, Muito Bom if 55 ≤ CI &lt; 110, Bom if 25 ≤ CI &lt; 55, Inadequado below 25 (art. 30.º).</li>
+      <li>The regulation applies from the 2019–2021 triennium (art. 2.º). The CCADD and Scientific Council can change ρ, C, targets, weight ranges and thresholds in the first semester of each period; set the values in force under Parameters.</li>
+      <li>Reading choices where the published text is ambiguous: the services criterion is computed as <code>Σ (T + Z·V/20) · I</code>; recognition entries in Table 5 count at their assigned value (1–10) without author or corresponding-author factors; tutoring is entered as a count of 15-student groups.</li>
+      <li>This is a planning aid. Your evaluator sets Q and confirms each item; only the official process decides the result.</li>
+    </ul></div></details>`;
+  for(const c in CRIT)renderCrit(c);
+  renderAdv();
+}
+
+function renderAdv(){
+  const r=compute(S);
+  $('#adv-body').innerHTML=`
+  <p class="notes">Leave a field blank to use the regulation default shown in grey.</p>
+  <div class="ptable"><table><thead><tr><th>Criterion</th><th>Target μ</th><th>Ceiling K</th></tr></thead><tbody>
+  ${Object.keys(CRIT).map(c=>`<tr><td>${CRIT[c].name}</td>
+    <td><input type="text" inputmode="decimal" id="o-mu-${c}" data-o="mu:${c}" value="${esc(S.o.mu[c]??'')}" placeholder="${fmt(blankMu(c))}"></td>
+    <td><input type="text" inputmode="decimal" id="o-K-${c}" data-o="K:${c}" value="${esc(S.o.K[c]??'')}" placeholder="${CRIT[c].K}"></td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="ptable"><table><thead><tr><th>Vertente</th><th>Min α %</th><th>Max α %</th></tr></thead><tbody>
+  ${Object.keys(VERTS).map(v=>{const d=defRange(S,v);return `<tr><td>${VERTS[v].l}</td>
+    <td><input type="text" inputmode="decimal" id="o-amin-${v}" data-o="amin:${v}" value="${esc(S.o.amin[v]??'')}" placeholder="${fmt(d[0]*100)}"></td>
+    <td><input type="text" inputmode="decimal" id="o-amax-${v}" data-o="amax:${v}" value="${esc(S.o.amax[v]??'')}" placeholder="${fmt(d[1]*100)}"></td></tr>`}).join('')}
+  </tbody></table></div>
+  <div class="prow">${[['bom','Bom from CI'],['mb','Muito Bom from CI'],['ex','Excelente from CI']].map(([k,l])=>
+    `<label class="pf"><span class="fl">${l}</span><input type="text" inputmode="decimal" id="o-thr-${k}" data-o="thr:${k}" value="${esc(S.o.thr[k]??'')}" placeholder="${DEF_THR[k]}"></label>`).join('')}</div>`;
+}
+function blankMu(c){const t=S.o.mu[c];S.o.mu[c]='';const m=getMu(S,c);S.o.mu[c]=t;if(t===undefined)delete S.o.mu[c];return m}
+
+function updateRowUI(c,i){
+  const row=$(`[data-row="${c}:${i}"]`),r=S.rows[c][i];if(!row||!r)return;
+  for(const f of FIELDS[c]){const w=row.querySelector(`[data-f="${f.key}"]`);if(!w)continue;
+    if(f.show)w.hidden=!f.show(r);
+    if(typeof f.label==='function'){const s=w.querySelector('.fl');if(s)s.textContent=f.label(r)}}
+}
+
+function recompute(){
+  const out=compute(S);
+  for(const c in CRIT){const o=out.c[c];
+    $(`[data-m="${c}"]`).textContent=fmtF(o.M,2);
+    $(`[data-d="${c}"]`).textContent=fmtF(o.D,2);
+    $(`[data-cv="${c}"]`).textContent=fmt(o.C,1);
+    $(`[data-mu="${c}"]`).textContent=fmt(o.mu,3);
+    $(`[data-k2="${c}"]`).textContent=fmt(o.K,0);
+    $(`[data-bar="${c}"]`).style.width=(o.K>0?clamp(o.C/o.K,0,1)*100:0)+'%';
+    $(`[data-tick="${c}"]`).style.left=(o.K>0?clamp(100/o.K,0,1)*100:0)+'%';
+    o.vals.forEach((v,i)=>{const e=$(`[data-val="${c}:${i}"]`);if(e)e.textContent=c==='gu'?fmtF(v,2)+' h':fmtF(v,2)});
+  }
+  for(const v in VERTS){const o=out.v[v];
+    $(`[data-vs="${v}"]`).textContent=fmt(o.S,1);
+    $(`[data-range="${v}"]`).textContent=`${fmt(o.min*100,1)}–${fmt(o.max*100,1)} %`;}
+  // summary
+  const cls='m-'+out.CF;
+  $('#ci').textContent=out.CI;$('#mini-ci').textContent=out.CI;
+  for(const id of ['#cf','#mini-cf']){const e=$(id);e.textContent=MENTION[out.CF];e.className='pill '+cls}
+  const t=out.thr,top=Math.max(t.ex*1.35,out.CI*1.05,1);
+  const sc=$('#scale');sc.className='scale '+cls;
+  $('#scale-fill').style.width=clamp(out.raw/top,0,1)*100+'%';
+  $$('#scale u').forEach(u=>u.remove());
+  for(const k of ['bom','mb','ex']){const u=document.createElement('u');u.style.left=clamp(t[k]/top,0,1)*100+'%';u.innerHTML=`<span>${fmt(t[k],1)}</span>`;sc.appendChild(u)}
+  const next=out.CF==='in'?['bom','Bom']:out.CF==='bo'?['mb','Muito Bom']:out.CF==='mb'?['ex','Excelente']:null;
+  $('#gap').textContent=next?`${fmt(Math.max(0,t[next[0]]-0.5-out.raw),1)} more points to reach ${next[1]} (raw score ${fmt(out.raw,2)}).`:`Highest mention reached (raw score ${fmt(out.raw,2)}).`;
+  $('#vt-body').innerHTML=Object.entries(VERTS).map(([v,V])=>{const o=out.v[v];return `<tr style="--vc:var(--v${v})"><td><span class="dot"></span>${V.l}</td><td>${fmt(o.S,1)}</td>
+    <td>${fmt(o.a*100,1)} %<small>${fmt(o.min*100,1)}–${fmt(o.max*100,1)}</small></td><td>${fmt(o.a*o.S,1)}</td></tr>`}).join('');
+  $('#vt-wsum').textContent=fmt(sum(Object.values(out.v).map(o=>o.a))*100,1)+' %';
+  $('#vt-total').textContent=fmt(out.raw,1);
+  const w=$('#alpha-warn');w.hidden=out.feasible;
+  if(!out.feasible)w.textContent='The weight ranges cannot add up to 100 %. Check the minimum and maximum values under Parameters.';
+  $('#clist').innerHTML=Object.keys(CRIT).map(c=>{const o=out.c[c];return `<li style="--vc:var(--v${CRIT[c].v})"><span>${CRIT[c].name}</span><b>${fmt(o.C,1)}</b>
+    <span class="sbar"><i style="width:${o.K>0?clamp(o.C/o.K,0,1)*100:0}%"></i><s style="left:${o.K>0?clamp(100/o.K,0,1)*100:0}%"></s></span></li>`}).join('');
+  $('#banner').hidden=!S.example;
+  save();
+}
+
+/* ---------- events ---------- */
+function onEdit(e){
+  const t=e.target,ds=t.dataset;
+  if(ds.c&&ds.k){const r=S.rows[ds.c]?.[+ds.i];if(!r)return;
+    if(ds.k==='sem'){if(!Array.isArray(r.sem))r.sem=[false,false,false,false,false,false];r.sem[+ds.s]=t.checked}
+    else r[ds.k]=t.type==='checkbox'?t.checked:t.value;
+    updateRowUI(ds.c,+ds.i)}
+  else if(ds.x)S.x[ds.x]=t.type==='checkbox'?t.checked:t.value;
+  else if(ds.p){S.p[ds.p]=t.type==='checkbox'?t.checked:t.value;if(e.type==='change')renderAdv()}
+  else if(ds.q)S.q[ds.q]=+t.value;
+  else if(ds.o){const [g,k]=ds.o.split(':');S.o[g][k]=t.value}
+  else return;
+  recompute();
+}
+document.addEventListener('input',onEdit);
+document.addEventListener('change',onEdit);
+
+let clearArmed=null;
+function armClear(btn){
+  if(clearArmed===btn){S=emptyState();clearArmed=null;renderProfile();renderMain();recompute();return}
+  clearArmed=btn;const old=btn.textContent;btn.textContent='Press again to clear';
+  setTimeout(()=>{if(clearArmed===btn){clearArmed=null;btn.textContent=old}},3500);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.add){const c=b.dataset.add;S.rows[c].push(JSON.parse(JSON.stringify(ROW_DEF[c])));renderCrit(c);recompute();
+    const rows=$$(`#crit-${c} .row`);const last=rows[rows.length-1];last&&last.querySelector('select,input')?.focus();return}
+  if(b.dataset.del){const [c,i]=b.dataset.del.split(':');S.rows[c].splice(+i,1);renderCrit(c);recompute();return}
+  if(b.id==='btn-clear'||b.id==='btn-clear-top'){armClear(b);return}
+  if(b.id==='btn-dismiss'){S.example=false;recompute();return}
+  if(b.id==='btn-example'){S=exampleState();renderProfile();renderMain();recompute();return}
+  if(b.id==='btn-copy'){const txt=JSON.stringify(S),io=$('#io'),msg=$('#io-msg');io.value=txt;
+    const fallback=()=>{io.focus();io.select();msg.textContent='Data is selected in the box. Copy it with your keyboard or menu.'};
+    try{navigator.clipboard.writeText(txt).then(()=>msg.textContent='Copied to the clipboard.',fallback)}catch(err){fallback()}return}
+  if(b.id==='btn-import'){try{const o=JSON.parse($('#io').value);if(!o||!o.rows)throw 0;S=merge(o);renderProfile();renderMain();recompute();$('#io-msg').textContent='Imported.'}
+    catch(err){$('#io-msg').textContent='That text is not valid backup data. Paste the full text produced by Copy data.'}return}
+});
+
+renderProfile();renderMain();recompute();
+</script>
+
+</body></html>
