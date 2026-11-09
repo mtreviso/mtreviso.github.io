@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>α-entmax fractals</title>
+  <link rel="icon" href="fractal.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Import maps so OrbitControls can import "three" -->
+  <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    html, body { height: 100%; }
+    .canvas-wrap { position: relative; height: 600px; background: #0b1020; border-radius: 12px; }
+    .overlay { position:absolute; inset:8px; pointer-events:none; }
+    .badge { pointer-events:auto; }
+    canvas { display:block; width:100%; height:100%; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold text-indigo-700">α-entmax fractals</h1>
+    </header>
+
+    <!-- Tabs -->
+    <div class="border-b border-slate-200 mb-4">
+      <nav class="flex gap-3">
+
+        <button class="tab-btn px-4 py-2 border-b-2 border-indigo-600 text-indigo-700 font-medium" data-tab="tabiters">τ-space</button>
+
+        <button class="tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="tab2d">2D Slice</button>
+        <!-- <button class="tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="tab3d">3D Slice</button> -->
+        
+        <!-- <button class="tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700" data-tab="tabtau3d">τ-space 3D</button> -->
+      </nav>
+    </div>
+
+    <!-- Controls shared -->
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">Method</label>
+        <select id="method" class="w-full border rounded px-2 py-1">
+          <option value="newton" selected>Newton</option>
+          <option value="halley">Halley</option>
+          <option value="secant">Secant</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">α (entmax)</label>
+        <input type="range" id="alpha" min="1.01" max="5" step="0.01" value="1.50" class="w-full" />
+        <div class="text-xs text-slate-500"><span id="alphaVal">1.50</span></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">Samples per point (N)</label>
+        <input type="range" id="samples" min="5" max="300" step="5" value="60" class="w-full" />
+        <div class="text-xs text-slate-500"><span id="samplesVal">60</span></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">Max iterations (T)</label>
+        <input type="range" id="maxIter" min="3" max="60" step="1" value="25" class="w-full" />
+        <div class="text-xs text-slate-500"><span id="maxIterVal">25</span></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">Resolution (slice)</label>
+        <input type="range" id="resolution" min="20" max="240" step="10" value="100" class="w-full" />
+        <div class="text-xs text-slate-500"><span id="resolutionVal">100</span></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-700 mb-1">Range (±R)</label>
+        <input type="range" id="range" min="1" max="12" step="0.5" value="6" class="w-full" />
+        <div class="text-xs text-slate-500"><span id="rangeVal">±6</span></div>
+      </div>
+    </div>
+
+    <!-- Iterations map in t-space -->
+    <section id="tabiters" class="">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-3 items-end">
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">t₁ min</label>
+          <input type="number" id="t1min" step="0.1" value="-2.0" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">t₁ max</label>
+          <input type="number" id="t1max" step="0.1" value="2.0" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">t₂ min</label>
+          <input type="number" id="t2min" step="0.1" value="-2.0" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">t₂ max</label>
+          <input type="number" id="t2max" step="0.1" value="2.0" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">Grid (ngrid)</label>
+          <input type="number" id="ngrid" min="20" max="400" step="10" value="120" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div class="text-right">
+          <button id="renderIters" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded w-full">Render τ-space</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="wrapiters" style="background:#111827">
+        <canvas id="canvasIters"></canvas>
+        <div class="overlay pointer-events-none">
+          <!-- <div class="absolute left-2 bottom-2 bg-white/80 text-slate-700 text-xs px-2 py-1 rounded shadow">
+            <span>Color = iterations (1 … T), diverged = T+1 (white)</span>
+          </div> -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 2D -->
+    <section id="tab2d" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3 items-end">
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">n (dim)</label>
+          <input type="range" id="nDim2d" min="2" max="5" step="1" value="3" class="w-full" />
+          <div class="text-xs text-slate-500"><span id="nDim2dVal">3</span></div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 mb-1">z₃ (fixed)</label>
+          <input type="range" id="z3Fixed" min="-6" max="6" step="0.1" value="0" class="w-full" />
+          <div class="text-xs text-slate-500"><span id="z3FixedVal">0.0</span></div>
+        </div>
+        <div class="col-span-2 text-right">
+          <button id="render2d" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">Render 2D</button>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="wrap2d">
+        <canvas id="canvas2d"></canvas>
+        <!-- <div class="overlay flex items-start justify-end">
+          <span class="badge bg-white/80 text-slate-700 text-xs px-2 py-1 rounded shadow">Viridis: 0.0 → 1.0 convergence ratio</span>
+        </div> -->
+      </div>
+    </section>
+
+
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ---------- Viridis colormap ----------
+    const VIRIDIS = [
+      [68, 1, 84],[71, 44, 122],[59, 81, 139],[44, 113, 142],[33, 144, 141],
+      [39, 173, 129],[92, 200, 99],[170, 220, 50],[253, 231, 37]
+    ];
+    const lerp = (a,b,t)=>a + (b-a)*t;
+    function viridis(v){
+      v = Math.max(0, Math.min(1, v));
+      const n = VIRIDIS.length - 1;
+      const f = v * n;
+      const i = Math.min(n-1, Math.floor(f));
+      const t = f - i;
+      const c0 = VIRIDIS[i], c1 = VIRIDIS[i+1];
+      return [
+        Math.round(lerp(c0[0], c1[0], t)),
+        Math.round(lerp(c0[1], c1[1], t)),
+        Math.round(lerp(c0[2], c1[2], t))
+      ];
+    }
+
+    // ---------- entmax f and derivatives in z-space (used by slice views with τ-sampling) ----------
+    function f_entmax(scores, tau, alpha){
+      const r = 1/(alpha-1);
+      let sum = 0;
+      const factor = (alpha - 1);
+      for (let i=0;i<scores.length;i++){
+        const xi = scores[i]*factor;
+        const d = xi - tau;
+        if (d > 0) sum += Math.pow(d, r);
+      }
+      return sum - 1;
+    }
+    function f_deriv(scores, tau, alpha, order){
+      const r = 1/(alpha-1);
+      let coeff = 1;
+      for (let k=0;k<order;k++) coeff *= (r - k);
+      const sign = (order % 2 === 0) ? 1 : -1;
+      let s = 0;
+      const factor = (alpha - 1);
+      for (let i=0;i<scores.length;i++){
+        const xi = scores[i]*factor;
+        const d = xi - tau;
+        if (d > 0) s += Math.pow(d, r - order);
+      }
+      return sign * coeff * s;
+    }
+
+    // ---------- τ bounds ----------
+    function bounds_tau(scores, alpha){
+      const maxScore = Math.max(...scores);
+      const maxVal = maxScore * (alpha - 1);
+      const n = scores.length;
+      const tauLo = maxVal - 1;
+      const tauHi = maxVal - Math.pow(1/n, alpha-1);
+      return [tauLo, tauHi];
+    }
+
+    // ---------- Solvers (Newton, Halley, Secant) for slice views ----------
+    function solve_newton(scores, alpha, tau0, T, tol=1e-9){
+      let tau = tau0;
+      for (let i=0;i<T;i++){
+        const fv = f_entmax(scores, tau, alpha);
+        const fp = f_deriv(scores, tau, alpha, 1);
+        if (Math.abs(fv) < tol) return {ok:true, it:i, tau};
+        if (Math.abs(fp) < 1e-14) return {ok:false, it:i, tau};
+        tau = tau - fv/fp;
+      }
+      return {ok:false, it:T, tau};
+    }
+    function solve_halley(scores, alpha, tau0, T, tol=1e-9){
+      let tau = tau0;
+      for (let i=0;i<T;i++){
+        const fv = f_entmax(scores, tau, alpha);
+        const fp = f_deriv(scores, tau, alpha, 1);
+        if (Math.abs(fv) < tol) return {ok:true, it:i, tau};
+        if (Math.abs(fp) < 1e-14) return {ok:false, it:i, tau};
+        const fpp = f_deriv(scores, tau, alpha, 2);
+        const denom = fp - (fv * fpp) / (2 * fp);
+        if (!isFinite(denom) || Math.abs(denom) < 1e-14) return {ok:false, it:i, tau};
+        tau = tau - fv/denom;
+      }
+      return {ok:false, it:T, tau};
+    }
+    function solve_secant(scores, alpha, tau0, tau1, T, tol=1e-9){
+      let t0 = tau0, t1 = tau1;
+      let f0 = f_entmax(scores, t0, alpha), f1 = f_entmax(scores, t1, alpha);
+      if (Math.abs(f0) < tol) return {ok:true, it:0, tau:t0};
+      if (Math.abs(f1) < tol) return {ok:true, it:1, tau:t1};
+      for (let i=2;i<T;i++){
+        const denom = (f1 - f0);
+        if (Math.abs(denom) < 1e-14) return {ok:false, it:i, tau:t1};
+        const t2 = t1 - f1*(t1 - t0)/denom;
+        const f2 = f_entmax(scores, t2, alpha);
+        if (Math.abs(f2) < tol) return {ok:true, it:i, tau:t2};
+        t0=t1; f0=f1; t1=t2; f1=f2;
+      }
+      return {ok:false, it:T, tau:t1};
+    }
+
+    // ---------- THREE helpers ----------
+    function makeRenderer(canvas){
+      const r = new THREE.WebGLRenderer({canvas, antialias:true});
+      r.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+      r.setSize(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight);
+      r.setClearColor(0x0b1020, 1);
+      return r;
+    }
+    const makeScene = ()=>new THREE.Scene();
+    function makeCamera(canvas){
+      const aspect = canvas.parentElement.clientWidth / canvas.parentElement.clientHeight;
+      const cam = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+      cam.position.set(0, 0, 7);
+      return cam;
+    }
+    function makeControls(cam, canvas){
+      const c = new OrbitControls(cam, canvas);
+      c.enableDamping = true;
+      c.dampingFactor = 0.08;
+      return c;
+    }
+    function resizeRendererToDisplaySize(renderer){
+      const canvas = renderer.domElement;
+      const pr = Math.min(2, window.devicePixelRatio || 1);
+      const parent = canvas.parentElement;
+      const widthCSS = parent.clientWidth;
+      const heightCSS = parent.clientHeight;
+      const widthBuf = Math.floor(widthCSS * pr);
+      const heightBuf = Math.floor(heightCSS * pr);
+      const needResize = canvas.width !== widthBuf || canvas.height !== heightBuf;
+      if (needResize) {
+        renderer.setPixelRatio(pr);
+        renderer.setSize(widthCSS, heightCSS, false);
+      }
+      return needResize;
+    }
+
+    // ---------- Field evaluation for slice views (RGBA to avoid alignment issues) ----------
+    async function computeField({res, R, method, alpha, samples, T, scoresFn}){
+      const W = res, H = res;
+      const img = new Uint8Array(W*H*4);
+      const [xs, xe] = [-R, R];
+      const [ys, ye] = [-R, R];
+      const rowsPerChunk = 8;
+
+      for (let j=0;j<H;j++){
+        const y = ys + (ye-ys)*j/(H-1);
+        for (let i=0;i<W;i++){
+          const x = xs + (xe-xs)*i/(W-1);
+          const scores = scoresFn(x,y);
+          const [tauLo, tauHi] = bounds_tau(scores, alpha);
+          let sumIter = 0;
+          let allDiverged = true;
+
+          const tau0s = tauLo, tau1s = tauHi;
+          for (let s=0;s<samples;s++){
+            const t0 = tauLo + (tauHi - tauLo) * (s + 0.5) / samples;
+            let resu;
+            if (method==='newton') resu = solve_newton(scores, alpha, t0, T);
+            else if (method==='halley') resu = solve_halley(scores, alpha, t0, T);
+            else resu = solve_secant(scores, alpha, tau0s, tau1s, T);
+
+            let its = resu.ok ? resu.it : (T + 1);
+            if (!isFinite(its)) its = T + 1;
+            if (its < (T + 1)) allDiverged = false;
+            sumIter += its;
+          }
+
+          const meanIter = sumIter / samples;
+          const norm = Math.min(1, Math.max(0, meanIter / (T + 1)));
+          let r,g,b;
+          if (allDiverged) { r=255; g=255; b=255; } // special white for all-diverge
+          else [r,g,b] = viridis(norm);
+
+          const idx = (j*W + i)*4;
+          img[idx]=r; img[idx+1]=g; img[idx+2]=b; img[idx+3]=255;
+        }
+        if (j % rowsPerChunk === 0) await new Promise(r => setTimeout(r, 0));
+      }
+      return {width:W, height:H, data:img};
+    }
+    
+    function textureFromRGBA({width, height, data}){
+      const tex = new THREE.DataTexture(
+        data, width, height,
+        THREE.RGBAFormat, THREE.UnsignedByteType
+      );
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.flipY = true;                 // <-- important for PlaneGeometry UVs
+      tex.generateMipmaps = false;      // <-- avoid sampling black on minification
+      tex.needsUpdate = true;
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      return tex;
+    }
+
+    function makePlaneWithTexture(tex, size){
+      const geo = new THREE.PlaneGeometry(size, size, 1, 1);
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.DoubleSide,
+        toneMapped: false            // <-- keep colors literal (Viridis)
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(0,0,0);
+      return mesh;
+    }
+
+    // ---------- UI wiring ----------
+    const ui = {
+      method: document.getElementById('method'),
+      alpha: document.getElementById('alpha'),
+      samples: document.getElementById('samples'),
+      maxIter: document.getElementById('maxIter'),
+      resolution: document.getElementById('resolution'),
+      range: document.getElementById('range'),
+      alphaVal: document.getElementById('alphaVal'),
+      samplesVal: document.getElementById('samplesVal'),
+      maxIterVal: document.getElementById('maxIterVal'),
+      resolutionVal: document.getElementById('resolutionVal'),
+      rangeVal: document.getElementById('rangeVal'),
+      nDim2d: document.getElementById('nDim2d'), nDim2dVal: document.getElementById('nDim2dVal'),
+      z3Fixed: document.getElementById('z3Fixed'), z3FixedVal: document.getElementById('z3FixedVal'),
+      render2d: document.getElementById('render2d'),
+      canvas2d: document.getElementById('canvas2d'),
+
+      // t-space tab
+      t1min: document.getElementById('t1min'),
+      t1max: document.getElementById('t1max'),
+      t2min: document.getElementById('t2min'),
+      t2max: document.getElementById('t2max'),
+      ngrid: document.getElementById('ngrid'),
+      renderIters: document.getElementById('renderIters'),
+      canvasIters: document.getElementById('canvasIters'),
+    };
+    ['alpha','samples','maxIter','resolution','range'].forEach(id=>{
+      ui[id].addEventListener('input', ()=>{
+        ui.alphaVal.textContent = parseFloat(ui.alpha.value).toFixed(2);
+        ui.samplesVal.textContent = ui.samples.value;
+        ui.maxIterVal.textContent = ui.maxIter.value;
+        ui.resolutionVal.textContent = ui.resolution.value;
+        // ui.resolution3dVal.textContent = ui.resolution3d.value;
+        ui.rangeVal.textContent = `±${ui.range.value}`;
+      });
+    });
+    ui.nDim2d.addEventListener('input', ()=> ui.nDim2dVal.textContent = ui.nDim2d.value);
+    ui.z3Fixed.addEventListener('input', ()=> ui.z3FixedVal.textContent = parseFloat(ui.z3Fixed.value).toFixed(1));
+    // ui.nDim3d.addEventListener('input', ()=> ui.nDim3dVal.textContent = ui.nDim3d.value);
+    // ui.fixedVal3d.addEventListener('input', ()=> ui.fixedVal3dVal.textContent = parseFloat(ui.fixedVal3d.value).toFixed(1));
+
+    // --- Tabs (robust) ---
+    const tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
+
+    // Build the panels map only for IDs that actually exist
+    const panels = {};
+    tabBtns.forEach(btn => {
+      btn.setAttribute('type', 'button');        // avoid default submit behavior
+      const id = btn.dataset.tab;
+      const el = document.getElementById(id);
+      if (el) panels[id] = el;
+    });
+
+    // Style + show/hide helper
+    function setActiveTab(targetId){
+      // hide all existing panels; show the requested one (if present)
+      Object.values(panels).forEach(el => el.classList.add('hidden'));
+      if (panels[targetId]) panels[targetId].classList.remove('hidden');
+
+      // style buttons
+      tabBtns.forEach(b => {
+        const active = b.dataset.tab === targetId;
+        b.classList.add('border-b-2'); // ensure underline border is rendered
+        b.classList.toggle('text-indigo-700', active);
+        b.classList.toggle('border-indigo-600', active);
+        b.classList.toggle('text-slate-500', !active);
+        b.classList.toggle('border-transparent', !active);
+      });
+
+      // resize three.js views (after layout applies)
+      requestAnimationFrame(() => {
+        if (targetId === 'tab2d') resizeNow(renderer2d, camera2d);
+        if (targetId === 'tabiters') {
+          // the τ 2D canvas is immediate mode; just force a redraw
+          renderIterationsTspace();
+        }
+      });
+    }
+
+    // click bindings
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActiveTab(btn.dataset.tab);
+      });
+    });
+
+    // pick a safe default (first existing panel or 'tab2d' if present)
+    const initialTab = Object.keys(panels)[0] || 'tab2d';
+    setActiveTab(initialTab);
+
+    function resizeNow(renderer, camera){
+      if (!renderer) return;
+      const changed = resizeRendererToDisplaySize(renderer);
+      if (changed && camera){
+        camera.aspect = renderer.domElement.clientWidth/renderer.domElement.clientHeight;
+        camera.updateProjectionMatrix();
+      }
+    }
+
+    // 2D scene
+    const renderer2d = makeRenderer(ui.canvas2d);
+    const scene2d = makeScene();
+    const camera2d = makeCamera(ui.canvas2d);
+    const controls2d = makeControls(camera2d, ui.canvas2d);
+    scene2d.add(new THREE.AmbientLight(0xffffff, 1));
+    renderer2d.outputColorSpace = THREE.SRGBColorSpace;
+    camera2d.lookAt(0,0,0);
+    let plane2d = null;
+    window.__r2d = renderer2d; window.__c2d = camera2d;
+
+    function animate(){
+      requestAnimationFrame(animate);
+      controls2d.update();
+      resizeNow(renderer2d, camera2d);
+      renderer2d.render(scene2d, camera2d);
+    }
+    requestAnimationFrame(animate);
+
+    // Build scores for slice views
+    function scoresFrom2D(x,y, n, z3fixed){
+      const s = new Array(n).fill(0);
+      s[0] = x; if (n>1) s[1] = y; if (n>2) s[2] = z3fixed;
+      return s;
+    }
+
+    // Render buttons for slice views
+    let running2d = false;
+
+    document.getElementById('render2d').addEventListener('click', async ()=>{
+      if (running2d) return; running2d = true;
+      const btn = ui.render2d; btn.disabled = true; btn.textContent = 'Rendering...';
+
+      const alpha = parseFloat(ui.alpha.value);
+      const method = ui.method.value;
+      const samples = parseInt(ui.samples.value);
+      const T = parseInt(ui.maxIter.value);
+      const res = parseInt(ui.resolution.value);
+      const R = parseFloat(ui.range.value);
+      const n = parseInt(ui.nDim2d.value);
+      const z3fixed = parseFloat(ui.z3Fixed.value);
+
+      const field = await computeField({
+        res, R, method, alpha, samples, T,
+        scoresFn: (x,y)=>scoresFrom2D(x,y,n,z3fixed)
+      });
+      const tex = textureFromRGBA(field);
+      tex.needsUpdate = true;
+      const size = 2.0 * R;
+
+      if (plane2d) {
+        scene2d.remove(plane2d);
+        plane2d.material.map?.dispose();
+        plane2d.material.dispose();
+        plane2d.geometry.dispose();
+        scene2d.remove(plane2d);
+      }
+      plane2d = makePlaneWithTexture(tex, size);
+      scene2d.add(plane2d);
+
+      // ensureSliceColorbar(document.querySelector('#wrap2d .overlay'), 'Convergence ratio (0 → 1)', 0, 1);
+      running2d = false; 
+      btn.disabled = false; 
+      btn.textContent = 'Render 2D';
+    });
+
+    // ---------- Iterations map in t-space ----------
+    const EPS = 1e-12;
+    function f_val_t(t, tau, gamma){
+      // t is array; u = (t - tau)_+; sum(u^gamma) - 1
+      let s = 0;
+      for (let i=0;i<t.length;i++){
+        const u = t[i] - tau;
+        if (u > 0) s += Math.pow(u, gamma);
+      }
+      return s - 1;
+    }
+    function f_prime_t(t, tau, gamma){
+      let s = 0;
+      for (let i=0;i<t.length;i++){
+        const u = t[i] - tau;
+        if (u > 0) s += Math.pow(Math.max(u, EPS), gamma - 1);
+      }
+      return -gamma * s;
+    }
+    function f_double_prime_t(t, tau, gamma){
+      let s = 0;
+      for (let i=0;i<t.length;i++){
+        const u = t[i] - tau;
+        if (u > 0) s += Math.pow(Math.max(u, EPS), gamma - 2);
+      }
+      return gamma * (gamma - 1) * s;
+    }
+    function secant_init_from_ab(t, gamma, a, b){
+      // fb = -1 (since b = max(t)); fa = f(a)
+      const fa = f_val_t(t, a, gamma);
+      const denom = 1 + fa;
+      if (denom <= 0) return 0.5*(a+b);
+      return b - (b - a) / denom;
+    }
+    function newton_step_t(t, tau, gamma){
+      const fv = f_val_t(t, tau, gamma);
+      const fp = f_prime_t(t, tau, gamma);
+      if (fp === 0) return [tau, fv, false];
+      return [tau - fv/fp, fv, true];
+    }
+    function halley_step_t(t, tau, gamma){
+      const fv = f_val_t(t, tau, gamma);
+      const fp = f_prime_t(t, tau, gamma);
+      const fpp = f_double_prime_t(t, tau, gamma);
+      const denom = 2*fp*fp - fv*fpp;
+      if (denom === 0) return [tau, fv, false];
+      return [tau - (2*fv*fp)/denom, fv, true];
+    }
+    function secant_method_t(t, gamma, a, b, maxIter=50, tol=1e-12){
+      let x0=a, x1=b;
+      let f0=f_val_t(t,x0,gamma), f1=f_val_t(t,x1,gamma);
+      let it=0;
+      for (; it<maxIter; it++){
+        const denom = f1 - f0;
+        let x2;
+        if (denom === 0) x2 = 0.5*(x0+x1);
+        else x2 = x1 - f1*(x1-x0)/denom;
+        x2 = Math.min(Math.max(x2, a), b);
+        const f2 = f_val_t(t, x2, gamma);
+        if (Math.abs(f2) < tol || Math.abs(x2 - x1) < tol) return [x2, it+1, true];
+        if (f1 * f2 <= 0){ x0=x1; f0=f1; }
+        x1=x2; f1=f2;
+      }
+      return [x1, it, false];
+    }
+    function solve_tau_tspace(t, alpha, method="newton", maxIter=50, tol=1e-12, tau0=null){
+      const gamma = 1 / (alpha - 1);
+      let a = Math.min(...t);
+      let b = Math.max(...t);
+
+      if (method === "secant"){
+        return secant_method_t(t, gamma, a, b, maxIter, tol);
+      }
+
+      // Newton/Halley
+      let c = (tau0 === null) ? secant_init_from_ab(t, gamma, a, b) : tau0;
+      let tau = Math.min(Math.max(c, a), b);
+      let it = 0, ok = false;
+
+      for (; it < maxIter; it++){
+        let tauNext, fv, stepOK;
+        if (method === "newton") [tauNext, fv, stepOK] = newton_step_t(t, tau, gamma);
+        else                      [tauNext, fv, stepOK] = halley_step_t(t, tau, gamma);
+
+        if (!stepOK || !isFinite(tauNext)) { tauNext = 0.5*(a+b); fv = f_val_t(t, tau, gamma); }
+        tauNext = Math.min(Math.max(tauNext, a), b);
+
+        const fNext = f_val_t(t, tauNext, gamma);
+        if (fNext <= 0) b = tauNext; else a = tauNext;
+
+        if (Math.abs(fNext) < tol || Math.abs(tauNext - tau) < tol){ ok = true; tau = tauNext; break; }
+        tau = tauNext;
+      }
+      return [tau, it + 1, ok];
+    }
+
+    // Rendering for t-space map (draw directly to 2D canvas with colorbar/labels)
+    function renderIterationsTspace(){
+      const canvas = ui.canvasIters;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.parentElement.clientWidth;
+      const H = canvas.parentElement.clientHeight;
+      canvas.width = W; canvas.height = H;
+
+      const t1min = parseFloat(ui.t1min.value);
+      const t1max = parseFloat(ui.t1max.value);
+      const t2min = parseFloat(ui.t2min.value);
+      const t2max = parseFloat(ui.t2max.value);
+      const ngrid = parseInt(ui.ngrid.value);
+      const alpha = parseFloat(ui.alpha.value);
+      const method = ui.method.value;
+      let T = parseInt(ui.maxIter.value);
+      let Tmax = 0;
+
+      // tiny helper (fast enough for short arrays)
+      const maxOf = (arr) => {
+        let m = -Infinity;
+        for (let i = 0; i < arr.length; i++) if (arr[i] > m) m = arr[i];
+        return m;
+      };
+
+      // margins for axes & colorbar
+      const L = 64, R = 56, Tm = 40, B = 56;
+      const plotW = W - L - R;
+      const plotH = H - Tm - B;
+
+      const imgW = plotW|0, imgH = plotH|0;
+      const imgData = ctx.createImageData(imgW, imgH);
+      const data = imgData.data;
+
+      // Fill image by mapping pixels -> (t1,t2) grid indices
+      for (let py=0; py<imgH; py++){
+        const gy = Math.round((imgH-1-py) * (ngrid-1) / (imgH-1));
+        const t2 = t2min + (t2max - t2min) * gy / (ngrid-1);
+        for (let px=0; px<imgW; px++){
+          const gx = Math.round(px * (ngrid-1) / (imgW-1));
+          const t1 = t1min + (t1max - t1min) * gx / (ngrid-1);
+
+          const tvec = [t1, t2, 0.0];
+          const [tau, iters, ok] = solve_tau_tspace(tvec, alpha, method, 50, 1e-10);
+
+          const its = ok ? iters : (T+1);
+          let r,g,b;
+          if (!ok) { r=255; g=255; b=255; } // diverged
+          else {
+            const norm = Math.min(1, Math.max(0, its/(T+1)));
+            [r,g,b] = viridis(norm);
+          }
+
+          const idx = (py*imgW + px)*4;
+          data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
+        }
+      }
+
+      // clear and draw image
+      ctx.fillStyle = '#111827'; ctx.fillRect(0,0,W,H);
+      ctx.putImageData(imgData, L, Tm);
+
+      // axes
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(L, Tm, plotW, plotH);
+
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textAlign = 'center';
+
+      // ticks (5)
+      for (let k=0;k<=5;k++){
+        const x = L + k*plotW/5;
+        const y = Tm + k*plotH/5;
+        const t1 = t1min + (t1max-t1min)*k/5;
+        const t2 = t2min + (t2max-t2min)*k/5;
+        // x ticks
+        ctx.fillText(t1.toFixed(1), x, Tm + plotH + 20);
+        // y ticks
+        ctx.save();
+        ctx.textAlign = 'right';
+        ctx.fillText(t2.toFixed(1), L - 8, Tm + plotH - k*plotH/5 + 4);
+        ctx.restore();
+      }
+      // labels
+      ctx.font = 'bold 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.fillText(`t₁ = (α−1) z₁`, L + plotW/2, H - 18);
+      ctx.save();
+      ctx.translate(18, Tm + plotH/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillText(`t₂ = (α−1) z₂`, 0, 0);
+      ctx.restore();
+
+      // title
+      ctx.textAlign='left';
+      ctx.fillText(`α-entmax convergence iterations • method=${method[0].toUpperCase()+method.slice(1)} • α=${alpha.toFixed(2)}`, L, 24);
+
+      // colorbar (Viridis) and label
+      const cbW = 16, cbH = Math.min(240, plotH), cbX = L + plotW + 18, cbY = Tm + (plotH - cbH)/2;
+      const cb = ctx.createImageData(cbW, cbH);
+      for (let y=0;y<cbH;y++){
+        const v = 1 - y/(cbH-1);
+        const [r,g,b] = viridis(v);
+        for (let x=0;x<cbW;x++){
+          const id = (y*cbW + x)*4; cb.data[id]=r; cb.data[id+1]=g; cb.data[id+2]=b; cb.data[id+3]=255;
+        }
+      }
+      ctx.putImageData(cb, cbX, cbY);
+      ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(cbX, cbY, cbW, cbH);
+      ctx.fillStyle='#e5e7eb'; ctx.font='12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textAlign='left';
+      ctx.fillText('Iters', cbX - 2, cbY - 8);
+      ctx.textAlign='center';
+      ctx.fillText('1', cbX + cbW + 14, cbY + cbH - 2);
+      ctx.fillText(`${parseInt(T+1)}`, cbX + cbW + 14, cbY + 10);
+
+      // horizontal colorbar
+      // const cbarH = 14;
+      // const cbarPad = 28;
+      // const cbarX = L;
+      // const cbarY = Tm + plotH + cbarPad;
+      // const cbarW = plotW;
+      // const cbImg = ctx.createImageData(cbarW, cbarH);
+      // for (let x = 0; x < cbarW; x++){
+      //   const v = x / (cbarW - 1); // 0..1 left->right
+      //   const [r,g,b] = viridis(v);
+      //   for (let y = 0; y < cbarH; y++){
+      //     const id = (y * cbarW + x) * 4;
+      //     cbImg.data[id] = r; cbImg.data[id+1] = g; cbImg.data[id+2] = b; cbImg.data[id+3] = 255;
+      //   }
+      // }
+      // ctx.putImageData(cbImg, cbarX, cbarY);
+      // ctx.strokeStyle = '#e5e7eb';
+      // ctx.strokeRect(cbarX, cbarY, cbarW, cbarH);
+
+      // // colorbar ticks and label
+      // ctx.fillStyle = '#e5e7eb';
+      // ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      // ctx.textAlign = 'center';
+      // const nticks = 6;
+      // for (let k = 0; k < nticks; k++){
+      //   const tx = cbarX + (k/(nticks-1)) * cbarW;
+      //   const val = 1 + (k/(nticks-1)) * ((T+1) - 1);
+      //   ctx.fillText(val.toFixed(0), tx, cbarY + cbarH + 14);
+      // }
+      // ctx.textAlign = 'left';
+      // ctx.font = 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      // ctx.fillText('Iterations to converge (diverge = T+1)', cbarX, cbarY - 8);
+    }
+
+    function drawViridisColorbar(canvas, label, v0Label, v1Label){
+      const ctx = canvas.getContext('2d');
+      // Use layout box; if 0 (hidden), fall back to parent minus margins.
+      let {width:W, height:H} = canvas.getBoundingClientRect();
+      W = Math.max(1, W|0);
+      H = Math.max(1, H|0);
+
+      canvas.width = W; canvas.height = H;
+
+      // gradient strip
+      const img = ctx.createImageData(W, H);
+      for (let x=0; x<W; x++){
+        const v = x/(W-1);
+        const [r,g,b] = viridis(v);
+        for (let y=0; y<H; y++){
+          const id = (y*W + x)*4;
+          img.data[id]=r; img.data[id+1]=g; img.data[id+2]=b; img.data[id+3]=255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.strokeRect(0,0,W,H);
+
+      // ticks + label
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      const nt = 6;
+      for (let k=0;k<nt;k++){
+        const x = (k/(nt-1)) * (W-1);
+        ctx.fillText((k/(nt-1) * 1.0).toFixed(1), x, H + 14);
+      }
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.fillText(label, 0, -6);
+    }
+
+    function ensureSliceColorbar(overlayEl, label, v0, v1){
+      // build a small canvas anchored under the plot area
+      let bar = overlayEl.querySelector('.slice-cbar');
+      if (!bar){
+        bar = document.createElement('canvas');
+        bar.className = 'slice-cbar';
+        // position it like your τ-space bar: horizontally at bottom
+        Object.assign(bar.style, {
+          position:'absolute', left:'64px', right:'56px',
+          height:'14px', bottom:'28px'
+        });
+        overlayEl.appendChild(bar);
+      }
+
+      // If overlay is hidden, delay one frame so layout has real size.
+      if (overlayEl.offsetParent === null) {
+        requestAnimationFrame(() => drawViridisColorbar(bar, label, v0, v1));
+      } else {
+        drawViridisColorbar(bar, label, v0, v1);
+      }
+      // redraw (uses clientWidth/Height)
+      // drawViridisColorbar(bar, label, v0, v1);
+    }
+
+
+    // Hook up button
+    ui.renderIters.addEventListener('click', renderIterationsTspace);
+
+    // Initial UI sync
+    (function initial(){
+      ui.alpha.dispatchEvent(new Event('input'));
+      ui.nDim2d.dispatchEvent(new Event('input'));
+      ui.z3Fixed.dispatchEvent(new Event('input'));
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>α-entmax simplex</title>
+  <link rel="icon" href="tetrahedron.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script>
+  <style>
+    .color-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .math-container {
+      overflow-x: auto;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <div class="container mx-auto px-4 py-4">
+    <!-- Header -->
+    <!-- <header class="mb-8">
+      <h1 class="text-3xl font-bold text-center text-indigo-800">α-entmax Support Size Visualization</h1>
+      <p class="text-center text-gray-600 mt-2">Explore how α affects probability support in 3D space (n=3)</p>
+    </header> -->
+    
+    <!-- Visualization options -->
+    <header class="grid grid-cols-1 lg:grid-cols-1 gap-6">
+      <div class="lg:col-span-1 bg-white rounded-lg shadow-md p-6 overflow-y-auto mb-6">
+        <h2 class="block text-4xl font-bold text-indigo-800 mb-6 text-center">α-entmax simplex viz</h2>
+        <div class="flex flex-row justify-center space-x-4">
+          <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors w-1/4">
+            <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-2">
+              <!-- Heroicon: chart-bar -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+            </div>
+            <input type="radio" name="viz-mode" value="support-size" checked class="form-radio h-5 w-5 text-indigo-600">
+            <span class="mt-2 text-sm font-medium text-gray-700">Support Size</span>
+          </label>
+          
+          <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors w-1/4">
+            <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-2">
+              
+              <!-- Heroicon: chart-pie -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+              </svg>
+            </div>
+            <input type="radio" name="viz-mode" value="prob-magnitude" class="form-radio h-5 w-5 text-indigo-600">
+            <span class="mt-2 text-sm font-medium text-gray-700">Probability</span>
+          </label>
+          
+          <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors w-1/4">
+            <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09" />
+              </svg>
+
+            </div>
+            <input type="radio" name="viz-mode" value="tsallis-entropy" class="form-radio h-5 w-5 text-indigo-600">
+            <span class="mt-2 text-sm font-medium text-gray-700">Entropy</span>
+          </label>
+          
+          <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors w-1/4">
+            <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-2.25-1.313M21 7.5v2.25m0-2.25-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3 2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75 2.25-1.313M12 21.75V19.5m0 2.25-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
+              </svg>
+
+            </div>
+            <input type="radio" name="viz-mode" value="tau-threshold" class="form-radio h-5 w-5 text-indigo-600">
+            <span class="mt-2 text-sm font-medium text-gray-700">τ Threshold</span>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Controls and Info Panel -->
+      <div class="lg:col-span-1 bg-white rounded-lg shadow-md p-6 overflow-y-auto">
+
+        <!-- Sampling method toggle -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Sampling Method</label>
+          <div class="flex items-center space-x-4">
+            <label class="inline-flex items-center">
+              <input type="radio" name="sampling-method" value="box" checked class="form-radio h-4 w-4 text-indigo-600">
+              <span class="ml-2 text-sm text-gray-700">Box</span>
+            </label>
+            <label class="inline-flex items-center">
+              <input type="radio" name="sampling-method" value="sphere" class="form-radio h-4 w-4 text-indigo-600">
+              <span class="ml-2 text-sm text-gray-700">Sphere</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Box width / Sphere radius control -->
+        <div class="mb-6">
+          <label id="size-label" class="block text-sm font-medium text-gray-700 mb-2">Box Width</label>
+          <div class="flex items-center">
+            <input type="range" id="size-slider" min="1" max="10" step="0.1" value="5" 
+                   class="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer">
+            <span id="size-value" class="ml-4 px-3 py-1 bg-indigo-100 rounded-md text-indigo-800 font-medium w-16 text-center">5</span>
+          </div>
+        </div>
+        
+        <!-- Points control -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Number of Points</label>
+          <div class="flex items-center">
+            <input type="range" id="points-slider" min="100" max="20000" step="100" value="5000" 
+                   class="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer">
+            <span id="points-value" class="ml-4 px-3 py-1 bg-indigo-100 rounded-md text-indigo-800 font-medium w-16 text-center">5000</span>
+          </div>
+        </div>
+        
+        
+        <!-- Jitter control -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Jitter Amount</label>
+          <div class="flex items-center">
+            <input type="range" id="jitter-slider" min="0" max="1" step="0.01" value="0.5" 
+                   class="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer">
+            <span id="jitter-value" class="ml-4 px-3 py-1 bg-indigo-100 rounded-md text-indigo-800 font-medium w-16 text-center">0.5</span>
+          </div>
+        </div>
+
+        <!-- Alpha control -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">α value</label>
+          <div class="flex items-center">
+            <input type="range" id="alpha-slider" min="1.01" max="10" step="0.01" value="1.5" 
+                   class="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer">
+            <span id="alpha-value" class="ml-4 px-3 py-1 bg-indigo-100 rounded-md text-indigo-800 font-medium w-16 text-center">1.5</span>
+          </div>
+        </div>
+        
+        <!-- Simplex toggle -->
+        <div class="mb-6">
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input type="checkbox" id="show-simplex" class="form-checkbox h-5 w-5 text-indigo-600 rounded" checked>
+            <span class="text-sm font-medium text-gray-700">Show Probability Simplex</span>
+          </label>
+        </div>
+        
+        <!-- Current value display -->
+        <!-- <div id="value-display" class="mb-6 p-4 bg-gray-50 rounded-lg hidden">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Value Statistics</h3>
+          <div class="space-y-1 text-xs text-gray-600">
+            <div>Min: <span id="min-value">0</span></div>
+            <div>Max: <span id="max-value">0</span></div>
+            <div>Mean: <span id="mean-value">0</span></div>
+          </div>
+        </div> -->
+        
+        <!-- Navigation Help -->
+        <!-- <div class="p-4 bg-gray-50 rounded-lg">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Navigation Controls</h3>
+          <ul class="text-xs text-gray-600 space-y-1">
+            <li>• Left-click + drag: Rotate view</li>
+            <li>• Right-click + drag: Pan view</li>
+            <li>• Scroll wheel: Zoom in/out</li>
+          </ul>
+        </div>  -->
+      </div>
+      
+      <!-- Visualization Container -->
+      <div class="lg:col-span-2 bg-white rounded-lg shadow-md overflow-hidden relative">
+        <div id="visualization-container" class="w-full" style="height:min(72vh,560px); min-height:380px; touch-action:none;"></div>
+
+        <!-- Legends overlay in top-right of the plot -->
+        <div id="plot-legends"
+             class="absolute top-4 right-4 z-10 bg-white/70 rounded-lg shadow p-3 text-xs space-y-3">
+          
+          <!-- Stats legend -->
+          <div id="stats-legend">
+            <h3 class="text-xs font-semibold text-gray-700 mb-2">Support Size Distribution</h3>
+            <div class="space-y-1">
+              <div class="flex items-center">
+                <div class="color-dot bg-red-600 mr-2"></div>
+                <span class="text-xs text-gray-600">Support Size 1: </span>
+                <span id="support-1-percent" class="ml-1 font-medium">0%</span>
+              </div>
+              <div class="flex items-center">
+                <div class="color-dot bg-blue-600 mr-2"></div>
+                <span class="text-xs text-gray-600">Support Size 2: </span>
+                <span id="support-2-percent" class="ml-1 font-medium">0%</span>
+              </div>
+              <div class="flex items-center">
+                <div class="color-dot bg-green-600 mr-2"></div>
+                <span class="text-xs text-gray-600">Support Size 3: </span>
+                <span id="support-3-percent" class="ml-1 font-medium">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Color legend (still filled dynamically by JS) -->
+          <div id="color-legend" class="mt-2">
+            <!-- Legend content will be added dynamically -->
+          </div>
+        </div>
+
+        <div id="loading-indicator" class="absolute inset-0 bg-white bg-opacity-0 flex items-center justify-center hidden">
+          <!-- <div class="flex flex-col items-center">
+            <svg class="animate-spin h-8 w-8 text-indigo-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-indigo-800 font-medium">Computing...</span>
+          </div>-->
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mathematical Definitions -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold text-indigo-800 mb-4">Mathematical definition of α-entmax</h2>
+      <div class="math-container">
+        <p>The \(\alpha\)-entmax transformation of a score vector
+        \(\boldsymbol{z} \in \mathbb{R}^n\) is defined as:</p>
+        
+        \[
+        \alpha\text{-entmax}(\boldsymbol{z})
+        =
+        \arg\max_{\boldsymbol{p} \,\in\, \triangle_n}
+        \boldsymbol{p}^\top \boldsymbol{z} + H_\alpha(\boldsymbol{p}),
+        \quad
+        \triangle_n
+        = \bigl\{\boldsymbol{p} \in \mathbb{R}^n_{+}:\sum_{i=1}^n p_i = 1\bigr\},
+        \]
+        
+        <p class="mt-4">where \(H_\alpha(\boldsymbol{p})\) is the Tsallis(\(\alpha\)) entropy. The closed form for
+        \(\alpha\text{-entmax}\) with \(\alpha > 1\) is:</p>
+        
+        \[
+        p_i^\star
+        =
+        \bigl[(\alpha-1)\,z_i - \tau(\boldsymbol{z})\bigr]_+^{\tfrac{1}{\alpha-1}},
+        \quad
+        \sum_{i=1}^n p_i^\star = 1,
+        \quad
+        [\cdot]_+ = \max(0,\cdot).
+        \]
+        
+        <p class="mt-4">Here, \(\tau(\boldsymbol{z})\) is chosen so that \(\boldsymbol{p}^\star\) sums to 1.</p>
+      </div>
+      
+      <div class="mt-6 border-t pt-4">
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Citation</h3>
+        <p class="text-sm text-gray-600">
+          Ben Peters, Vlad Niculae, and André F. T. Martins. 2019. Sparse sequence-to-sequence models. 
+          In <em>Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics</em>, 
+          pages 1504–1519, Florence, Italy. Association for Computational Linguistics.
+          <a href="https://arxiv.org/abs/1905.05702" class="text-indigo-600 hover:text-indigo-800" target="_blank">
+            https://arxiv.org/abs/1905.05702
+          </a>
+        </p>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="mt-10 text-center text-gray-500 text-sm">
+      <p>Visualization of α-entmax transformation in 3D space.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Main visualization
+    const container = document.getElementById('visualization-container');
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 460;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
+    // Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0xffffff);
+    renderer.domElement.style.touchAction = 'none';
+    container.appendChild(renderer.domElement);
+    
+    // State variables for improved camera controls
+    let isRotating = false;
+    let isPanning = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let cameraDistance = 8;
+    let cameraTarget = new THREE.Vector3(0, 0, 0);
+
+    // Camera position
+    // camera.position.set(7, 7, 7);
+    // camera.lookAt(cameraTarget);
+
+    // Camera position using cameraDistance
+    const initialDir = new THREE.Vector3(1, 1, 1).normalize(); // viewing direction
+    camera.position.copy(initialDir.clone().multiplyScalar(cameraDistance));
+    camera.lookAt(cameraTarget);
+    
+    // Enhanced camera controls
+    renderer.domElement.addEventListener('pointerdown', function(e) {
+      try { renderer.domElement.setPointerCapture(e.pointerId); } catch(_) {}
+      if (e.button === 0) { // Left click / touch for rotation
+        isRotating = true;
+      } else if (e.button === 2) { // Right click for panning
+        isPanning = true;
+      }
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+    });
+    
+    renderer.domElement.addEventListener('pointermove', function(e) {
+      if (isRotating) {
+        const deltaMove = {
+          x: e.clientX - previousMousePosition.x,
+          y: e.clientY - previousMousePosition.y
+        };
+        
+        // Spherical coordinates for rotation
+        const spherical = new THREE.Spherical().setFromVector3(
+          camera.position.clone().sub(cameraTarget)
+        );
+        
+        // Update angles based on mouse movement
+        spherical.theta -= deltaMove.x * 0.01;
+        spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + deltaMove.y * 0.01));
+        
+        // Convert back to Cartesian coordinates
+        const newPosition = new THREE.Vector3().setFromSpherical(spherical).add(cameraTarget);
+        camera.position.copy(newPosition);
+        camera.lookAt(cameraTarget);
+      } else if (isPanning) {
+        const deltaMove = {
+          x: e.clientX - previousMousePosition.x,
+          y: e.clientY - previousMousePosition.y
+        };
+        
+        // Get camera right and up vectors
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3(0, 1, 0);
+        right.crossVectors(camera.up, camera.getWorldDirection(new THREE.Vector3()));
+        
+        // Pan speed based on distance
+        const panSpeed = cameraDistance * 0.001;
+        
+        // Move target and camera
+        const pan = new THREE.Vector3()
+          .addScaledVector(right, deltaMove.x * panSpeed)
+          .addScaledVector(up, -deltaMove.y * panSpeed);
+          
+        cameraTarget.add(pan);
+        camera.position.add(pan);
+      }
+      
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+    
+    renderer.domElement.addEventListener('pointerup', function(e) {
+      isRotating = false;
+      isPanning = false;
+    });
+    
+    renderer.domElement.addEventListener('pointerleave', function(e) {
+      isRotating = false;
+      isPanning = false;
+    });
+    
+    // Zoom with mouse wheel
+    renderer.domElement.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      
+      // Zoom factor
+      const zoomFactor = e.deltaY * 0.001;
+      
+      // Get direction vector from camera to target
+      const direction = new THREE.Vector3().subVectors(camera.position, cameraTarget);
+      
+      // Update distance
+      cameraDistance = Math.max(5, Math.min(20, direction.length() * (1 + zoomFactor)));
+      
+      // Scale direction to new distance and update camera position
+      direction.normalize().multiplyScalar(cameraDistance);
+      camera.position.copy(direction.add(cameraTarget));
+    });
+    
+    // Prevent context menu on right-click
+    renderer.domElement.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+    
+    // Create black axes
+    function createBlackAxes(length) {
+      const axes = new THREE.Object3D();
+      
+      // Create lines for each axis
+      const xAxis = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(length, 0, 0)
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
+      );
+      
+      const yAxis = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, length, 0)
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
+      );
+      
+      const zAxis = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0, length)
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
+      );
+      
+      // Add text labels
+      const createLabel = (text, position) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'black';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 32, 32);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.copy(position);
+        sprite.scale.set(1, 1, 1);
+        
+        return sprite;
+      };
+      
+      const xLabel = createLabel('X', new THREE.Vector3(length + 0.25, 0, 0));
+      const yLabel = createLabel('Y', new THREE.Vector3(0, length + 0.25, 0));
+      const zLabel = createLabel('Z', new THREE.Vector3(0, 0, length + 0.25));
+      
+      // Add all elements to the group
+      axes.add(xAxis);
+      axes.add(yAxis);
+      axes.add(zAxis);
+      axes.add(xLabel);
+      axes.add(yLabel);
+      axes.add(zLabel);
+      
+      return axes;
+    }
+    
+    // Add black axes
+    const blackAxes = createBlackAxes(4);
+    scene.add(blackAxes);
+    
+    // Points storage - we'll keep all points and just update colors
+    let allPoints = [];
+    let pointsGroup = new THREE.Group();
+    scene.add(pointsGroup);
+    
+    // Simplex
+    let simplexGroup = new THREE.Group();
+    scene.add(simplexGroup);
+    
+    function drawSimplex() {
+      // Clear existing simplex
+      while(simplexGroup.children.length > 0) {
+        simplexGroup.remove(simplexGroup.children[0]);
+      }
+      
+      if (!document.getElementById('show-simplex').checked) return;
+      
+      // Create simplex vertices in 3D space
+      const simplexVertices = [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(0, 0, 1)
+      ];
+      
+      // Create edges
+      const simplexGeometry = new THREE.BufferGeometry();
+      const vertices = [];
+      
+      // Add each edge
+      for (let i = 0; i < 3; i++) {
+        for (let j = i + 1; j < 3; j++) {
+          vertices.push(simplexVertices[i].x, simplexVertices[i].y, simplexVertices[i].z);
+          vertices.push(simplexVertices[j].x, simplexVertices[j].y, simplexVertices[j].z);
+        }
+      }
+      
+      simplexGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      const simplexMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+      const simplexLines = new THREE.LineSegments(simplexGeometry, simplexMaterial);
+      
+      // Create simplex face
+      const triangleGeometry = new THREE.BufferGeometry();
+      triangleGeometry.setFromPoints([
+        simplexVertices[0],
+        simplexVertices[1],
+        simplexVertices[2]
+      ]);
+      const triangleMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFFFF, 
+        transparent: true, 
+        opacity: 0.5,
+        side: THREE.DoubleSide
+      });
+      const triangleMesh = new THREE.Mesh(triangleGeometry, triangleMaterial);
+      
+      simplexGroup.add(simplexLines);
+      simplexGroup.add(triangleMesh);
+    }
+    
+    // Create a circle texture for points
+    function createCircleTexture() {
+      const canvas = document.createElement('canvas');
+      const size = 64;
+      canvas.width = size;
+      canvas.height = size;
+      
+      const context = canvas.getContext('2d');
+      context.beginPath();
+      context.arc(size/2, size/2, size/2, 0, 2 * Math.PI);
+      context.fillStyle = 'white';
+      context.fill();
+      
+      return new THREE.CanvasTexture(canvas);
+    }
+    
+    const circleTexture = createCircleTexture();
+    
+    // Implementation of entmax_bisect similar to the PyTorch version
+    function entmax_bisect(z, alpha = 2.0, T = 50, eps = 1e-8) {
+      const n = z.length;
+      const z_tilde = z.map(zi => (alpha - 1) * zi);
+      
+      // Find max value
+      const z_nax = Math.max(...z_tilde);
+      
+      // Initial bounds for tau
+      let tau_l = z_nax - 1;
+      let tau_r = z_nax - Math.pow(n, 1 - alpha);
+      let old_tau_n = Infinity;
+      let tau_n;
+      
+      // Binary search for tau
+      for (let t = 0; t < T; t++) {
+        tau_n = (tau_l + tau_r) / 2;
+        
+        // Compute probabilities
+        const p = z_tilde.map(zi => Math.max(0, zi - tau_n) ** (1 / (alpha - 1)));
+        
+        // Check sum constraint
+        const p_sum = p.reduce((a, b) => a + b, 0);
+        const cond = p_sum < 1;
+        
+        // Update bounds
+        if (!cond) {
+          tau_l = tau_n;
+        } else {
+          tau_r = tau_n;
+        }
+        
+        // Check convergence
+        if (Math.abs(tau_n - old_tau_n) < eps) {
+          break;
+        }
+        old_tau_n = tau_n;
+      }
+      
+      // Final probabilities
+      const p = z_tilde.map(zi => Math.max(0, zi - tau_n) ** (1 / (alpha - 1)));
+      
+      // Calculate Tsallis entropy: (1 - sum(p_i^α)) / (α - 1)
+      const tsallisEntropy = (1 - p.reduce((sum, pi) => sum + Math.pow(pi, alpha), 0)) / (alpha - 1);
+      
+      // Get max probability
+      const maxProb = Math.max(...p);
+      
+      return { p, tau: tau_n, tsallisEntropy, maxProb };
+    }
+    
+    // Calculate support size using entmax_bisect
+    function getEntmaxSupportSize(z, alpha) {
+      try {
+        const result = entmax_bisect(z, alpha);
+        return result.p.filter(pi => pi > 1e-10).length;
+      } catch (e) {
+        console.error("Error calculating support size", e);
+        return 0;
+      }
+    }
+    
+    // Calculate various values for visualization
+    function calculateVisualizationValue(z, alpha, mode) {
+      try {
+        const result = entmax_bisect(z, alpha);
+        
+        switch(mode) {
+          case 'support-size':
+            return result.p.filter(pi => pi > 1e-10).length;
+          case 'prob-magnitude':
+            return result.maxProb; // Returns maximum probability
+          case 'tsallis-entropy':
+            return result.tsallisEntropy;
+          case 'tau-threshold':
+            return result.tau;
+          default:
+            return result.p.filter(pi => pi > 1e-10).length;
+        }
+      } catch (e) {
+        console.error("Error calculating visualization value", e);
+        return 0;
+      }
+    }
+    
+    // Generate random point on a sphere with radius r
+    function randomPointOnSphere(radius) {
+      // Generate random points using spherical coordinates
+      const theta = Math.random() * Math.PI * 2; // Azimuthal angle (0 to 2π)
+      const phi = Math.acos(2 * Math.random() - 1); // Polar angle (0 to π)
+      
+      // Convert spherical to Cartesian coordinates
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.sin(phi) * Math.sin(theta);
+      const z = radius * Math.cos(phi);
+      
+      return [x, y, z];
+    }
+    
+    // Get color based on value and visualization mode
+    function getColorForValue(value, mode, min, max) {
+      // Create color scale based on visualization mode
+      let color;
+      
+      if (mode === 'support-size') {
+        // Discrete colors for support size
+        if (value === 1) return new THREE.Color(0xDC2625); // Red
+        if (value === 2) return new THREE.Color(0x2463EB); // Blue
+        if (value === 3) return new THREE.Color(0x16A349); // Green
+        return new THREE.Color(0x888888); // Gray for invalid values
+      } else {
+        // Continuous color scale using the template colors
+        // Normalize value to 0-1 range
+        const normalizedValue = (value - min) / (max - min);
+        
+        // Create gradient from green to blue to red
+        if (normalizedValue < 0.5) {
+          // Green to blue
+          const t = normalizedValue * 2;
+          if (mode === 'tsallis-entropy'){
+            color = new THREE.Color(0xDC2625).lerp(new THREE.Color(0x2463EB), t);
+          }
+          else{
+            color = new THREE.Color(0x16A349).lerp(new THREE.Color(0x2463EB), t);
+          }
+        } else {
+          // Blue to red
+          const t = (normalizedValue - 0.5) * 2;
+          if (mode === 'tsallis-entropy'){
+            color = new THREE.Color(0x2463EB).lerp(new THREE.Color(0x16A349), t);
+          }
+          else{
+            color = new THREE.Color(0x2463EB).lerp(new THREE.Color(0xDC2625), t);
+          }
+          
+        }
+        
+        return color;
+      }
+    }
+
+    // Function to update the legend based on visualization mode
+    function updateLegend(mode, min, max) {
+      // Get legend container
+      const legendContainer = document.getElementById('color-legend');
+      
+      // Clear existing content
+      legendContainer.innerHTML = '';
+      
+      if (mode === 'support-size') {
+        // Create legend for discrete support sizes
+        legendContainer.innerHTML = ``;  // empty
+      } else {
+        // Create gradient legend for continuous values
+        let title = '';
+        let unit = '';
+        
+        switch(mode) {
+          case 'prob-magnitude':
+            title = 'Maximum Probability';
+            break;
+          case 'tsallis-entropy':
+            title = 'Tsallis Entropy';
+            break;
+          case 'tau-threshold':
+            title = 'τ Threshold';
+            break;
+        }
+        
+        // Create a gradient bar
+        legendContainer.innerHTML = `
+          <h3 class="text-md font-semibold text-gray-700 mb-3">${title}</h3>
+          <div class="relative h-4 w-full rounded-md overflow-hidden mb-2" style="background: linear-gradient(to right, #DC2625, #2463EB, #16A349);"></div>
+          <div class="flex justify-between text-xs text-gray-600">
+            <span>${min.toFixed(3)}</span>
+            <span>${((min + max) / 2).toFixed(3)}</span>
+            <span>${max.toFixed(3)}</span>
+          </div>
+        `;
+      }
+    }
+    
+    // Generate points only once
+    function generatePointsOnce() {
+      loadingIndicator.classList.remove('hidden');
+      
+      // Use setTimeout to allow the UI to update before heavy computation
+      setTimeout(() => {
+        // Get sampling parameters
+        const numPoints = parseInt(document.getElementById('points-slider').value);
+        const samplingMethod = document.querySelector('input[name="sampling-method"]:checked').value;
+        const sizeValue = parseFloat(document.getElementById('size-slider').value);
+        const jitterAmount = parseFloat(document.getElementById('jitter-slider').value);
+        
+        // Half-width for box sampling (to go from -half to +half) or radius for sphere
+        const halfWidth = sizeValue / 2; 
+        const radius = sizeValue / 2;
+        
+        allPoints = [];
+        
+        // Clear existing points
+        while(pointsGroup.children.length > 0) {
+          pointsGroup.remove(pointsGroup.children[0]);
+        }
+        
+        if (samplingMethod === 'box') {
+          // Generate points in a grid for more uniform distribution in a box
+          const gridSize = Math.ceil(Math.pow(numPoints, 1/3));
+          const stepSize = sizeValue / gridSize;
+          
+          // Generate points uniformly in a grid
+          for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+              for (let k = 0; k < gridSize; k++) {
+                // Apply jitter based on jitterAmount
+                const jitter = jitterAmount * stepSize;
+                const x = (i * stepSize) - halfWidth + (Math.random() * jitter);
+                const y = (j * stepSize) - halfWidth + (Math.random() * jitter);
+                const z = (k * stepSize) - halfWidth + (Math.random() * jitter);
+                
+                allPoints.push({ position: [x, y, z], z: [x, y, z] });
+                
+                // Stop if we've reached the desired number of points
+                if (allPoints.length >= numPoints) break;
+              }
+              if (allPoints.length >= numPoints) break;
+            }
+            if (allPoints.length >= numPoints) break;
+          }
+        } else { // sphere sampling
+          // Generate points uniformly within a sphere
+          for (let i = 0; i < numPoints; i++) {
+            // Random radius (0 to requested radius) with cubic distribution for uniformity
+            const r = radius * Math.cbrt(Math.random());
+            let position = randomPointOnSphere(r);
+            
+            // Apply jitter if needed
+            if (jitterAmount > 0) {
+              const jitterRadius = jitterAmount * radius * 0.1;
+              const jitterOffset = randomPointOnSphere(jitterRadius * Math.random());
+              position = [
+                position[0] + jitterOffset[0],
+                position[1] + jitterOffset[1],
+                position[2] + jitterOffset[2]
+              ];
+            }
+            
+            allPoints.push({ position: position, z: position });
+          }
+        }
+        
+        // Create a single geometry for all points
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(allPoints.length * 3);
+        const colors = new Float32Array(allPoints.length * 3);
+        
+        // Set initial positions
+        allPoints.forEach((point, i) => {
+          positions[i * 3] = point.position[0];
+          positions[i * 3 + 1] = point.position[1];
+          positions[i * 3 + 2] = point.position[2];
+          
+          // Default color (gray)
+          colors[i * 3] = 0.5;
+          colors[i * 3 + 1] = 0.5;
+          colors[i * 3 + 2] = 0.5;
+        });
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        // Create a material that uses vertex colors
+        const pointsMaterial = new THREE.PointsMaterial({
+          size: 0.15,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.8,
+          sizeAttenuation: true,
+          map: circleTexture
+        });
+        
+        // Create a single point cloud for all points
+        const pointCloud = new THREE.Points(geometry, pointsMaterial);
+        pointsGroup.add(pointCloud);
+        
+        // Update colors for current alpha and visualization mode
+        updateColors();
+      }, 0);
+    }
+    
+    // Update colors based on alpha without regenerating points
+    function updateColors() {
+      loadingIndicator.classList.remove('hidden');
+
+      // Use setTimeout to allow the UI to update before heavy computation
+      setTimeout(() => {
+        const alpha = parseFloat(document.getElementById('alpha-slider').value);
+        const vizMode = document.querySelector('input[name="viz-mode"]:checked').value;
+        
+        // Variables to store statistics
+        const categories = [0, 0, 0]; // [support=1, support=2, support=3]
+        let minValue = Infinity;
+        let maxValue = -Infinity;
+        let sumValue = 0;
+        let valueCount = 0;
+        
+        // Skip if no points
+        if (allPoints.length === 0) {
+          loadingIndicator.classList.add('hidden');
+          return;
+        }
+        
+        // Calculate visualization values for all points
+        const values = allPoints.map(point => {
+          // Always calculate support size for statistics
+          const supportSize = getEntmaxSupportSize(point.z, alpha);
+          if (supportSize >= 1 && supportSize <= 3) {
+            categories[supportSize - 1]++;
+          }
+          
+          // Get value for current visualization mode
+          const value = calculateVisualizationValue(point.z, alpha, vizMode);
+          
+          // Update min/max for continuous values
+          if (vizMode !== 'support-size') {
+            minValue = Math.min(minValue, value);
+            maxValue = Math.max(maxValue, value);
+            sumValue += value;
+            valueCount++;
+          }
+          
+          return value;
+        });
+        
+        // Update statistics display - always show support size statistics
+        const total = allPoints.length;
+        document.getElementById('support-1-percent').textContent = 
+          (100 * categories[0] / total).toFixed(1) + '%';
+        document.getElementById('support-2-percent').textContent = 
+          (100 * categories[1] / total).toFixed(1) + '%';
+        document.getElementById('support-3-percent').textContent = 
+          (100 * categories[2] / total).toFixed(1) + '%';
+        
+        // Update legend based on visualization mode
+        updateLegend(vizMode, minValue, maxValue);
+        
+        // Get the colors buffer from the point cloud's geometry
+        const colors = pointsGroup.children[0].geometry.attributes.color.array;
+        
+        // Update colors based on values
+        allPoints.forEach((point, i) => {
+          const value = values[i];
+          const color = getColorForValue(value, vizMode, minValue, maxValue);
+          
+          colors[i * 3] = color.r;
+          colors[i * 3 + 1] = color.g;
+          colors[i * 3 + 2] = color.b;
+        });
+        
+        // Mark the color buffer as needing update
+        pointsGroup.children[0].geometry.attributes.color.needsUpdate = true;
+        
+        loadingIndicator.classList.add('hidden');
+      }, 0);
+    }
+    
+    // Update the label for the size slider based on the selected sampling method
+    function updateSizeLabel() {
+      const samplingMethod = document.querySelector('input[name="sampling-method"]:checked').value;
+      const sizeLabel = document.getElementById('size-label');
+      
+      if (samplingMethod === 'box') {
+        sizeLabel.textContent = 'Box Width';
+      } else {
+        sizeLabel.textContent = 'Sphere Diameter';
+      }
+    }
+    
+    // Event listeners
+    document.getElementById('alpha-slider').addEventListener('input', function(event) {
+      document.getElementById('alpha-value').textContent = event.target.value;
+      updateColors(); // Only update colors, not positions
+    });
+    
+    document.getElementById('points-slider').addEventListener('input', function(event) {
+      document.getElementById('points-value').textContent = event.target.value;
+      generatePointsOnce(); // Regenerate all points
+    });
+    
+    document.getElementById('size-slider').addEventListener('input', function(event) {
+      document.getElementById('size-value').textContent = event.target.value;
+      generatePointsOnce(); // Regenerate all points
+    });
+    
+    document.getElementById('jitter-slider').addEventListener('input', function(event) {
+      document.getElementById('jitter-value').textContent = event.target.value;
+      generatePointsOnce(); // Regenerate all points
+    });
+    
+    // Visualization mode change
+    document.querySelectorAll('input[name="viz-mode"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        updateColors(); // Update colors based on new mode
+      });
+    });
+    
+    // Sampling method change
+    document.querySelectorAll('input[name="sampling-method"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        updateSizeLabel();
+        generatePointsOnce();
+      });
+    });
+    
+    document.getElementById('show-simplex').addEventListener('change', drawSimplex);
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      const newWidth = container.clientWidth;
+      const newHeight = container.clientHeight;
+      
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newWidth, newHeight);
+    });
+    
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    
+    // Initialize
+    updateSizeLabel();
+    generatePointsOnce();
+    drawSimplex();
+    animate();
+  </script>
+</body>
+</html>

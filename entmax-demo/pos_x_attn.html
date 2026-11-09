@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Positional Encodings × Sparse Attention</title>
+  <!-- <link rel="icon" href="sine.png" /> -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%22100%22>🪢</text></svg>">
+
+  <!-- Tailwind + D3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <script>
+    tailwind.config = { darkMode: "class" };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .tooltip {
+      position: absolute;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      max-width: 250px;
+    }
+
+    .dark .tooltip { background: rgba(15, 23, 42, 0.95); color: white; }
+    .light .tooltip { background: rgba(255, 255, 255, 0.95); color: #1e293b; border: 1px solid #e2e8f0; }
+
+    .cell:hover { stroke-width: 2; }
+    .dark .cell:hover { stroke: white; }
+    .light .cell:hover { stroke: #1e293b; }
+
+    .dark .formula-box { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155; }
+    .light .formula-box { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #cbd5e1; }
+
+    .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+    .glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
+
+    .collapse-btn { transition: transform 0.2s; }
+    .collapse-btn.collapsed { transform: rotate(-90deg); }
+
+    .collapsible-content {
+      transition: max-height 0.3s ease-out, opacity 0.2s ease-out, padding 0.3s;
+      overflow: hidden;
+    }
+    .collapsible-content.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    .draggable-panel {
+      position: relative;
+      transition: box-shadow 0.15s ease, transform 0.1s ease;
+    }
+
+    .drag-handle {
+      cursor: move;
+      transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    .drag-handle:hover { transform: scale(1.05); }
+
+    .dragging {
+      z-index: 40;
+      box-shadow:
+        0 0 0 1px rgba(148, 163, 184, 0.6),
+        0 18px 45px rgba(15, 23, 42, 0.9);
+      pointer-events: none;
+    }
+
+    .drag-placeholder {
+      border-radius: 0.75rem;
+      border: 2px dashed rgba(148, 163, 184, 0.7);
+      background: transparent;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+
+<body class="dark bg-slate-950 text-slate-100 min-h-screen">
+
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold mb-3">
+        Positional Encodings <span class="text-pink-400">×</span> Sparse Attention
+      </h1>
+      <p class="text-slate-400 text-lg max-w-3xl mx-auto">
+        Visualizing interaction with softmax (dense) and α-entmax (sparse) attention.
+      </p>
+    </div>
+
+    <!-- Controls: Encoding & Attention (put these first) -->
+    <div class="grid md:grid-cols-2 gap-6 mb-6">
+      <!-- Encoding -->
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-6 border border-slate-800 light:border-slate-200">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Positional Encoding</h3>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="setEncoding('nope')" id="btn-nope"
+            class="encoding-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            NoPE
+          </button>
+
+          <button onclick="setEncoding('alibi')" id="btn-alibi"
+            class="encoding-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            ALiBi
+          </button>
+
+          <button onclick="setEncoding('rope')" id="btn-rope"
+            class="encoding-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            RoPE
+          </button>
+
+          <!-- 
+          <button onclick="setEncoding('rope-simple')" id="btn-rope-simple"
+            class="encoding-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            RoPE (simplified)
+          </button> 
+          -->
+        </div>
+
+        <div id="encoding-desc" class="mt-4 text-sm text-slate-500"></div>
+      </div>
+
+      <!-- Attention -->
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-6 border border-slate-800 light:border-slate-200">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Attention Transformation</h3>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="setAttention('softmax')" id="btn-softmax"
+            class="attention-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            softmax (dense)
+          </button>
+
+          <button onclick="setAttention('entmax')" id="btn-entmax"
+            class="attention-btn px-5 py-2.5 rounded-lg font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+            α-entmax (sparse)
+          </button>
+        </div>
+
+        <div id="attention-desc" class="mt-4 text-sm text-slate-500"></div>
+      </div>
+    </div>
+
+    <!-- Input Logits Distribution (now: q/k content generation knobs) -->
+    <div class="bg-slate-900/50 light:bg-white rounded-xl p-6 border border-slate-800 light:border-slate-200 mb-6">
+      <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+        Input Content Distribution (q/k)
+      </h3>
+
+      <div class="flex flex-wrap gap-3 mb-4">
+        <button onclick="setLogitDist('semantic')" id="btn-logit-semantic"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Semantic
+        </button>
+
+        <button onclick="setLogitDist('ones')" id="btn-logit-ones"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Ones
+        </button>
+
+        <button onclick="setLogitDist('uniform')" id="btn-logit-uniform"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Uniform
+        </button>
+
+        <button onclick="setLogitDist('random')" id="btn-logit-random"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Random
+        </button>
+
+        <button onclick="setLogitDist('decay')" id="btn-logit-decay"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Distance Decay
+        </button>
+
+        <button onclick="setLogitDist('spike')" id="btn-logit-spike"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Sparse Spikes
+        </button>
+
+        <button onclick="setLogitDist('periodic')" id="btn-logit-periodic"
+          class="logit-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-slate-800 hover:bg-slate-700 border border-slate-700">
+          Periodic
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Bias -->
+        <div id="logit-bias-container">
+          <label class="block text-xs font-medium text-slate-400 mb-2">Logit Bias (b)</label>
+          <input type="range" id="logit-base" min="-2" max="2" step="0.05" value="0"
+            class="w-full accent-amber-500" oninput="updateViz()">
+          <div class="text-center text-amber-400 font-mono text-sm mt-1" id="logit-base-val">0.00</div>
+        </div>
+
+        <!-- Similarity strength -->
+        <div id="logit-sim-container">
+          <label class="block text-xs font-medium text-slate-400 mb-2">Similarity Strength</label>
+          <input type="range" id="logit-scale" min="0" max="1" step="0.01" value="0.7"
+            class="w-full accent-amber-500" oninput="updateViz()">
+          <div class="text-center text-amber-400 font-mono text-sm mt-1" id="logit-scale-val">0.70</div>
+        </div>
+
+        <!-- Frequency (meaningful for periodic + semantic) -->
+        <div id="logit-freq-container">
+          <label class="block text-xs font-medium text-slate-400 mb-2">Pattern Frequency</label>
+          <input type="range" id="logit-freq" min="0.1" max="2" step="0.05" value="0.5"
+            class="w-full accent-amber-500" oninput="updateViz()">
+          <div class="text-center text-amber-400 font-mono text-sm mt-1" id="logit-freq-val">0.50</div>
+        </div>
+
+        <!-- Seed -->
+        <!-- 
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-2">Random Seed</label>
+          <input type="number" id="logit-seed" min="1" max="999999" value="42"
+            class="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-slate-200 text-sm"
+            onchange="updateViz()">
+        </div>
+         -->
+      </div>
+
+      <div id="logit-dist-desc" class="mt-3 text-sm text-slate-500"></div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="bg-slate-900/50 light:bg-white rounded-xl p-6 border border-slate-800 light:border-slate-200 mb-6">
+      <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Parameters</h3>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-2">Sequence Length</label>
+          <input type="range" id="seq-length" min="2" max="64" value="32"
+            class="w-full accent-blue-500" oninput="updateViz()">
+          <div class="text-center text-blue-400 font-mono text-sm mt-1" id="seq-length-val">32</div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-2">Query Position</label>
+          <input type="range" id="query-pos" min="1" max="31" value="31"
+            class="w-full accent-purple-500" oninput="updateViz()">
+          <div class="text-center text-purple-400 font-mono text-sm mt-1" id="query-pos-val">31</div>
+        </div>
+
+        <div id="alpha-container">
+          <label class="block text-xs font-medium text-slate-400 mb-2">α (Entmax)</label>
+          <input type="range" id="alpha" min="1.01" max="2.0" step="0.01" value="1.5"
+            class="w-full accent-pink-500" oninput="updateViz()">
+          <div class="text-center text-pink-400 font-mono text-sm mt-1" id="alpha-val">1.50</div>
+        </div>
+
+        <div id="alibi-container" class="hidden">
+          <label class="block text-xs font-medium text-slate-400 mb-2">ALiBi Slope (m)</label>
+          <input type="range" id="alibi-slope" min="0.001" max="1" step="0.001" value="0.25"
+            class="w-full accent-emerald-500" oninput="updateViz()">
+          <div class="text-center text-emerald-400 font-mono text-sm mt-1" id="alibi-slope-val">0.25</div>
+        </div>
+
+        <div id="rope-theta-container" class="hidden">
+          <label class="block text-xs font-medium text-slate-400 mb-2">RoPE Base θ</label>
+          <input type="range" id="rope-theta" min="10" max="10000" step="10" value="100"
+            class="w-full accent-orange-500" oninput="updateViz()">
+          <div class="text-center text-orange-400 font-mono text-sm mt-1" id="rope-theta-val">100</div>
+        </div>
+
+        <div id="rope-dim-container" class="hidden">
+          <label class="block text-xs font-medium text-slate-400 mb-2">Model Dim (d)</label>
+          <input type="range" id="rope-dim" min="2" max="64" step="2" value="8"
+            class="w-full accent-cyan-500" oninput="updateViz()">
+          <div class="text-center text-cyan-400 font-mono text-sm mt-1" id="rope-dim-val">16</div>
+        </div>
+
+        <div id="rope-normalize-container" class="hidden">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-400 cursor-pointer mt-5">
+            <input type="checkbox" id="rope-normalize" checked
+              class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-teal-500 focus:ring-teal-500 focus:ring-offset-slate-900"
+              onchange="updateViz()">
+            <span>Normalize q/k <br /> (‖q‖ = ‖k‖ = 1)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- RoPE Frequency Decomposition -->
+    <div id="rope-freq-section" class="hidden mb-6 draggable-panel">
+      <div class="bg-slate-900/50 light:bg-white rounded-xl border border-slate-800 light:border-slate-200 border-orange-500/30 overflow-hidden">
+        <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30" onclick="toggleSection('rope-freq')">
+          <h3 class="text-lg font-semibold flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+            RoPE Frequency Components
+          </h3>
+
+          <div class="flex items-center gap-2">
+            <button
+              class="drag-handle w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+              onclick="event.stopPropagation();"
+              title="Drag to move panel">
+              ⠿
+            </button>
+            <span class="collapse-btn w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700" id="collapse-rope-freq">▾</span>
+          </div>
+        </div>
+
+        <div class="collapsible-content px-6 pb-6" id="content-rope-freq">
+          <p class="text-sm text-slate-400 mb-4">  
+            The RoPE contribution <em>in isolation</em>: a sum of periodic terms with frequencies   
+            <code class="text-orange-300">g<sub>k</sub> = θ<sup>-2k/d</sup></code>. 
+            With α-entmax, dead zones appear where frequencies <span class="text-pink-400">interfere destructively</span>.
+        </p>
+
+          <div id="freq-decomposition" class="w-full"></div>
+
+          <div class="mt-4 flex flex-wrap gap-4 text-xs">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-1 rounded-full bg-white"></div>
+              <span class="font-medium">Sum</span>
+            </div>
+            <div class="flex items-center gap-2">  
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>  
+                <span>High freq (fast)</span>  
+            </div>  
+            <div class="flex items-center gap-2">  
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>  
+                <span>Low freq (slow)</span>  
+            </div>
+            <div class="flex items-center gap-2" id="dead-zone-marker-legend">
+              <div class="w-3 h-3 rounded-full bg-red-500 border-2 border-red-300"></div>
+              <span class="text-red-400">Threshold markers</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Visualization -->
+    <!-- Mosaic: 
+      a | c
+      b | c 
+    -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-6 mb-6 auto-rows-fr items-stretch">
+
+      <!-- a: Logits (top-left) -->
+      <div class="bg-slate-900/50 light:bg-white rounded-xl border border-slate-800 light:border-slate-200 overflow-hidden draggable-panel flex flex-col h-full">
+        <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30"
+             onclick="toggleSection('logits')">
+          <h3 class="text-lg font-semibold flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+            Attention Logits <span class="text-sm font-normal text-slate-400">(before transformation)</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <button
+              class="drag-handle w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+              onclick="event.stopPropagation();"
+              title="Drag to move panel">
+              ⠿
+            </button>
+            <span class="collapse-btn w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+                  id="collapse-logits">▾</span>
+          </div>
+        </div>
+
+        <div class="collapsible-content px-6 pb-6 flex-1" id="content-logits">
+          <div id="logits-chart" class="w-full"></div>
+          <div id="logits-formula" class="formula-box rounded-lg p-3 mt-4">
+            <code class="text-sm text-slate-300 light:text-slate-700"></code>
+          </div>
+        </div>
+      </div>
+
+      <!-- c: Heatmap (right, spans two rows) -->
+      <div class="bg-slate-900/50 light:bg-white rounded-xl border border-slate-800 light:border-slate-200 overflow-hidden draggable-panel flex flex-col h-full lg:row-span-2">
+        <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30"
+             onclick="toggleSection('heatmap')">
+          <h3 class="text-lg font-semibold flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+            Full Causal Attention Matrix
+          </h3>
+          <div class="flex items-center gap-2">
+            <button
+              class="drag-handle w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+              onclick="event.stopPropagation();"
+              title="Drag to move panel">
+              ⠿
+            </button>
+            <span class="collapse-btn w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+                  id="collapse-heatmap">▾</span>
+          </div>
+        </div>
+
+        <div class="collapsible-content px-6 pb-6 flex-1 flex flex-col" id="content-heatmap">
+          <div id="heatmap" class="w-full flex justify-center flex-1"></div>
+
+          <div class="flex justify-center flex-wrap gap-6 mt-4 text-sm text-slate-400">
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded" style="background: #1e1b4b"></div>
+              <span>Low</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded" style="background: #7c3aed"></div>
+              <span>Medium</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded" style="background: #f472b6"></div>
+              <span>High</span>
+            </div>
+            <div class="flex items-center gap-2" id="zero-legend">
+              <div class="w-4 h-4 rounded bg-slate-900 border-2 border-red-500 border-dashed"></div>
+              <span>Dead entry</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- b: Weights (bottom-left) -->
+      <div class="bg-slate-900/50 light:bg-white rounded-xl border border-slate-800 light:border-slate-200 overflow-hidden draggable-panel flex flex-col h-full">
+        <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30"
+             onclick="toggleSection('weights')">
+          <h3 class="text-lg font-semibold flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+            Attention Weights <span class="text-sm font-normal text-slate-400">(after transformation)</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <button
+              class="drag-handle w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+              onclick="event.stopPropagation();"
+              title="Drag to move panel">
+              ⠿
+            </button>
+            <span class="collapse-btn w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+                  id="collapse-weights">▾</span>
+          </div>
+        </div>
+
+        <div class="collapsible-content px-6 pb-6 flex-1" id="content-weights">
+          <div id="weights-chart" class="w-full"></div>
+          <div id="weights-formula" class="formula-box rounded-lg p-3 mt-4">
+            <code class="text-sm text-slate-300 light:text-slate-700"></code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Distance Profile -->
+    <div class="bg-slate-900/50 light:bg-white rounded-xl border border-slate-800 light:border-slate-200 mb-6 overflow-hidden draggable-panel">
+      <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30" onclick="toggleSection('distance')">
+        <h3 class="text-lg font-semibold flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-pink-500"></span>
+          Attention vs Distance Profile
+        </h3>
+        <div class="flex items-center gap-2">
+          <button
+            class="drag-handle w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700"
+            onclick="event.stopPropagation();"
+            title="Drag to move panel">
+            ⠿
+          </button>
+          <span class="collapse-btn w-7 h-7 flex items-center justify-center rounded-full bg-slate-900/80 border border-slate-600 text-xs text-slate-300 hover:bg-slate-700" id="collapse-distance">▾</span>
+        </div>
+      </div>
+
+      <div class="collapsible-content px-6 pb-6" id="content-distance">
+        <div id="distance-profile" class="w-full"></div>
+        <div id="dead-zone-info" class="mt-3 text-sm text-slate-400"></div>
+      </div>
+    </div>
+
+    
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-4 border border-slate-800 light:border-slate-200 text-center">
+        <div class="text-2xl font-bold text-blue-400" id="stat-entropy">-</div>
+        <div class="text-xs text-slate-400">Normalized Entropy</div>
+      </div>
+
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-4 border border-slate-800 light:border-slate-200 text-center">
+        <div class="text-2xl font-bold text-purple-400" id="stat-max">-</div>
+        <div class="text-xs text-slate-400">Max Weight</div>
+      </div>
+
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-4 border border-slate-800 light:border-slate-200 text-center">
+        <div class="text-2xl font-bold text-pink-400" id="stat-nonzero">-</div>
+        <div class="text-xs text-slate-400">Non-zero</div>
+      </div>
+
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-4 border border-slate-800 light:border-slate-200 text-center">
+        <div class="text-2xl font-bold text-emerald-400" id="stat-sparsity">-</div>
+        <div class="text-xs text-slate-400">Sparsity %</div>
+      </div>
+
+      <div class="bg-slate-900/50 light:bg-white rounded-xl p-4 border border-slate-800 light:border-slate-200 text-center">
+        <div class="text-2xl font-bold text-orange-400" id="stat-deadzones">-</div>
+        <div class="text-xs text-slate-400">Dead Zones</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Math Details (optional / unchanged structure) -->
+  <div class="max-w-7xl mx-auto pb-12 mt-4">
+    <div class="overflow-hidden">
+      <div class="p-4 flex items-center justify-between">
+        <h3 class="text-lg font-semibold flex items-center gap-2">Math Details</h3>
+      </div>
+
+      <div class="collapsible-content pb-6" id="content-math">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="p-5">
+            <div class="math-content text-slate-300 space-y-3">
+              <p class="text-sm text-slate-400 mb-2">
+                The <a class="text-indigo-400 hover:text-indigo-300" href="https://arxiv.org/abs/1905.05702" target="_blank">α-entmax transformation</a>
+                generalizes softmax with a sparsity parameter α:
+              </p>
+              <div class="text-center py-2" id="math-entmax-def">
+                $$\alpha\text{-entmax}(\bm{z}) = \arg\max_{\bm{p} \in \triangle_{n-1}} \bm{p}^\top \bm{z} + H_\alpha^T(\bm{p})$$
+              </div>
+              <p class="text-sm text-slate-400">
+                where <span class="math-inline">$H_\alpha^T(\bm{p}) = \frac{1}{\alpha(\alpha-1)} \sum_j (p_j - p_j^\alpha)$</span> is the Tsallis entropy.
+              </p>
+              <p class="text-xs text-slate-500 mt-2">
+                α → 1 yields softmax (dense)<br />
+                α = 2 yields sparsemax (sparse)<br />
+                α > 1 yields sparsity
+              </p>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="math-content text-slate-300 space-y-3">
+              <p class="text-sm text-slate-400 mb-2">For α &gt; 1, the solution has closed form:</p>
+              <div class="text-center py-2" id="math-closed-form">
+                $$[\alpha\text{-entmax}(\bm{z})]_j = \left[(\alpha - 1)z_j - \tau(\bm{z})\right]_+^{1/(\alpha-1)}$$
+              </div>
+              <p class="text-sm text-slate-400">
+                where <span class="math-inline">$\tau(\bm{z})$</span> ensures <span class="math-inline">$\sum_j p_j = 1$</span>,
+                and <span class="math-inline">$[x]_+ = \max(0, x)$</span>.
+              </p>
+              <p class="text-xs text-slate-500 mt-2">
+                Entries with <span class="math-inline">$z_j &lt; \frac{\tau(\bm{z})}{\alpha - 1}$</span> become <strong>exactly zero</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+         <!-- Citation Box -->
+        <div class="mt-2 p-5">
+            <p class="text-sm text-slate-400 mb-3">📖 Citation:</p>
+            <pre class="text-xs bg-slate-900/50 dark:bg-slate-900/50 light:bg-white rounded p-3 overflow-x-auto border border-slate-700 dark:border-slate-700 light:border-slate-300 text-slate-500 dark:text-slate-500 light:text-slate-700">@inproceedings{vasylenko2026longcontext,
+title={Long-Context Generalization with Sparse Attention},
+author={Vasylenko, Pavlo and Pitorro, Hugo and Martins, Andr{\'e} FT and Treviso, Marcos},
+booktitle={The Fourteenth International Conference on Learning Representations},
+year={2026},
+url={https://openreview.net/forum?id=PsB6Lynznk}
+}</pre>
+            <div class="mt-3 flex gap-3">
+                <a href="https://arxiv.org/abs/2506.16640" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                    arXiv Paper
+                </a>
+                <a href="https://openreview.net/forum?id=PsB6Lynznk" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                    OpenReview
+                </a>
+            </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip" style="display:none;"></div>
+
+<script>
+  /* -----------------------------
+   *  State
+   * ----------------------------- */
+  let state = {
+    // modes
+    encoding: "rope",        // "nope" | "alibi" | "rope" | "rope-simple"
+    attention: "entmax",     // "softmax" | "entmax"
+    logitDist: "semantic",   // "ones" | "semantic" | "uniform" | "random" | "decay" | "spike" | "periodic"
+
+    // dimensions / positions
+    seqLength: 32,
+    queryPos: 31,
+    dim: 8,
+
+    // encoding params
+    alibiSlope: 0.25,
+    ropeTheta: 100,
+    ropeNormalize: true,    // normalize q and k
+
+    // "Input Logits Distribution" params (now interpreted as q/k content knobs)
+    // - logitBase:   additive bias to logits z
+    // - logitScale:  similarityStrength in [0,1] (how aligned k_j is with q)
+    // - logitFreq:   frequency used in "periodic"/"semantic" patterns
+    // - logitSeed:   random seed for deterministic generation
+    logitBase: 0.0,
+    logitScale: 0.7,
+    logitFreq: 0.5,
+    logitSeed: 42,
+
+    // attention params
+    alpha: 1.5,
+
+    // RoPE-simple params (clean version: content * exp(beta * cosAvg(dist)))
+    ropeSimpleBeta: 1.0,     // strength of modulation
+    ropeSimpleMode: "exp",   // "exp" (recommended) | "linear" (can flip sign if beta big)
+
+    // content noise (small jitter so patterns aren’t too “perfect”)
+    noiseLevel: 0.05,
+
+    // theme
+    theme: "dark"
+  };
+
+  // Collapsible sections
+  let collapsed = {};
+
+  // Drag state
+  let dragState = { panel: null, placeholder: null, offsetX: 0, offsetY: 0 };
+
+  /* -----------------------------
+   *  Logit distribution descriptions (UI)
+   * ----------------------------- */
+  const logitDistDescs = {
+    ones: "All queries and keys are vectors of ones.",
+    semantic: "Generates keys with structured similarity to q (sin/cos + mild randomness).",
+    uniform: "All keys have the same similarity to q (constant content).",
+    random: "Random similarity to q per position (seeded).",
+    decay: "Similarity decays with distance from query position (recency bias).",
+    spike: "High similarity at periodic spike positions; low elsewhere.",
+    periodic: "Similarity oscillates sinusoidally with position."
+  };
+
+  const encodingDescs = {
+    nope: "<strong>NoPE:</strong> No positional encoding; logits come purely from content ⟨q,k⟩.",
+    alibi: "<strong>ALiBi:</strong> Adds linear distance bias to content logits.",
+    rope: "<strong>RoPE:</strong> Proper rotary dot-product using q/k and relative distance.",
+    "rope-simple": "<strong>RoPE (simplified):</strong> Modulates content logits by a cosine-avg positional factor."
+  };
+
+  const attentionDescs = {
+    softmax: "<strong>Softmax:</strong> Dense attention (no exact zeros).",
+    entmax: "<strong>α-entmax:</strong> Sparse attention (logits below threshold become exactly zero)."
+  };
+
+  /* -----------------------------
+   *  Utilities
+   * ----------------------------- */
+  function clamp(x, a, b) {
+    return Math.max(a, Math.min(b, x));
+  }
+
+  function seededRandom(seed) {
+    // simple deterministic pseudo-random in [0,1)
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function dot(a, b) {
+    let s = 0;
+    for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+    return s;
+  }
+
+  function norm(v) {
+    let s = 0;
+    for (const x of v) s += x * x;
+    return Math.sqrt(s);
+  }
+
+  function normalizeVec(v) {
+    const n = norm(v) || 1;
+    return v.map(x => x / n);
+  }
+
+  function addVec(a, b) {
+    return a.map((x, i) => x + b[i]);
+  }
+
+  function scaleVec(v, s) {
+    return v.map(x => x * s);
+  }
+
+  function entropy(probs) {
+    let e = 0;
+    for (const p of probs) {
+      if (p > 1e-18) e -= p * Math.log2(p);
+    }
+    return e;
+  }
+
+  function normalizedEntropy(probs) {
+    const n = probs.length;
+    if (n <= 1) return 0;
+
+    const h = entropy(probs);
+    const hMax = Math.log2(n); // max entropy for uniform over n items
+
+    return hMax > 0 ? (h / hMax) : 0;
+  }
+
+  /* -----------------------------
+   *  Attention transforms
+   * ----------------------------- */
+  function softmax(logits) {
+    const max = Math.max(...logits);
+    const exps = logits.map(z => Math.exp(z - max));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map(e => e / (sum || 1));
+  }
+
+  /**
+   * α-entmax (binary-search for τ)
+   * This is a pedagogical implementation (not the fastest), good for visualization.
+   */
+  function entmax(logits, alpha) {
+    if (alpha <= 1.0) return softmax(logits);
+
+    const tau = entmaxTau(logits, alpha);
+    const pow = 1.0 / (alpha - 1.0);
+
+    const p = logits.map(z => Math.pow(Math.max(0, (alpha - 1) * z - tau), pow));
+    const s = p.reduce((a, b) => a + b, 0);
+
+    if (s <= 0) return p.map(_ => 0);
+    return p.map(x => x / s);
+  }
+
+  function entmaxTau(logits, alpha) {
+    // Solve τ such that Σ [(α-1)z - τ]_+^(1/(α-1)) = 1
+    let low = Math.min(...logits) * (alpha - 1) - 10;
+    let high = Math.max(...logits) * (alpha - 1);
+
+    const pow = 1.0 / (alpha - 1.0);
+
+    for (let it = 0; it < 40; it++) {
+      const tau = (low + high) / 2;
+
+      let sum = 0;
+      for (const z of logits) {
+        const v = Math.max(0, (alpha - 1) * z - tau);
+        sum += Math.pow(v, pow);
+      }
+
+      if (sum > 1) low = tau;
+      else high = tau;
+    }
+
+    return (low + high) / 2;
+  }
+
+  function countDeadZones(weights, eps = 1e-12) {
+    let zones = 0;
+    let inZone = false;
+
+    for (const w of weights) {
+      if (w <= eps) {
+        if (!inZone) {
+          zones += 1;
+          inZone = true;
+        }
+      } else {
+        inZone = false;
+      }
+    }
+    return zones;
+  }
+
+  /* -----------------------------
+   *  Q/K generation
+   * ----------------------------- */
+  function randomUnitVector(dim, seed) {
+    const v = [];
+    for (let i = 0; i < dim; i++) {
+      v.push((seededRandom(seed + i * 1000) - 0.5) * 2);
+    }
+    return normalizeVec(v);
+  }
+
+  function onesVector(dim) {
+    return Array.from({ length: dim }, () => 1);
+  }
+
+  function noiseVector(dim, seed) {
+    // independent-ish direction
+    return randomUnitVector(dim, seed + 999999);
+  }
+
+  function generateQueryVector(dim, queryPos, seed) {
+    return randomUnitVector(dim, seed + queryPos * 100);
+  }
+
+  /**
+   * similarityForPosition:
+   * Controls how aligned k_j is with q at each position j.
+   * Returned s is clamped in [0,1].
+   */
+  function similarityForPosition(keyPos, queryPos, distType, freq, similarityStrength, seed) {
+    const dist = queryPos - keyPos;
+
+    let s = similarityStrength; // base knob in [0,1]
+
+    switch (distType) {
+      case "uniform":
+        // constant similarity, do nothing
+        break;
+
+      case "ones":
+        // constant, do nothing
+        break;
+
+      case "random":
+        s *= seededRandom(seed + keyPos * 777);
+        break;
+
+      case "decay":
+        s *= Math.exp(-dist * 0.12);
+        break;
+
+      case "spike": {
+        const spikeInterval = Math.max(3, Math.floor(queryPos / 5));
+        const isSpike = (keyPos % spikeInterval) === 0;
+        s *= isSpike ? 1.0 : 0.15;
+        break;
+      }
+
+      case "periodic":
+        s *= 0.5 + 0.5 * Math.sin(keyPos * freq);
+        break;
+
+      case "semantic":
+      default: {
+        // structured similarity + small randomness
+        const sem = 0.55 + 0.25 * Math.sin(keyPos * 0.3) + 0.2 * Math.cos(dist * 0.2);
+        const n = (seededRandom(seed + keyPos * 333) - 0.5) * 0.2;
+        s *= clamp(sem + n, 0, 1);
+        break;
+      }
+    }
+
+    return clamp(s, 0, 1);
+  }
+
+  /**
+   * generateKeyVector:
+   * k_j = (1-s)*base + s*q + noise
+   */
+  function generateKeyVector(dim, keyPos, queryPos, seed, distType, freq, similarityStrength, noiseLevel, normalize = true) {
+    const q = generateQueryVector(dim, queryPos, seed);
+    const base = randomUnitVector(dim, seed + keyPos * 100 + 50000);
+
+    const s = similarityForPosition(keyPos, queryPos, distType, freq, similarityStrength, seed);
+
+    let k = addVec(scaleVec(base, 1 - s), scaleVec(q, s));
+
+    if (noiseLevel > 0) {
+      const eps = noiseVector(dim, seed + keyPos * 12345);
+      k = addVec(k, scaleVec(eps, noiseLevel));
+    }
+
+    return normalize ? normalizeVec(k) : k;
+  }
+
+  /**
+   * computeContentQK:
+   * returns q, ks[], and content logits c_j = <q, k_j>
+   */
+  function computeContentQK(queryPos, dim, seed, distType, freq, similarityStrength, noiseLevel, normalize = true) {
+    if (distType === "ones") {
+      let q = onesVector(dim);
+      let ks = Array.from({ length: queryPos + 1 }, () => onesVector(dim));
+
+      if (normalize) {
+        q = normalizeVec(q);
+        ks = ks.map(normalizeVec);
+      }
+
+      const content = ks.map(k => dot(q, k)); // constant
+      return { q, ks, content };
+    }
+
+    const q = generateQueryVector(dim, queryPos, seed);
+
+    const ks = [];
+    const content = [];
+
+    for (let j = 0; j <= queryPos; j++) {
+      const k = generateKeyVector(dim, j, queryPos, seed, distType, freq, similarityStrength, noiseLevel, normalize);
+      ks.push(k);
+      content.push(dot(q, k));
+    }
+
+    return { q, ks, content };
+  }
+
+  /* -----------------------------
+   *  RoPE frequencies + proper RoPE logits
+   * ----------------------------- */
+  function computeRopeFrequencies(theta, dim) {
+    const numPairs = Math.floor(dim / 2);
+    const freqs = [];
+
+    for (let pair = 0; pair < numPairs; pair++) {
+      const g = Math.pow(theta, -2 * pair / dim);
+      freqs.push({ pair, g, wavelength: 2 * Math.PI / g });
+    }
+
+    return freqs;
+  }
+
+  function computeProperRopeLogit(q, k, relDist, theta, dim) {
+    const numPairs = Math.floor(dim / 2);
+    let logit = 0;
+
+    for (let pair = 0; pair < numPairs; pair++) {
+      const idx0 = 2 * pair;
+      const idx1 = 2 * pair + 1;
+
+      const g = Math.pow(theta, -2 * pair / dim);
+      const angle = g * relDist;
+
+      const A = q[idx0] * k[idx0] + q[idx1] * k[idx1];
+      const B = q[idx0] * k[idx1] - q[idx1] * k[idx0];
+
+      logit += A * Math.cos(angle) + B * Math.sin(angle);
+    }
+
+    return logit;
+  }
+
+  function computeProperRopeLogitsFromQK(q, ks, queryPos, theta, dim) {
+    const logits = [];
+
+    for (let j = 0; j <= queryPos; j++) {
+      const relDist = queryPos - j;
+      logits.push(computeProperRopeLogit(q, ks[j], relDist, theta, dim));
+    }
+
+    return logits;
+  }
+
+  /**
+   * Proper frequency contributions that *reconstruct* proper RoPE logits:
+   * For each pair/frequency, we output curve[j] = A*cos(g*dist) + B*sin(g*dist)
+   */
+  function getProperFrequencyContributionsFromQK(q, ks, queryPos, theta, dim) {
+    const freqs = computeRopeFrequencies(theta, dim);
+
+    return freqs.map((f, pair) => {
+      const idx0 = 2 * pair;
+      const idx1 = 2 * pair + 1;
+
+      return {
+        freq: f,
+        curve: Array.from({ length: queryPos + 1 }, (_, j) => {
+          const dist = queryPos - j;
+          const angle = f.g * dist;
+
+          const k = ks[j];
+          const A = q[idx0] * k[idx0] + q[idx1] * k[idx1];
+          const B = q[idx0] * k[idx1] - q[idx1] * k[idx0];
+
+          return {
+            dist,
+            value: A * Math.cos(angle) + B * Math.sin(angle),
+            A_k: A,
+            B_k: B,
+            freq: f
+          };
+        })
+      };
+    });
+  }
+
+  /* -----------------------------
+   *  RoPE-simple (clean) : content * factor(dist)
+   * ----------------------------- */
+  function ropeCosAvg(relDist, theta, dim) {
+    const freqs = computeRopeFrequencies(theta, dim);
+    let s = 0;
+
+    for (const f of freqs) {
+      s += Math.cos(f.g * relDist);
+    }
+
+    return s / freqs.length; // in [-1, 1]
+  }
+
+  function applyRopeSimpleToContent(content, queryPos, theta, dim, beta = 1.0, mode = "exp") {
+    return content.map((c, j) => {
+      const dist = queryPos - j;
+      const cosAvg = ropeCosAvg(dist, theta, dim);
+
+      let factor;
+      if (mode === "linear") {
+        // factor = 1 + beta * cosAvg  (can be negative if beta is large)
+        factor = 1 + beta * cosAvg;
+      } else {
+        // factor = exp(beta * cosAvg)  (always positive, recommended)
+        factor = Math.exp(beta * cosAvg);
+      }
+
+      return c * factor;
+    });
+  }
+
+  /* -----------------------------
+   *  Unified logits computation (the core)
+   * ----------------------------- */
+  function computeFinalLogits(queryPos) {
+    const dim = state.dim;
+
+    const similarityStrength = clamp(state.logitScale, 0, 1);
+    const noiseLevel = Math.max(0, state.noiseLevel);
+
+    // 1) content from q/k
+    const { q, ks, content } = computeContentQK(
+      queryPos,
+      dim,
+      state.logitSeed,
+      state.logitDist,
+      state.logitFreq,
+      similarityStrength,
+      noiseLevel,
+      state.ropeNormalize
+    );
+
+    // 2) positional encoding → logits
+    let logits;
+
+    if (state.encoding === "nope") {
+      logits = content.slice();
+    } else if (state.encoding === "alibi") {
+      logits = content.map((c, j) => c + state.alibiSlope * (j - queryPos));
+    } else if (state.encoding === "rope") {
+      logits = computeProperRopeLogitsFromQK(q, ks, queryPos, state.ropeTheta, dim);
+    } else if (state.encoding === "rope-simple") {
+      logits = applyRopeSimpleToContent(
+        content,
+        queryPos,
+        state.ropeTheta,
+        dim,
+        state.ropeSimpleBeta,
+        state.ropeSimpleMode
+      );
+    } else {
+      logits = content.slice();
+    }
+
+    // 3) additive bias (logitBase)
+    logits = logits.map(z => z + state.logitBase);
+
+    return { q, ks, content, logits };
+  }
+
+  /* -----------------------------
+   *  UI Wiring / Setup
+   * ----------------------------- */
+  function init() {
+    setEncoding("rope");
+    setAttention("entmax");
+    setLogitDist("semantic");
+
+    updateLogitControlVisibility();
+    updateViz();
+    initDraggablePanels();
+  }
+
+  function setEncoding(enc) {
+    state.encoding = enc;
+
+    document.querySelectorAll(".encoding-btn").forEach(btn => {
+      btn.classList.remove("bg-blue-600", "border-blue-500", "glow-blue");
+      btn.classList.add("bg-slate-800", "border-slate-700");
+    });
+
+    const active = document.getElementById(`btn-${enc}`);
+    if (active) {
+      active.classList.remove("bg-slate-800", "border-slate-700");
+      active.classList.add("bg-blue-600", "border-blue-500", "glow-blue");
+    }
+
+    const desc = document.getElementById("encoding-desc");
+    if (desc) desc.innerHTML = encodingDescs[enc] || "";
+
+    // toggle param sections
+    const isRope = enc === "rope" || enc === "rope-simple";
+
+    const alibiBox = document.getElementById("alibi-container");
+    if (alibiBox) alibiBox.classList.toggle("hidden", enc !== "alibi");
+
+    const ropeThetaBox = document.getElementById("rope-theta-container");
+    if (ropeThetaBox) ropeThetaBox.classList.toggle("hidden", !isRope);
+
+    const ropeDimBox = document.getElementById("rope-dim-container");
+    if (ropeDimBox) ropeDimBox.classList.toggle("hidden", !isRope);
+
+    const ropeNormBox = document.getElementById("rope-normalize-container");
+    if (ropeNormBox) ropeNormBox.classList.toggle("hidden", !isRope);
+
+    const ropeFreqSection = document.getElementById("rope-freq-section");
+    if (ropeFreqSection) ropeFreqSection.classList.toggle("hidden", !isRope);
+
+    updateLogitControlVisibility();
+    updateViz();
+  }
+
+  function setAttention(att) {
+    state.attention = att;
+
+    document.querySelectorAll(".attention-btn").forEach(btn => {
+      btn.classList.remove("bg-purple-600", "border-purple-500", "glow-purple");
+      btn.classList.add("bg-slate-800", "border-slate-700");
+    });
+
+    const active = document.getElementById(`btn-${att}`);
+    if (active) {
+      active.classList.remove("bg-slate-800", "border-slate-700");
+      active.classList.add("bg-purple-600", "border-purple-500", "glow-purple");
+    }
+
+    const desc = document.getElementById("attention-desc");
+    if (desc) desc.innerHTML = attentionDescs[att] || "";
+
+    const alphaBox = document.getElementById("alpha-container");
+    if (alphaBox) alphaBox.classList.toggle("hidden", att !== "entmax");
+
+    const zeroLegend = document.getElementById("zero-legend");
+    if (zeroLegend) zeroLegend.style.display = att === "entmax" ? "flex" : "none";
+
+    const dzLegend = document.getElementById("dead-zone-marker-legend");
+    if (dzLegend) dzLegend.style.display = att === "entmax" ? "flex" : "none";
+
+    updateViz();
+  }
+
+  function updateLogitControlVisibility() {
+        const showBias = state.encoding === 'nope' && state.logitDist !== 'ones';
+        const showSim  = state.logitDist !== 'ones';
+        const showFreq = state.logitDist === 'semantic' || state.logitDist === 'periodic';
+
+        document.getElementById('logit-bias-container')
+          .classList.toggle('hidden', !showBias);
+
+        document.getElementById('logit-sim-container')
+          .classList.toggle('hidden', !showSim);
+
+        document.getElementById('logit-freq-container')
+          .classList.toggle('hidden', !showFreq);
+      }
+
+  function setLogitDist(dist) {
+    state.logitDist = dist;
+
+    document.querySelectorAll(".logit-btn").forEach(btn => {
+      btn.classList.remove("bg-amber-600", "border-amber-500");
+      btn.classList.add("bg-slate-800", "border-slate-700");
+    });
+
+    const active = document.getElementById(`btn-logit-${dist}`);
+    if (active) {
+      active.classList.remove("bg-slate-800", "border-slate-700");
+      active.classList.add("bg-amber-600", "border-amber-500");
+    }
+
+    const desc = document.getElementById("logit-dist-desc");
+    if (desc) desc.textContent = logitDistDescs[dist] || "";
+
+    updateLogitControlVisibility();
+    updateViz();
+  }
+
+  /* -----------------------------
+   *  Dragging panels
+   * ----------------------------- */
+  function initDraggablePanels() {
+    document.querySelectorAll(".drag-handle").forEach(handle => {
+      handle.addEventListener("pointerdown", startDrag);
+    });
+  }
+
+  function startDrag(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const panel = event.target.closest(".draggable-panel");
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+
+    const placeholder = document.createElement("div");
+    placeholder.className = "drag-placeholder";
+    placeholder.style.height = rect.height + "px";
+
+    panel.parentNode.insertBefore(placeholder, panel.nextSibling);
+
+    dragState.panel = panel;
+    dragState.placeholder = placeholder;
+
+    panel.classList.add("dragging");
+    panel.style.position = "fixed";
+    panel.style.width = rect.width + "px";
+    panel.style.left = rect.left + "px";
+    panel.style.top = rect.top + "px";
+
+    dragState.offsetX = event.clientX - rect.left;
+    dragState.offsetY = event.clientY - rect.top;
+
+    window.addEventListener("pointermove", onDragMove);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+  }
+
+  function onDragMove(event) {
+    if (!dragState.panel) return;
+
+    const panel = dragState.panel;
+
+    const x = event.clientX - dragState.offsetX;
+    const y = event.clientY - dragState.offsetY;
+
+    panel.style.left = x + "px";
+    panel.style.top = y + "px";
+
+    updatePlaceholderPosition(event.clientX, event.clientY);
+  }
+
+  function updatePlaceholderPosition(pointerX, pointerY) {
+    const { placeholder, panel } = dragState;
+    if (!placeholder || !panel) return;
+
+    const allPanels = Array.from(document.querySelectorAll(".draggable-panel")).filter(p => p !== panel);
+
+    let closest = null;
+    let closestDist = Infinity;
+
+    allPanels.forEach(p => {
+      const r = p.getBoundingClientRect();
+
+      const insideX = pointerX >= r.left && pointerX <= r.right;
+      const insideY = pointerY >= r.top && pointerY <= r.bottom;
+
+      if (insideX && insideY) {
+        const centerY = r.top + r.height / 2;
+        const dist = Math.abs(pointerY - centerY);
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = p;
+        }
+      }
+    });
+
+    if (!closest) return;
+
+    const r = closest.getBoundingClientRect();
+    const before = pointerY < r.top + r.height / 2;
+    const parent = closest.parentNode;
+
+    if (before) {
+      if (placeholder.nextSibling !== closest) parent.insertBefore(placeholder, closest);
+    } else {
+      if (closest.nextSibling !== placeholder) parent.insertBefore(placeholder, closest.nextSibling);
+    }
+  }
+
+  function endDrag() {
+    if (!dragState.panel) return;
+
+    const panel = dragState.panel;
+    const placeholder = dragState.placeholder;
+
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
+
+    if (placeholder && placeholder.parentNode) {
+      placeholder.parentNode.insertBefore(panel, placeholder);
+      placeholder.parentNode.removeChild(placeholder);
+    }
+
+    panel.classList.remove("dragging");
+    panel.style.position = "";
+    panel.style.left = "";
+    panel.style.top = "";
+    panel.style.width = "";
+
+    dragState.panel = null;
+    dragState.placeholder = null;
+  }
+
+  /* -----------------------------
+   *  Collapse sections
+   * ----------------------------- */
+  function toggleSection(section) {
+    collapsed[section] = !collapsed[section];
+
+    const content = document.getElementById(`content-${section}`);
+    const btn = document.getElementById(`collapse-${section}`);
+
+    if (!content || !btn) return;
+
+    if (collapsed[section]) {
+      content.classList.add("collapsed");
+      btn.classList.add("collapsed");
+    } else {
+      content.classList.remove("collapsed");
+      btn.classList.remove("collapsed");
+      setTimeout(updateViz, 50);
+    }
+  }
+
+  /* -----------------------------
+   *  Colors / Tooltip
+   * ----------------------------- */
+  function getColors() {
+    const isDark = state.theme === "dark";
+    return {
+      axis: isDark ? "#64748b" : "#94a3b8",
+      text: isDark ? "#94a3b8" : "#64748b",
+      grid: isDark ? "#334155" : "#e2e8f0",
+      bg: isDark ? "#0f172a" : "#f8fafc",
+      deadZone: "#ef4444",
+      zero: isDark ? "#1e293b" : "#f1f5f9"
+    };
+  }
+
+  function showTooltip(event, text) {
+    const t = document.getElementById("tooltip");
+    if (!t) return;
+
+    t.innerHTML = text;
+    t.style.display = "block";
+    t.style.left = event.pageX + 12 + "px";
+    t.style.top = event.pageY - 12 + "px";
+  }
+
+  function hideTooltip() {
+    const t = document.getElementById("tooltip");
+    if (!t) return;
+    t.style.display = "none";
+  }
+
+  /* -----------------------------
+   *  Main update loop
+   * ----------------------------- */
+  function updateViz() {
+    // ---- Read controls ----
+    state.seqLength = parseInt(document.getElementById("seq-length")?.value || state.seqLength);
+    state.queryPos = parseInt(document.getElementById("query-pos")?.value || state.queryPos);
+    state.queryPos = Math.min(state.queryPos, state.seqLength - 1);
+
+    state.alpha = parseFloat(document.getElementById("alpha")?.value || state.alpha);
+    state.alibiSlope = parseFloat(document.getElementById("alibi-slope")?.value || state.alibiSlope);
+
+    state.ropeTheta = parseFloat(document.getElementById("rope-theta")?.value || state.ropeTheta);
+    state.dim = parseInt(document.getElementById("rope-dim")?.value || state.dim);
+
+    state.ropeNormalize = document.getElementById("rope-normalize")?.checked ?? state.ropeNormalize;
+
+    // Content knobs
+    // NOTE: these sliders now affect q/k content and therefore affect all encodings.
+    state.logitBase = parseFloat(document.getElementById("logit-base")?.value || 0);
+    state.logitScale = parseFloat(document.getElementById("logit-scale")?.value || 0.7);
+    state.logitFreq = parseFloat(document.getElementById("logit-freq")?.value || 0.5);
+
+    // Seed
+    // state.logitSeed = parseInt(document.getElementById("logit-seed")?.value || state.logitSeed);
+
+    // Keep query slider max correct
+    const qp = document.getElementById("query-pos");
+    if (qp) {
+      qp.max = state.seqLength - 1;
+      if (state.queryPos >= state.seqLength) {
+        state.queryPos = state.seqLength - 1;
+        qp.value = state.queryPos;
+      }
+    }
+
+    // ---- Update value labels ----
+    setText("seq-length-val", state.seqLength);
+    setText("query-pos-val", state.queryPos);
+    setText("alpha-val", state.alpha.toFixed(2));
+    setText("alibi-slope-val", state.alibiSlope.toFixed(2));
+    setText("rope-theta-val", state.ropeTheta);
+    setText("rope-dim-val", state.dim);
+
+    setText("logit-base-val", state.logitBase.toFixed(2));
+    setText("logit-scale-val", state.logitScale.toFixed(2));
+    setText("logit-freq-val", state.logitFreq.toFixed(2));
+
+    // ---- Compute logits & weights ----
+    const { q, ks, content, logits } = computeFinalLogits(state.queryPos);
+
+    const weights = state.attention === "softmax"
+      ? softmax(logits)
+      : entmax(logits, state.alpha);
+
+    // ---- Draw plots ----
+    if (!collapsed["logits"]) drawBarChart("#logits-chart", logits, "#3b82f6", false);
+    if (!collapsed["weights"]) drawBarChart("#weights-chart", weights, "#a855f7", true);
+    if (!collapsed["distance"]) drawDistanceProfile(weights);
+    if (!collapsed["heatmap"]) drawHeatmap();
+    if (!collapsed["rope-freq"] && (state.encoding === "rope" || state.encoding === "rope-simple")) {
+      drawFrequencyDecomposition({ q, ks, logits, content });
+    }
+
+    updateFormulas();
+
+    // ---- Stats ----
+    const ent = normalizedEntropy(weights);
+    const maxW = Math.max(...weights);
+    const eps = 1e-12;
+
+    const nonZero = weights.filter(w => w > eps).length;
+    const sparsity = ((weights.length - nonZero) / weights.length) * 100;
+    const deadZones = countDeadZones(weights, eps);
+
+    setText("stat-entropy", ent.toFixed(2));
+    setText("stat-max", (maxW * 100).toFixed(1) + "%");
+    setText("stat-nonzero", `${nonZero}/${weights.length}`);
+    setText("stat-sparsity", sparsity.toFixed(1) + "%");
+    setText("stat-deadzones", state.attention === "entmax" ? deadZones : "-");
+  }
+
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  /* -----------------------------
+   *  Plot: Bar chart (logits/weights)
+   * ----------------------------- */
+  function drawBarChart(selector, data, color, isWeight) {
+    const container = document.querySelector(selector);
+    if (!container) return;
+
+    const width = container.clientWidth || 420;
+    const height = 180;
+    const margin = { top: 15, right: 15, bottom: 35, left: 45 };
+    const colors = getColors();
+
+    d3.select(selector).selectAll("*").remove();
+
+    const svg = d3.select(selector)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const x = d3.scaleBand()
+      .domain(data.map((_, i) => i))
+      .range([margin.left, width - margin.right])
+      .padding(0.15);
+
+    const yMin = isWeight ? 0 : Math.min(0, ...data);
+    const yMax = Math.max(...data);
+
+    const pad = isWeight ? 0 : 0.1 * (yMax - yMin + 1e-6);
+
+    const y = d3.scaleLinear()
+      .domain([yMin - pad, yMax + pad])
+      .range([height - margin.bottom, margin.top]);
+
+    // zero line for logits
+    if (!isWeight && yMin < 0) {
+      svg.append("line")
+        .attr("x1", margin.left)
+        .attr("x2", width - margin.right)
+        .attr("y1", y(0))
+        .attr("y2", y(0))
+        .attr("stroke", colors.grid)
+        .attr("stroke-dasharray", "3,3");
+    }
+
+    svg.selectAll("rect")
+      .data(data)
+      .enter()
+      .append("rect")
+      .attr("x", (d, i) => x(i))
+      .attr("y", d => {
+        if (isWeight) return y(d);
+        return d >= 0 ? y(d) : y(0);
+      })
+      .attr("width", x.bandwidth())
+      .attr("height", d => {
+        if (isWeight) return Math.max(0, y(0) - y(d));
+        return Math.abs(y(d) - y(0));
+      })
+      .attr("fill", (d, i) => {
+        if (isWeight && d < 1e-12) return colors.zero;
+        return i === state.queryPos ? "#ec4899" : color;
+      })
+      .attr("opacity", d => (isWeight && d < 1e-12 ? 0.3 : 0.85))
+      .attr("rx", 2)
+      .on("mouseover", (event, d) => {
+        const i = data.indexOf(d);
+        const tag = isWeight && d < 1e-12 ? " [ZERO]" : "";
+        showTooltip(event, `Pos ${i}: ${d.toFixed(4)}${tag}`);
+      })
+      .on("mouseout", hideTooltip);
+
+    const tickInterval = Math.ceil(data.length / 8);
+
+    svg.append("g")
+      .attr("transform", `translate(0,${height - margin.bottom})`)
+      .call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % tickInterval === 0)))
+      .attr("color", colors.axis);
+
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y).ticks(4))
+      .attr("color", colors.axis);
+
+    svg.append("text")
+      .attr("x", width / 2)
+      .attr("y", height - 3)
+      .attr("text-anchor", "middle")
+      .attr("fill", colors.text)
+      .attr("font-size", "10px")
+      .text("Position (j)");
+  }
+
+  /* -----------------------------
+   *  Plot: Distance profile
+   * ----------------------------- */
+  function drawDistanceProfile(weights) {
+    const container = document.querySelector("#distance-profile");
+    if (!container) return;
+
+    const width = container.clientWidth || 640;
+    const height = 200;
+    const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+    const colors = getColors();
+
+    d3.select("#distance-profile").selectAll("*").remove();
+
+    const svg = d3.select("#distance-profile")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const distData = weights
+      .map((w, j) => ({ dist: state.queryPos - j, weight: w, pos: j }))
+      .reverse(); // so dist increases left→right
+
+    const x = d3.scaleLinear()
+      .domain([0, state.queryPos])
+      .range([margin.left, width - margin.right]);
+
+    const y = d3.scaleLinear()
+      .domain([0, Math.max(...weights) * 1.1])
+      .range([height - margin.bottom, margin.top]);
+
+    const area = d3.area()
+      .x(d => x(d.dist))
+      .y0(y(0))
+      .y1(d => y(d.weight))
+      .curve(d3.curveMonotoneX);
+
+    const line = d3.line()
+      .x(d => x(d.dist))
+      .y(d => y(d.weight))
+      .curve(d3.curveMonotoneX);
+
+    // area gradient
+    const gradient = svg.append("defs")
+      .append("linearGradient")
+      .attr("id", "areaGrad")
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", "0%")
+      .attr("y2", "100%");
+
+    gradient.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", "#a855f7")
+      .attr("stop-opacity", 0.6);
+
+    gradient.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", "#a855f7")
+      .attr("stop-opacity", 0.1);
+
+    svg.append("path")
+      .datum(distData)
+      .attr("fill", "url(#areaGrad)")
+      .attr("d", area);
+
+    svg.append("path")
+      .datum(distData)
+      .attr("fill", "none")
+      .attr("stroke", "#a855f7")
+      .attr("stroke-width", 2)
+      .attr("d", line);
+
+    // dead-zone bands for entmax
+    if (state.attention === "entmax") {
+      const eps = 1e-12;
+      let zoneStart = null;
+
+      distData.forEach(d => {
+        if (d.weight <= eps) {
+          if (zoneStart === null) zoneStart = d.dist;
+        } else {
+          if (zoneStart !== null) {
+            svg.append("rect")
+              .attr("x", x(zoneStart))
+              .attr("y", margin.top)
+              .attr("width", Math.max(1, x(d.dist) - x(zoneStart)))
+              .attr("height", height - margin.top - margin.bottom)
+              .attr("fill", colors.deadZone)
+              .attr("opacity", 0.15);
+
+            zoneStart = null;
+          }
+        }
+      });
+
+      if (zoneStart !== null) {
+        svg.append("rect")
+          .attr("x", x(zoneStart))
+          .attr("y", margin.top)
+          .attr("width", x(state.queryPos) - x(zoneStart))
+          .attr("height", height - margin.top - margin.bottom)
+          .attr("fill", colors.deadZone)
+          .attr("opacity", 0.15);
+      }
+    }
+
+    // points
+    const eps = 1e-12;
+
+    svg.selectAll("circle")
+      .data(distData)
+      .enter()
+      .append("circle")
+      .attr("cx", d => x(d.dist))
+      .attr("cy", d => y(d.weight))
+      .attr("r", d => (d.weight <= eps ? 3 : 4))
+      .attr("fill", d => (d.weight <= eps ? colors.deadZone : "#a855f7"))
+      .attr("stroke", d => (d.weight <= eps ? colors.deadZone : "white"))
+      .attr("stroke-width", 1)
+      .on("mouseover", (event, d) => {
+        showTooltip(event, `Dist ${d.dist}: ${(d.weight * 100).toFixed(2)}%`);
+      })
+      .on("mouseout", hideTooltip);
+
+    svg.append("g")
+      .attr("transform", `translate(0,${height - margin.bottom})`)
+      .call(d3.axisBottom(x).ticks(8))
+      .attr("color", colors.axis);
+
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y).ticks(4).tickFormat(d => (d * 100).toFixed(0) + "%"))
+      .attr("color", colors.axis);
+
+    svg.append("text")
+      .attr("x", width / 2)
+      .attr("y", height - 5)
+      .attr("text-anchor", "middle")
+      .attr("fill", colors.text)
+      .attr("font-size", "11px")
+      .text("Distance from Query");
+
+    // dead-zone info text
+    const deadZones = countDeadZones(weights, eps);
+    const info = document.getElementById("dead-zone-info");
+
+    if (info) {
+      if (state.attention === "entmax" && deadZones > 0) {
+        info.innerHTML = `<span class="text-red-400">⚠️ ${deadZones} dead zone${deadZones > 1 ? "s" : ""}</span>`;
+      } else if (state.attention === "entmax") {
+        info.innerHTML = `<span class="text-emerald-400">✓ No dead zones</span>`;
+      } else {
+        info.innerHTML = `<span class="text-slate-500">Softmax: no exact zeros</span>`;
+      }
+    }
+  }
+
+  /* -----------------------------
+   *  Plot: Frequency decomposition (RoPE / RoPE-simple)
+   * ----------------------------- */
+
+  function formatFreqLabel(f) {
+    // f.g is angular frequency in "radians per position"
+    const wavelength = (2 * Math.PI) / f.g;
+    return `g=${f.g.toExponential(2)}, λ≈${wavelength.toFixed(2)}`;
+  }
+
+  function drawFrequencyDecomposition(ctx) {
+    const container = document.querySelector("#freq-decomposition");
+    if (!container) return;
+
+    const width = container.clientWidth || 640;
+    const height = 250;
+    const margin = { top: 20, right: 50, bottom: 40, left: 50 };
+    const colors = getColors();
+
+    d3.select("#freq-decomposition").selectAll("*").remove();
+
+    const svg = d3.select("#freq-decomposition")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const queryPos = state.queryPos;
+
+    // Build contributions:
+    // - For proper RoPE: per-frequency curves sum to logits (without logitBase bias)
+    // - For RoPE-simple: we show the cosine contributions used to build cosAvg(dist),
+    //   plus the resulting factor curve (and optionally the final modulated logits curve).
+    let contributions = [];
+    let sumCurve = [];
+
+    if (state.encoding === "rope") {
+      contributions = getProperFrequencyContributionsFromQK(ctx.q, ctx.ks, queryPos, state.ropeTheta, state.dim);
+
+      // Sum of contributions reconstructs proper RoPE logits (up to numerical precision)
+      sumCurve = [];
+      for (let j = 0; j <= queryPos; j++) {
+        const dist = queryPos - j;
+        let s = 0;
+
+        for (const c of contributions) {
+          s += c.curve[j].value;
+        }
+
+        sumCurve.push({ dist, value: s + state.logitBase }); // add bias so line matches displayed logits
+      }
+    } else {
+      // RoPE-simple:
+        // Background colored curves: individual cos(ω_k Δ) terms (pure positional components).
+        // White curve: the *logit-space* RoPE-simple logits (WITHOUT bias), i.e. what entmax thresholds.
+        // Optional overlay: cosAvg (positional-only) as a thin dashed line.
+
+        const freqs = computeRopeFrequencies(state.ropeTheta, state.dim);
+
+        contributions = freqs.map((f, i) => ({
+          freq: f,
+          curve: Array.from({ length: queryPos + 1 }, (_, j) => {
+            const dist = queryPos - j;
+            return { dist, value: Math.cos(f.g * dist), freq: f };
+          })
+        }));
+
+        // Logit-space curve (no bias): z_j - b
+        sumCurve = [];
+        for (let j = 0; j <= queryPos; j++) {
+          const dist = queryPos - j;
+          const zNoBias = ctx.logits[j] - state.logitBase;
+          sumCurve.push({ dist, value: zNoBias });
+        }
+
+        // Optional: positional-only signal overlay (cosAvg)
+        // (Keep this if you want to explain "positional signal" separately from logits.)
+        var cosAvgCurve = [];
+        for (let j = 0; j <= queryPos; j++) {
+          const dist = queryPos - j;
+          cosAvgCurve.push({ dist, value: ropeCosAvg(dist, state.ropeTheta, state.dim) });
+        }
+    }
+
+    // Collect all values to set y-domain dynamically (prevents “fishy” clipping)
+    const allValues = [];
+
+    for (const c of contributions) {
+      for (const p of c.curve) allValues.push(p.value);
+    }
+
+    for (const p of sumCurve) allValues.push(p.value);
+
+    // If proper RoPE, also include displayed logits (so threshold line always inside)
+    if (state.encoding === "rope") {
+      for (let j = 0; j <= queryPos; j++) {
+        const dist = queryPos - j;
+        allValues.push(ctx.logits[j]); // already includes bias
+      }
+    }
+
+    const yMinRaw = Math.min(...allValues);
+    const yMaxRaw = Math.max(...allValues);
+
+    const pad = 0.12 * (yMaxRaw - yMinRaw + 1e-6);
+
+    const x = d3.scaleLinear()
+      .domain([0, queryPos])
+      .range([margin.left, width - margin.right]);
+
+    const y = d3.scaleLinear()
+      .domain([yMinRaw - pad, yMaxRaw + pad])
+      .range([height - margin.bottom, margin.top]);
+
+    // zero line
+    // svg.append("line")
+    //   .attr("x1", margin.left)
+    //   .attr("x2", width - margin.right)
+    //   .attr("y1", y(0))
+    //   .attr("y2", y(0))
+    //   .attr("stroke", colors.grid)
+    //   .attr("stroke-dasharray", "3,3");
+
+    // If entmax, draw threshold band/line — only meaningful if comparing against the *same logits*.
+    // For proper RoPE: sumCurve corresponds to logits (plus bias), so threshold line is meaningful.
+    // For RoPE-simple: sumCurve is cosAvg (not logits), so threshold line would be misleading -> skip it.
+    if (state.attention === "entmax") {
+      const tau = entmaxTau(ctx.logits, state.alpha);
+      const threshold = tau / (state.alpha - 1);
+
+      // red shaded region below threshold
+      svg.append("rect")
+        .attr("x", margin.left)
+        .attr("y", y(threshold))
+        .attr("width", width - margin.left - margin.right)
+        .attr("height", y(yMinRaw - pad) - y(threshold))
+        .attr("fill", colors.deadZone)
+        .attr("opacity", 0.08);
+
+      // dashed threshold line
+      svg.append("line")
+        .attr("x1", margin.left)
+        .attr("x2", width - margin.right)
+        .attr("y1", y(threshold))
+        .attr("y2", y(threshold))
+        .attr("stroke", colors.deadZone)
+        .attr("stroke-width", 2)
+        .attr("stroke-dasharray", "5,5");
+
+      svg.append("text")
+        .attr("x", width - margin.right + 5)
+        .attr("y", y(threshold))
+        .attr("fill", colors.deadZone)
+        .attr("font-size", "10px")
+        .attr("alignment-baseline", "middle")
+        .text("τ/(α−1)");
+    }
+
+    const line = d3.line()
+      .x(d => x(d.dist))
+      .y(d => y(d.value))
+      .curve(d3.curveMonotoneX);
+
+    // individual frequency curves
+    contributions.forEach((c, i) => {
+      svg.append("path")
+        .datum(c.curve)
+        .attr("fill", "none")
+        .attr("stroke", d3.interpolateRainbow(i / Math.max(1, contributions.length)))
+        .attr("stroke-width", 1)
+        .attr("opacity", 0.4)
+        .attr("d", line);
+    });
+
+    // sum curve (white)
+    svg.append("path")
+      .datum(sumCurve)
+      .attr("fill", "none")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 3)
+      .attr("d", line);
+
+    // For RoPE-simple, also plot the final modulated logits as a second thick line (optional but helpful)
+    if (state.encoding === "rope-simple") {
+      const z = ctx.logits; // already includes bias
+      const zCurve = [];
+      for (let j = 0; j <= queryPos; j++) {
+        zCurve.push({ dist: queryPos - j, value: z[j] });
+      }
+
+    }
+
+    // Mark “dead zone” points on the sum curve only for proper RoPE (otherwise misleading).
+    if (state.attention === "entmax") {
+      const tau = entmaxTau(ctx.logits, state.alpha);
+      const threshold = tau / (state.alpha - 1);
+      const eps = 1e-12;
+
+      sumCurve.forEach((p, i) => {
+        // mark points that lie below threshold
+        if (p.value <= threshold + eps && i > 0) {
+          svg.append("circle")
+            .attr("cx", x(p.dist))
+            .attr("cy", y(p.value))
+            .attr("r", 3)
+            .attr("fill", colors.deadZone);
+        }
+      });
+    }
+
+    // axes
+    svg.append("g")
+      .attr("transform", `translate(0,${height - margin.bottom})`)
+      .call(d3.axisBottom(x).ticks(8))
+      .attr("color", colors.axis);
+
+    svg.append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y).ticks(5))
+      .attr("color", colors.axis);
+
+    svg.append("text")
+      .attr("x", (margin.left + width - margin.right) / 2)
+      .attr("y", height - 5)
+      .attr("text-anchor", "middle")
+      .attr("fill", colors.text)
+      .attr("font-size", "11px")
+      .text("Distance");
+
+    // Reconstruction check for proper RoPE
+    if (state.encoding === "rope") {
+      let maxErr = 0;
+
+      for (let j = 0; j <= queryPos; j++) {
+        let s = 0;
+        for (const c of contributions) s += c.curve[j].value;
+        s += state.logitBase;
+
+        maxErr = Math.max(maxErr, Math.abs(s - ctx.logits[j]));
+      }
+
+      console.log("max reconstruction error (RoPE):", maxErr);
+    }
+  }
+
+  /* -----------------------------
+   *  Plot: Heatmap (full causal attention)
+   * ----------------------------- */
+  function drawHeatmap() {
+    const container = document.querySelector("#heatmap");
+    if (!container) return;
+
+    const colors = getColors();
+
+    const maxSize = Math.min(container.clientWidth - 40, 550);
+    const cellSize = Math.floor(maxSize / state.seqLength);
+    const actualSize = cellSize * state.seqLength + 50;
+
+    d3.select("#heatmap").selectAll("*").remove();
+
+    const svg = d3.select("#heatmap")
+      .append("svg")
+      .attr("width", actualSize)
+      .attr("height", actualSize);
+
+    const colorScale = d3.scaleSequential()
+      .domain([0, 1])
+      .interpolator(t => d3.interpolateRgb("#1e1b4b", "#f472b6")(Math.pow(t, 0.5)));
+
+    // For each query i, recompute logits and weights
+    for (let i = 0; i < state.seqLength; i++) {
+      // content q/k for this query i
+      const { q, ks, content } = computeContentQK(
+        i,
+        state.dim,
+        state.logitSeed,
+        state.logitDist,
+        state.logitFreq,
+        clamp(state.logitScale, 0, 1),
+        Math.max(0, state.noiseLevel),
+        state.ropeNormalize
+      );
+
+      // encoding
+      let logits;
+
+      if (state.encoding === "nope") {
+        logits = content.slice();
+      } else if (state.encoding === "alibi") {
+        logits = content.map((c, j) => c + state.alibiSlope * (j - i));
+      } else if (state.encoding === "rope") {
+        logits = computeProperRopeLogitsFromQK(q, ks, i, state.ropeTheta, state.dim);
+      } else if (state.encoding === "rope-simple") {
+        logits = applyRopeSimpleToContent(content, i, state.ropeTheta, state.dim, state.ropeSimpleBeta, state.ropeSimpleMode);
+      } else {
+        logits = content.slice();
+      }
+
+      logits = logits.map(z => z + state.logitBase);
+
+      // attention transform
+      const weights = state.attention === "softmax"
+        ? softmax(logits)
+        : entmax(logits, state.alpha);
+
+      const maxW = Math.max(...weights);
+
+      // draw only j<=i (causal)
+      for (let j = 0; j <= i; j++) {
+        const isZero = weights[j] <= 1e-12;
+
+        const rect = svg.append("rect")
+          .attr("x", 35 + j * cellSize)
+          .attr("y", 15 + i * cellSize)
+          .attr("width", cellSize - 1)
+          .attr("height", cellSize - 1)
+          .attr("rx", 1)
+          .attr("class", "cell");
+
+        if (isZero && state.attention === "entmax") {
+          rect
+            .attr("fill", colors.bg)
+            .attr("stroke", colors.deadZone)
+            .attr("stroke-width", 0.5)
+            .attr("stroke-dasharray", "1,1");
+        } else {
+          rect.attr("fill", colorScale(maxW > 0 ? weights[j] / maxW : 0));
+        }
+
+        rect
+          .on("mouseover", event => showTooltip(event, `(${i},${j}): ${(weights[j] * 100).toFixed(2)}%`))
+          .on("mouseout", hideTooltip);
+      }
+
+      // fill upper triangle with background
+      for (let j = i + 1; j < state.seqLength; j++) {
+        svg.append("rect")
+          .attr("x", 35 + j * cellSize)
+          .attr("y", 15 + i * cellSize)
+          .attr("width", cellSize - 1)
+          .attr("height", cellSize - 1)
+          .attr("fill", colors.bg)
+          .attr("rx", 1);
+      }
+    }
+
+    svg.append("text")
+      .attr("x", 35 + (state.seqLength * cellSize) / 2)
+      .attr("y", 10)
+      .attr("text-anchor", "middle")
+      .attr("fill", colors.text)
+      .attr("font-size", "10px")
+      .text("Key (j)");
+
+    svg.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -(15 + (state.seqLength * cellSize) / 2))
+      .attr("y", 10)
+      .attr("text-anchor", "middle")
+      .attr("fill", colors.text)
+      .attr("font-size", "10px")
+      .text("Query (i)");
+  }
+
+  /* -----------------------------
+   *  Formulas (minimal, consistent)
+   * ----------------------------- */
+  function updateFormulas() {
+    const lf = document.querySelector("#logits-formula code");
+    const wf = document.querySelector("#weights-formula code");
+
+    let le = "";
+
+    if (state.encoding === "nope") {
+      le = "z<sub>ij</sub> = ⟨q<sub>i</sub>, k<sub>j</sub>⟩ + b";
+    } else if (state.encoding === "alibi") {
+      le = "z<sub>ij</sub> = ⟨q<sub>i</sub>, k<sub>j</sub>⟩ + m·(j−i)";
+    } else if (state.encoding === "rope") {
+      le = "z<sub>ij</sub> = RoPE(q<sub>i</sub>, k<sub>j</sub>, i−j)";
+    } else if (state.encoding === "rope-simple") {
+      le = "z<sub>ij</sub> = ⟨q<sub>i</sub>, k<sub>j</sub>⟩ · exp(β·cosAvg(i−j))";
+    }
+
+    if (lf) lf.innerHTML = le;
+
+    const we = state.attention === "softmax"
+      ? "p<sub>ij</sub> = exp(z<sub>ij</sub>) / Σ exp(z)"
+      : "p<sub>ij</sub> = [(α−1)z<sub>ij</sub> − τ]<sub>+</sub><sup>1/(α−1)</sup>";
+
+    if (wf) wf.innerHTML = we;
+  }
+
+  /* -----------------------------
+   *  Boot
+   * ----------------------------- */
+  window.onload = function () {
+    init();
+
+    // If KaTeX auto-render is present, render math blocks
+    if (typeof renderMathInElement !== "undefined") {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false }
+        ],
+        throwOnError: false
+      });
+    }
+  };
+
+  window.onresize = updateViz;
+
+  /* -----------------------------
+   *  Expose handlers globally for buttons
+   * ----------------------------- */
+  window.setEncoding = setEncoding;
+  window.setAttention = setAttention;
+  window.setLogitDist = setLogitDist;
+  window.toggleSection = toggleSection;
+  window.updateViz = updateViz;
+</script>
+
+</body>  
+</html>

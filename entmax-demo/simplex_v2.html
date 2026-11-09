@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>α‑entmax simplex · v2</title>
+<meta name="description" content="Interactive α-entmax: project score vectors onto the probability simplex, and compare transformations as surfaces over the input logits. Pure SVG + touch, works on iPad."/>
+<link rel="icon" href="tetrahedron.png"/>
+<link rel="stylesheet" href="libs/katex/katex.min.css">
+<style>
+  :root{ --bg:#f6f7fb; --panel:#ffffff; --ink:#0b1020; --slate:#5b6579; --line:#e6e9f2;
+    --indigo:#6366f1; --indigo-d:#4f46e5; --amber:#f59e0b; --rose:#f43f5e; --violet:#8b5cf6; }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',ui-sans-serif,sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:940px; margin:0 auto; padding:20px 16px 56px}
+  h1{font-size:clamp(1.5rem,4.6vw,2rem); font-weight:700; letter-spacing:-.02em; margin:6px 0 4px; text-align:center}
+  .sub{text-align:center; color:var(--slate); margin:0 0 16px; font-size:.95rem}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:18px; box-shadow:0 10px 40px -14px rgba(30,25,80,.22); padding:16px}
+  .tabs{display:flex; gap:6px; background:#eef1f8; border:1px solid var(--line); border-radius:14px; padding:5px; margin:0 auto 14px; max-width:420px}
+  .tabs button{flex:1; border:0; background:transparent; padding:11px 8px; border-radius:10px; font-weight:600; font-size:.9rem; color:var(--slate); cursor:pointer; font-family:inherit; transition:.15s; -webkit-tap-highlight-color:transparent}
+  .tabs button.on{background:#fff; color:var(--indigo-d); box-shadow:0 2px 8px rgba(30,25,80,.12)}
+  .tabpanel{display:none} .tabpanel.on{display:block}
+  .viz{width:100%; touch-action:none; -webkit-user-select:none; user-select:none}
+  .seg{display:inline-flex; background:#eef1f8; border:1px solid var(--line); border-radius:11px; padding:4px; gap:4px}
+  .seg button{border:0; background:transparent; padding:8px 13px; border-radius:8px; font-weight:600; font-size:.83rem; color:var(--slate); cursor:pointer; font-family:inherit; transition:.15s; -webkit-tap-highlight-color:transparent}
+  .seg button.on{background:#fff; color:var(--indigo-d); box-shadow:0 2px 8px rgba(30,25,80,.12)}
+  .ctl{margin-top:12px}
+  .ctl .row{display:flex; justify-content:space-between; align-items:baseline}
+  .ctl label{font-weight:600; font-size:.92rem}
+  .ctl .val{font-weight:700; color:var(--indigo-d); font-variant-numeric:tabular-nums; font-size:1.02rem}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:100px; background:linear-gradient(90deg,var(--indigo),var(--violet)); outline:none; margin:10px 0; touch-action:pan-y}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:#fff; border:3px solid var(--indigo-d); cursor:grab; box-shadow:0 3px 10px rgba(79,70,229,.4)}
+  input[type=range]::-moz-range-thumb{width:24px; height:24px; border-radius:50%; background:#fff; border:3px solid var(--indigo-d)}
+  .ends{display:flex; justify-content:space-between; font-size:.74rem; color:var(--slate); margin-top:-4px}
+  .rowflex{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:6px}
+  .rowflex .ctl{flex:1; min-width:210px; margin-top:0}
+  .chk{display:inline-flex; align-items:center; gap:9px; font-weight:600; font-size:.92rem; cursor:pointer; user-select:none}
+  .chk input{width:22px; height:22px; accent-color:var(--indigo-d)}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:12px; font-size:.85rem; color:var(--slate)}
+  .legend .item{display:inline-flex; align-items:center; gap:7px}
+  .legend .sw{width:14px; height:14px; border-radius:50%; display:inline-block}
+  .hint{text-align:center; color:var(--slate); font-size:.82rem; margin-top:12px}
+  .stats{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px}
+  .stat{background:#f2f4fb; border:1px solid var(--line); border-radius:10px; padding:8px 14px; min-width:96px; text-align:center}
+  .stat .n{font-weight:700; font-size:1.18rem; line-height:1; font-variant-numeric:tabular-nums}
+  .stat .k{font-size:.68rem; color:var(--slate); text-transform:uppercase; letter-spacing:.05em; margin-top:5px}
+
+  /* compare */
+  .cmp-controls{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media (max-width:600px){ .cmp-controls, .cmp-grid{grid-template-columns:1fr !important} }
+  .cmp-panel{border:1px solid var(--line); border-radius:12px; padding:12px; background:#fbfcff}
+  .cmp-panel .lab{font-weight:700; font-size:.9rem; margin-bottom:8px}
+  select{width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; font-size:.92rem; font-weight:600; color:var(--ink); -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7c79' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center}
+  .param{margin-top:10px} .param.hidden{display:none}
+  .param .row{display:flex; justify-content:space-between; font-size:.85rem; font-weight:600}
+  .toggles{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:14px 0 6px}
+  .cmp-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .cmp-cell{border:1px solid var(--line); border-radius:12px; padding:8px; background:#fff}
+  .cmp-ttl{text-align:center; font-weight:600; font-size:.9rem; color:var(--slate); margin:2px 0 4px; min-height:1.2em}
+
+  .mathcard{margin-top:20px} .mathcard h2{font-size:1.15rem; font-weight:700; margin:0 0 10px}
+  .mathcard p{color:var(--ink); line-height:1.6; margin:.5rem 0}
+  .eq{overflow-x:auto; overflow-y:hidden; padding:6px 0; margin:8px 0}
+  .note{color:var(--slate); font-size:.9rem}
+  .foot{text-align:center; margin-top:20px; font-size:.85rem}
+  .foot a{color:var(--indigo-d); text-decoration:none; border-bottom:1px dotted var(--indigo-d)}
+  .cite{font-size:.82rem; color:var(--slate); border-top:1px solid var(--line); margin-top:14px; padding-top:12px}
+  .cite a{color:var(--indigo-d); text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>α‑entmax on the simplex</h1>
+  <p class="sub">Project score vectors onto the probability simplex — or compare transformations as surfaces over the input logits.</p>
+
+  <div class="card">
+    <div class="tabs" id="tabs">
+      <button data-tab="simplex" class="on">Simplex</button>
+      <button data-tab="compare">Compare</button>
+    </div>
+
+    <!-- ===== TAB: simplex projection ===== -->
+    <div class="tabpanel on" id="tab-simplex">
+      <div class="seg" id="mode-s" style="display:flex; margin:0 auto 6px; max-width:420px">
+        <button data-m="support" class="on">Support size</button>
+        <button data-m="prob">Max probability</button>
+        <button data-m="entropy">Entropy</button>
+      </div>
+      <div class="viz" id="viz-s"></div>
+      <div class="legend" id="legend-s"></div>
+      <div class="rowflex">
+        <div class="ctl">
+          <div class="row"><label>α <span style="color:var(--slate); font-weight:400">— the sparsity dial</span></label><span class="val" id="a-s">1.00</span></div>
+          <input type="range" id="as-s" min="1.0" max="5.0" step="0.05" value="1.0">
+          <div class="ends"><span>1 · softmax</span><span>1.5</span><span>2 · sparsemax</span><span>∞ · argmax</span></div>
+        </div>
+      </div>
+      <div class="rowflex">
+        <div class="ctl"><div class="row"><label>sampled points</label><span class="val" id="n-s">—</span></div>
+          <input type="range" id="ns-s" min="2" max="6" step="1" value="4"><div class="ends"><span>fewer</span><span>more</span></div></div>
+        <label class="chk"><input type="checkbox" id="show-s" checked> show probability simplex</label>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n" id="supp-s" style="color:var(--indigo-d)">—</div><div class="k">avg. support</div></div>
+        <div class="stat"><div class="n" id="sparse-s" style="color:var(--rose)">—</div><div class="k">% with a zero</div></div>
+      </div>
+      <p class="hint">Drag to rotate in 3‑D · toggle the simplex to reveal the mapping</p>
+    </div>
+
+    <!-- ===== TAB: compare ===== -->
+    <div class="tabpanel" id="tab-compare">
+      <div class="cmp-controls">
+        <div class="cmp-panel">
+          <div class="lab">Panel A</div>
+          <select id="selA"><option value="softmax">Softmax</option><option value="entmax">α‑entmax</option><option value="sparsemax">Sparsemax</option><option value="topk">Top‑k softmax</option></select>
+          <div class="param hidden" id="paramA-a"><div class="row"><span>α</span><span class="val" id="avA">1.50</span></div><input type="range" id="alphaA" min="1.0" max="5.0" step="0.05" value="1.5"></div>
+          <div class="param hidden" id="paramA-k"><div class="row"><span>k</span><span class="val" id="kvA">1</span></div><input type="range" id="kA" min="1" max="3" step="1" value="1"></div>
+        </div>
+        <div class="cmp-panel">
+          <div class="lab">Panel B</div>
+          <select id="selB"><option value="softmax">Softmax</option><option value="entmax" selected>α‑entmax</option><option value="sparsemax">Sparsemax</option><option value="topk">Top‑k softmax</option></select>
+          <div class="param" id="paramB-a"><div class="row"><span>α</span><span class="val" id="avB">1.50</span></div><input type="range" id="alphaB" min="1.0" max="5.0" step="0.05" value="1.5"></div>
+          <div class="param hidden" id="paramB-k"><div class="row"><span>k</span><span class="val" id="kvB">1</span></div><input type="range" id="kB" min="1" max="3" step="1" value="1"></div>
+        </div>
+      </div>
+      <div class="toggles">
+        <div class="seg" id="viewtog"><button data-v="3d" class="on">3‑D surface</button><button data-v="2d">2‑D map</button></div>
+        <div class="seg" id="mettog"><button data-k="p" class="on">probability&nbsp;p₀</button><button data-k="grad">gradient&nbsp;‖∇p₀‖</button></div>
+      </div>
+      <div class="cmp-grid">
+        <div class="cmp-cell"><div class="cmp-ttl" id="ttlA"></div><div class="viz" id="vizA"></div></div>
+        <div class="cmp-cell"><div class="cmp-ttl" id="ttlB"></div><div class="viz" id="vizB"></div></div>
+      </div>
+      <p class="hint">Two transformations side by side, as a function of two input logits \((z_1,z_2)\), with the third logit fixed at \(0\); the height \(p_0\) is the probability of that fixed key. Softmax is a smooth ramp that never reaches 0 or 1; α‑entmax has a sharp cliff and a <em>flat‑zero</em> region; top‑k softmax has a non‑differentiable fold. Drag a 3‑D plot to rotate both.</p>
+    </div>
+  </div>
+
+  <!-- ===================== MATH ===================== -->
+  <div class="card mathcard">
+    <h2>What is the probability simplex?</h2>
+    <p>An attention distribution over \(n\) keys is a vector \(\boldsymbol p\) whose entries are non‑negative and sum to one. The set of all such vectors is the <strong>probability simplex</strong>:</p>
+    <div class="eq" id="eq-simplex"></div>
+    <p class="note">For \(n=3\) it is exactly the triangle in the Simplex tab, with the three corners being the one‑hot vectors \(\boldsymbol e_1,\boldsymbol e_2,\boldsymbol e_3\).</p>
+    <h2 style="margin-top:22px">From scores to a distribution</h2>
+    <p>A transformation turns a score vector \(\boldsymbol z\in\mathbb R^n\) into a point \(\boldsymbol p\in\triangle^n\). The standard choice in transformers is <strong>softmax</strong>, which is dense — every entry is strictly positive, so it always lands in the <em>interior</em>:</p>
+    <div class="eq" id="eq-softmax"></div>
+    <h2 style="margin-top:22px">Mathematical definition of α‑entmax</h2>
+    <p>The \(\alpha\)-entmax transformation of a score vector \(\boldsymbol z \in \mathbb R^n\) is defined as a regularized projection onto the simplex:</p>
+    <div class="eq" id="eq-entmax-argmax"></div>
+    <p>where \(H_\alpha(\boldsymbol p)\) is the Tsallis(\(\alpha\)) entropy. The closed form for \(\alpha\text{-entmax}\) with \(\alpha>1\) is a thresholded power:</p>
+    <div class="eq" id="eq-entmax-closed"></div>
+    <p class="note">Here \(\tau(\boldsymbol z)\) is chosen so that \(\boldsymbol p^\star\) sums to 1. The dial \(\alpha\) interpolates a whole family: \(\alpha=1\) is <strong>softmax</strong> (dense, interior); \(\alpha=2\) is <strong>sparsemax</strong>, the plain Euclidean projection (zeros, on the edges); \(\alpha\to\infty\) is <strong>argmax</strong> (one‑hot, on the corners). The sweet spot for attention is in between — e.g. \(\alpha=1.5\).</p>
+    <div class="cite">Ben Peters, Vlad Niculae, and André F. T. Martins. 2019. <em>Sparse Sequence‑to‑Sequence Models.</em> ACL 2019. <a href="https://arxiv.org/abs/1905.05702" target="_blank" rel="noopener">arXiv:1905.05702</a></div>
+  </div>
+
+  <p class="foot"><a href="index.html">← α‑entmax viz hub</a> &nbsp;·&nbsp; <a href="adasplash.html">α‑entmax → AdaSplash explainer</a></p>
+</div>
+
+<script src="libs/d3.v7.min.js"></script>
+<script defer src="libs/katex/katex.min.js"></script>
+<script defer src="libs/katex/contrib/auto-render.min.js"></script>
+<script>
+/* ---------- core math ---------- */
+function softmax(s){ const m=Math.max(...s); const e=s.map(x=>Math.exp(x-m)); const z=e.reduce((a,b)=>a+b,0); return e.map(x=>x/z); }
+function entmax(scores, alpha, nIter=45){
+  if(Math.abs(alpha-1)<1e-6) return softmax(scores);
+  const n=scores.length, am1=alpha-1, X=scores.map(s=>s*am1), mx=Math.max(...X);
+  let lo=mx-1, hi=mx-Math.pow(1/n,am1), p=null;
+  for(let it=0; it<nIter; it++){ const t=(lo+hi)/2; p=X.map(x=>{const d=x-t; return d>0?Math.pow(d,1/am1):0;}); (p.reduce((a,b)=>a+b,0)>1)?lo=t:hi=t; }
+  const sum=p.reduce((a,b)=>a+b,0); return sum>0? p.map(x=>x/sum) : p;
+}
+function topk(scores,k){ const K=Math.min(k,scores.length); const idx=scores.map((s,i)=>({s,i})).sort((a,b)=>b.s-a.s);
+  const masked=new Array(scores.length).fill(-Infinity); for(let i=0;i<K;i++)masked[idx[i].i]=scores[idx[i].i];
+  const m=Math.max(...masked); const ex=masked.map(v=>v===-Infinity?0:Math.exp(v-m)); const z=ex.reduce((a,b)=>a+b,0)||1; return ex.map(v=>v/z); }
+function nnz(p){ let k=0; for(const x of p) if(x>1e-4)k++; return k; }
+function shannon(p){ let h=0; for(const x of p) if(x>1e-12) h-=x*Math.log(x); return h; }
+
+/* ---------- 3D basis / rotation ---------- */
+const cC=[1/3,1/3,1/3];
+const U=[1/Math.SQRT2,-1/Math.SQRT2,0], Vp=[1/Math.sqrt(6),1/Math.sqrt(6),-2/Math.sqrt(6)], NN=[1/Math.sqrt(3),1/Math.sqrt(3),1/Math.sqrt(3)];
+function base(p){ return [ (p[0]-cC[0])*U[0]+(p[1]-cC[1])*U[1]+(p[2]-cC[2])*U[2],
+                           (p[0]-cC[0])*Vp[0]+(p[1]-cC[1])*Vp[1]+(p[2]-cC[2])*Vp[2],
+                           (p[0]-cC[0])*NN[0]+(p[1]-cC[1])*NN[1]+(p[2]-cC[2])*NN[2] ]; }
+function mM(A,B){ const C=[[0,0,0],[0,0,0],[0,0,0]]; for(let i=0;i<3;i++)for(let j=0;j<3;j++){let s=0;for(let k=0;k<3;k++)s+=A[i][k]*B[k][j];C[i][j]=s;} return C; }
+function rX(t){const co=Math.cos(t),s=Math.sin(t);return [[1,0,0],[0,co,-s],[0,s,co]];}
+function rY(t){const co=Math.cos(t),s=Math.sin(t);return [[co,0,s],[0,1,0],[-s,0,co]];}
+function ap(R,v){ return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2], R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2], R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]]; }
+const E=[[1,0,0],[0,1,0],[0,0,1]];
+const suppCol={1:'#f43f5e',2:'#f59e0b',3:'#6366f1'};
+const seq=d3.interpolateViridis;
+function colorOf(p, mode){ if(mode==='support') return suppCol[nnz(p)]||'#6366f1';
+  if(mode==='prob'){ const mx=Math.max(...p); return seq((mx-1/3)/(1-1/3)); } return seq(1 - shannon(p)/Math.log(3)); }
+
+/* ============================================================
+   SIMPLEX PROJECTION (shell of score vectors -> simplex)
+============================================================ */
+function shell(K){ const out=[], Rr=1.9, cap=0.72, nT=Math.max(2,K), nP=2*K+2;
+  for(let a=0;a<nT;a++){ const th=cap+(Math.PI-2*cap)*(nT>1?a/(nT-1):.5), ct=Math.cos(th), st=Math.sin(th);
+    for(let b=0;b<nP;b++){ const ph=2*Math.PI*b/nP, cp=Math.cos(ph), sp=Math.sin(ph);
+      const d=[ct*NN[0]+st*(cp*U[0]+sp*Vp[0]), ct*NN[1]+st*(cp*U[1]+sp*Vp[1]), ct*NN[2]+st*(cp*U[2]+sp*Vp[2])];
+      out.push([cC[0]+Rr*d[0], cC[1]+Rr*d[1], cC[2]+Rr*d[2]]); } } return out; }
+function legendHTML(mode, show){
+  if(show===false) return `<span class="item"><span class="sw" style="background:#0b1020; opacity:.55"></span>score vectors in 3‑D — tick “show simplex” to project them</span>`;
+  if(mode==='support') return `<span class="item"><i class="sw" style="background:#6366f1"></i>3 · interior</span><span class="item"><i class="sw" style="background:#f59e0b"></i>2 · edge</span><span class="item"><i class="sw" style="background:#f43f5e"></i>1 · corner</span>`;
+  const grad=d3.range(0,1.001,0.05).map(t=>seq(mode==='prob'?t:1-t)).join(',');
+  const lo=mode==='prob'?'uniform (⅓)':'sparse (H≈0)', hi=mode==='prob'?'one‑hot (1)':'uniform (ln3)';
+  return `<span class="item">${lo}</span><span style="width:140px;height:14px;border-radius:4px;border:1px solid #e6e9f2;background:linear-gradient(90deg,${grad})"></span><span class="item">${hi}</span>`;
+}
+function makeSim3D(){
+  const el=document.getElementById('viz-s'); if(!el) return null;
+  const W=el.clientWidth||460, H=Math.min(440, Math.round(W*0.86));
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`).style('display','block').style('width','100%').style('height','auto');
+  const cx=W/2, cy=H/2, scale=Math.min(W,H)*0.30;
+  let R=mM(rX(0.32),rY(0.5)), alpha=1.0, K=4, mode='support', show=true, active=true, dragging=false, lx=0, ly=0;
+  let RAW=shell(K);
+  function frame(p){ const r=ap(R, base(p)); return { x:cx+r[0]*scale, y:cy-r[1]*scale, depth:r[2] }; }
+  const gAx=svg.append('g'), gSx=svg.append('g'), gLn=svg.append('g'), gRaw=svg.append('g'), gPr=svg.append('g');
+  function draw(){
+    const O=frame([0,0,0]);
+    gAx.selectAll('line').data(E).join('line').attr('x1',O.x).attr('y1',O.y).attr('x2',d=>frame(d.map(v=>v*1.9)).x).attr('y2',d=>frame(d.map(v=>v*1.9)).y).attr('stroke','#0b1020').attr('stroke-width',1.5).attr('opacity',.9);
+    if(show){ const V=E.map(frame);
+      gSx.selectAll('polygon').data([0]).join('polygon').attr('points',V.map(d=>`${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ')).attr('fill','rgba(99,102,241,0.09)').attr('stroke','#a5b4fc').attr('stroke-width',1.6).attr('stroke-linejoin','round');
+    } else { gSx.selectAll('polygon').remove(); }
+    let ss=0, sp=0;
+    const items=RAW.map(z=>{ const p=entmax(z,alpha); const s=nnz(p); ss+=s; if(s<3)sp++; return {rp:frame(z), pp:frame(p), p, s}; });
+    gLn.selectAll('line').data(show?items:[]).join('line').attr('x1',d=>d.rp.x).attr('y1',d=>d.rp.y).attr('x2',d=>d.pp.x).attr('y2',d=>d.pp.y).attr('stroke','rgba(148,163,184,0.5)').attr('stroke-width',1);
+    gRaw.selectAll('circle').data([...items].sort((a,b)=>a.rp.depth-b.rp.depth)).join('circle').attr('cx',d=>d.rp.x).attr('cy',d=>d.rp.y).attr('r',3).attr('fill','#0b1020').attr('opacity',.5);
+    gPr.selectAll('circle').data(show?[...items].sort((a,b)=>a.pp.depth-b.pp.depth):[]).join('circle').attr('cx',d=>d.pp.x).attr('cy',d=>d.pp.y).attr('r',5).attr('fill',d=>colorOf(d.p,mode)).attr('stroke','#fff').attr('stroke-width',0.6).attr('opacity',.95);
+    document.getElementById('supp-s').textContent=(ss/RAW.length).toFixed(2);
+    document.getElementById('sparse-s').textContent=Math.round(100*sp/RAW.length)+'%';
+    document.getElementById('n-s').textContent=RAW.length;
+  }
+  function leg(){ document.getElementById('legend-s').innerHTML=legendHTML(mode, show); }
+  svg.style('cursor','grab');
+  svg.on('pointerdown',function(e){ dragging=true; lx=e.clientX; ly=e.clientY; svg.style('cursor','grabbing'); try{this.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  svg.on('pointermove',function(e){ if(!dragging) return; const dx=(e.clientX-lx)*0.01, dy=(e.clientY-ly)*0.01; R=mM(mM(rY(dx),rX(dy)),R); lx=e.clientX; ly=e.clientY; draw(); e.preventDefault(); });
+  svg.on('pointerup pointercancel pointerleave',function(){ dragging=false; svg.style('cursor','grab'); });
+  leg(); draw();
+  (function spin(){ if(active && !dragging){ R=mM(rY(0.004),R); draw(); } requestAnimationFrame(()=>setTimeout(spin,50)); })();
+  return { setAlpha(a){alpha=a; draw();}, setK(k){K=k; RAW=shell(K); draw();}, setMode(m){mode=m; leg(); draw();},
+           setShow(b){show=b; leg(); draw();}, setActive(b){active=b;} };
+}
+
+/* ============================================================
+   COMPARE — transformations as surfaces / maps over (x,y)=(z2,z3)
+============================================================ */
+function panelFn(cfg){
+  if(cfg.kind==='softmax') return z=>softmax(z);
+  if(cfg.kind==='sparsemax') return z=>entmax(z,2);
+  if(cfg.kind==='entmax') return z=>entmax(z,cfg.alpha);
+  return z=>topk(z,cfg.k);
+}
+function valueFn(cfg, metric){
+  const fn=panelFn(cfg);
+  if(metric==='p') return (x,y)=>fn([0,x,y])[0];
+  return (x,y)=>{ const h=0.06, f=(a,b)=>fn([0,a,b])[0];
+    const gx=(f(x+h,y)-f(x-h,y))/(2*h), gy=(f(x,y+h)-f(x,y-h))/(2*h); return Math.hypot(gx,gy); };
+}
+function titleFor(cfg, metric){
+  const nm = cfg.kind==='softmax'?'softmax (α→1)': cfg.kind==='sparsemax'?'sparsemax (α=2)': cfg.kind==='entmax'?('entmax (α='+cfg.alpha.toFixed(2)+')'):('top‑k softmax (k='+cfg.k+')');
+  return nm + (metric==='p' ? ' — p₀' : ' — ‖∇p₀‖');
+}
+const cmp = { R: mM(rY(0.62), rX(-1.12)), redraw:null };  // shared surface rotation
+function makePlot(elId){
+  const el=document.getElementById(elId); if(!el) return null;
+  const W=el.clientWidth||360, H=Math.round(W*0.9);
+  const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${W} ${H}`).style('display','block').style('width','100%').style('height','auto');
+  const cx=W/2, cy=H/2+H*0.04, scale=Math.min(W,H);
+  const g=svg.append('g');
+  let fn=null, mode='3d', fixedMax=null, dragging=false, lx=0, ly=0, raf=null;
+  function proj(P){ const r=ap(cmp.R, P); return {x:cx+r[0]*scale*0.42, y:cy-r[1]*scale*0.42, depth:r[2]}; }
+  const N3=20, N2=34, LO=-3, HI=3, HX=0.62, HZ=0.62, GX=6, GZ=5;
+  function drawSurf(){
+    const zs=[]; let vmax=1e-9;
+    for(let i=0;i<=N3;i++){ zs.push([]); for(let j=0;j<=N3;j++){ const z1=LO+(HI-LO)*i/N3, z2=LO+(HI-LO)*j/N3; const v=fn(z1,z2); zs[i].push(v); if(v>vmax)vmax=v; } }
+    const denom = fixedMax || vmax || 1;
+    function node(i,j){ return proj([(i/N3-.5)*2*HX, (j/N3-.5)*2*HX, (zs[i][j]/denom)*2*HZ-HZ]); }
+    const P=(a,b,cz)=>proj([a,b,cz]), dep=cs=>cs.reduce((s,c)=>s+c.depth,0)/cs.length;
+    /* ---- box: draw the 3 furthest faces (open-box, matplotlib style) with gridlines ---- */
+    const bottom=[P(-HX,-HX,-HZ),P(HX,-HX,-HZ),P(HX,HX,-HZ),P(-HX,HX,-HZ)], top=[P(-HX,-HX,HZ),P(HX,-HX,HZ),P(HX,HX,HZ),P(-HX,HX,HZ)];
+    const zf = dep(bottom)>=dep(top)? {cs:bottom, nz:-HZ} : {cs:top, nz:HZ};
+    const xn=[P(-HX,-HX,-HZ),P(-HX,HX,-HZ),P(-HX,HX,HZ),P(-HX,-HX,HZ)], xp=[P(HX,-HX,-HZ),P(HX,HX,-HZ),P(HX,HX,HZ),P(HX,-HX,HZ)];
+    const xf = dep(xn)>=dep(xp)? {cs:xn, v:-HX} : {cs:xp, v:HX};
+    const yn=[P(-HX,-HX,-HZ),P(HX,-HX,-HZ),P(HX,-HX,HZ),P(-HX,-HX,HZ)], yp=[P(-HX,HX,-HZ),P(HX,HX,-HZ),P(HX,HX,HZ),P(-HX,HX,HZ)];
+    const yf = dep(yn)>=dep(yp)? {cs:yn, v:-HX} : {cs:yp, v:HX};
+    [zf,xf,yf].forEach(f=>g.append('polygon').attr('points',f.cs.map(c=>`${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')).attr('fill','#f6f7fb').attr('stroke','#dfe3ee').attr('stroke-width',1));
+    const line=(a,b)=>{ const pa=proj(a),pb=proj(b); g.append('line').attr('x1',pa.x).attr('y1',pa.y).attr('x2',pb.x).attr('y2',pb.y).attr('stroke','#e6e9f2').attr('stroke-width',.8); };
+    const gx=d3.range(0,GX+1).map(t=>-HX+2*HX*t/GX), gz=d3.range(0,GZ+1).map(t=>-HZ+2*HZ*t/GZ);
+    gx.forEach(u=>line([u,-HX,zf.nz],[u,HX,zf.nz])); gx.forEach(u=>line([-HX,u,zf.nz],[HX,u,zf.nz]));
+    gx.forEach(u=>line([xf.v,u,-HZ],[xf.v,u,HZ])); gz.forEach(w=>line([xf.v,-HX,w],[xf.v,HX,w]));
+    gx.forEach(u=>line([u,yf.v,-HZ],[u,yf.v,HZ])); gz.forEach(w=>line([-HX,yf.v,w],[HX,yf.v,w]));
+    /* ---- surface ---- */
+    const quads=[];
+    for(let i=0;i<N3;i++)for(let j=0;j<N3;j++){ const cs=[node(i,j),node(i+1,j),node(i+1,j+1),node(i,j+1)];
+      const vavg=(zs[i][j]+zs[i+1][j]+zs[i+1][j+1]+zs[i][j+1])/(4*denom);
+      quads.push({cs, col:seq(Math.max(0,Math.min(1,vavg))), depth:(cs[0].depth+cs[1].depth+cs[2].depth+cs[3].depth)/4}); }
+    quads.sort((a,b)=>a.depth-b.depth);
+    g.selectAll('polygon.q').data(quads).join('polygon').attr('class','q').attr('points',d=>d.cs.map(c=>`${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')).attr('fill',d=>d.col).attr('stroke',d=>d.col).attr('stroke-width',.4);
+    /* ---- axis ticks + labels ---- */
+    const bc=[[-HX,-HX],[HX,-HX],[HX,HX],[-HX,HX]]; let pl=bc[0], plx=1e9;
+    bc.forEach(([a,b])=>{ const s=proj([a,b,-HZ]); if(s.x<plx){plx=s.x; pl=[a,b];} });
+    d3.range(0,1.01,0.2).forEach(t=>{ const s=proj([pl[0],pl[1],-HZ+2*HZ*t]); g.append('text').attr('x',s.x-6).attr('y',s.y+4).attr('text-anchor','end').style('font','10px inherit').style('fill','#8a93a8').text(t.toFixed(1)); });
+    const ptop=proj([pl[0],pl[1],HZ*1.2]); g.append('text').attr('x',ptop.x-2).attr('y',ptop.y-2).attr('text-anchor','end').style('font','italic 13px inherit').style('fill','#5b6579').text('p₀');
+    const ey=b=>{const s0=proj([-HX,b,-HZ]),s1=proj([HX,b,-HZ]);return (s0.y+s1.y)/2;}, z1b=ey(-HX)>=ey(HX)?-HX:HX;
+    d3.range(-3,3.1,2).forEach(tk=>{ const a=-HX+2*HX*(tk+3)/6; const s=proj([a,z1b,-HZ]); g.append('text').attr('x',s.x).attr('y',s.y+13).attr('text-anchor','middle').style('font','9px inherit').style('fill','#9aa3b5').text(tk); });
+    const z1e=proj([HX*1.2,z1b,-HZ]); g.append('text').attr('x',z1e.x).attr('y',z1e.y+15).attr('text-anchor','middle').style('font','italic 13px inherit').style('fill','#5b6579').text('z₁');
+    const ex=a=>{const s0=proj([a,-HX,-HZ]),s1=proj([a,HX,-HZ]);return (s0.y+s1.y)/2;}, z2a=ex(-HX)>=ex(HX)?-HX:HX;
+    d3.range(-3,3.1,2).forEach(tk=>{ const b=-HX+2*HX*(tk+3)/6; const s=proj([z2a,b,-HZ]); g.append('text').attr('x',s.x).attr('y',s.y+13).attr('text-anchor','middle').style('font','9px inherit').style('fill','#9aa3b5').text(tk); });
+    const z2e=proj([z2a,HX*1.2,-HZ]); g.append('text').attr('x',z2e.x).attr('y',z2e.y+15).attr('text-anchor','middle').style('font','italic 13px inherit').style('fill','#5b6579').text('z₂');
+  }
+  function drawHeat(){
+    const M=Math.min(W,H)*0.42, x0=cx-M, y0=cy-M, cw=2*M/N2;
+    let vmax=1e-9; const grid=[];
+    for(let i=0;i<N2;i++){ grid.push([]); for(let j=0;j<N2;j++){ const z1=LO+(HI-LO)*(i+.5)/N2, z2=LO+(HI-LO)*(j+.5)/N2; const v=fn(z1,z2); grid[i].push(v); if(v>vmax)vmax=v; } }
+    const denom=fixedMax||vmax||1;
+    const cells=[];
+    for(let i=0;i<N2;i++)for(let j=0;j<N2;j++) cells.push({x:x0+i*cw, y:y0+(N2-1-j)*cw, col:seq(Math.max(0,Math.min(1,grid[i][j]/denom)))});
+    g.selectAll('rect.c').data(cells).join('rect').attr('class','c').attr('x',d=>d.x).attr('y',d=>d.y).attr('width',cw+.5).attr('height',cw+.5).attr('fill',d=>d.col);
+    g.append('rect').attr('x',x0).attr('y',y0).attr('width',2*M).attr('height',2*M).attr('fill','none').attr('stroke','#cbd5e1').attr('stroke-width',1);
+    g.append('text').attr('x',cx).attr('y',y0+2*M+16).attr('text-anchor','middle').style('font','italic 12px inherit').style('fill','#5b6579').text('z₁ →');
+    g.append('text').attr('x',x0-6).attr('y',cy).attr('text-anchor','middle').attr('transform',`rotate(-90 ${x0-6} ${cy})`).style('font','italic 12px inherit').style('fill','#5b6579').text('z₂ →');
+  }
+  function draw(){ g.selectAll('*').remove(); if(!fn) return; if(mode==='2d') drawHeat(); else drawSurf(); }
+  svg.style('cursor','grab');
+  svg.on('pointerdown',function(e){ if(mode!=='3d') return; dragging=true; lx=e.clientX; ly=e.clientY; svg.style('cursor','grabbing'); try{this.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  svg.on('pointermove',function(e){ if(!dragging) return; const dx=(e.clientX-lx)*0.01, dy=(e.clientY-ly)*0.01; cmp.R=mM(mM(rY(dx),rX(dy)),cmp.R); lx=e.clientX; ly=e.clientY;
+    if(!raf) raf=requestAnimationFrame(()=>{ raf=null; cmp.redraw(); }); e.preventDefault(); });
+  svg.on('pointerup pointercancel pointerleave',function(){ dragging=false; svg.style('cursor','grab'); });
+  return { render(f,m,fm){ fn=f; mode=m; fixedMax=(fm==null?null:fm); draw(); }, draw };
+}
+
+/* ============================================================
+   build + wire
+============================================================ */
+const sim = makeSim3D();
+const plotA = makePlot('vizA'), plotB = makePlot('vizB');
+const cfgA = {kind:'softmax', alpha:1.5, k:1}, cfgB = {kind:'entmax', alpha:1.5, k:1};
+let cmpView='3d', cmpMetric='p';
+function redrawCompare(){
+  const fmax = cmpMetric==='p' ? 1 : null;
+  if(plotA){ plotA.render(valueFn(cfgA,cmpMetric), cmpView, fmax); document.getElementById('ttlA').textContent=titleFor(cfgA,cmpMetric); }
+  if(plotB){ plotB.render(valueFn(cfgB,cmpMetric), cmpView, fmax); document.getElementById('ttlB').textContent=titleFor(cfgB,cmpMetric); }
+}
+cmp.redraw = redrawCompare;
+
+/* per-panel param visibility */
+function syncParam(which){
+  const cfg = which==='A'?cfgA:cfgB;
+  document.getElementById('param'+which+'-a').classList.toggle('hidden', cfg.kind!=='entmax');
+  document.getElementById('param'+which+'-k').classList.toggle('hidden', cfg.kind!=='topk');
+}
+function bindPanel(which){
+  const sel=document.getElementById('sel'+which), cfg=which==='A'?cfgA:cfgB;
+  sel.addEventListener('change',e=>{ cfg.kind=e.target.value; syncParam(which); redrawCompare(); });
+  const al=document.getElementById('alpha'+which); al&&al.addEventListener('input',e=>{ cfg.alpha=+e.target.value; document.getElementById('av'+which).textContent=cfg.alpha.toFixed(2); redrawCompare(); });
+  const kk=document.getElementById('k'+which); kk&&kk.addEventListener('input',e=>{ cfg.k=+e.target.value; document.getElementById('kv'+which).textContent=cfg.k; redrawCompare(); });
+  syncParam(which);
+}
+bindPanel('A'); bindPanel('B');
+d3.selectAll('#viewtog button').on('click',function(){ d3.selectAll('#viewtog button').classed('on',false); d3.select(this).classed('on',true); cmpView=this.getAttribute('data-v'); redrawCompare(); });
+d3.selectAll('#mettog button').on('click',function(){ d3.selectAll('#mettog button').classed('on',false); d3.select(this).classed('on',true); cmpMetric=this.getAttribute('data-k'); redrawCompare(); });
+
+/* simplex controls */
+document.getElementById('as-s').addEventListener('input',e=>{ document.getElementById('a-s').textContent=(+e.target.value).toFixed(2); sim&&sim.setAlpha(+e.target.value); });
+document.getElementById('ns-s').addEventListener('input',e=>sim&&sim.setK(+e.target.value));
+document.getElementById('show-s').addEventListener('change',e=>sim&&sim.setShow(e.target.checked));
+d3.selectAll('#mode-s button').on('click',function(){ d3.selectAll('#mode-s button').classed('on',false); d3.select(this).classed('on',true); sim&&sim.setMode(this.getAttribute('data-m')); });
+
+/* tabs */
+d3.selectAll('#tabs button').on('click',function(){
+  const t=this.getAttribute('data-tab');
+  d3.selectAll('#tabs button').classed('on',false); d3.select(this).classed('on',true);
+  document.getElementById('tab-simplex').classList.toggle('on',t==='simplex');
+  document.getElementById('tab-compare').classList.toggle('on',t==='compare');
+  if(sim) sim.setActive(t==='simplex');
+  if(t==='compare') redrawCompare();
+});
+redrawCompare();
+
+/* KaTeX */
+window.addEventListener('load', function(){
+  if(!window.katex) return;
+  const R=(id,tex)=>{ const el=document.getElementById(id); if(el) try{ katex.render(tex, el, {throwOnError:false, displayMode:true}); }catch(e){} };
+  R('eq-simplex', "\\triangle^{n}=\\Big\\{\\boldsymbol p\\in\\mathbb R^{n}:\\ p_i\\ge 0,\\ \\textstyle\\sum_{i=1}^{n}p_i=1\\Big\\}");
+  R('eq-softmax', "\\operatorname{softmax}(\\boldsymbol z)_i=\\frac{e^{z_i}}{\\sum_{j=1}^{n}e^{z_j}}\\;>\\;0\\quad\\text{for every }i");
+  R('eq-entmax-argmax', "\\alpha\\text{-entmax}(\\boldsymbol z)=\\arg\\max_{\\boldsymbol p\\,\\in\\,\\triangle^{n}}\\ \\boldsymbol p^{\\top}\\boldsymbol z+H_\\alpha(\\boldsymbol p)");
+  R('eq-entmax-closed', "p_i^{\\star}=\\big[(\\alpha-1)\\,z_i-\\tau(\\boldsymbol z)\\big]_+^{\\tfrac{1}{\\alpha-1}},\\qquad \\sum_{i=1}^{n}p_i^{\\star}=1,\\qquad [\\cdot]_+=\\max(0,\\cdot)");
+  if(window.renderMathInElement) renderMathInElement(document.body, {delimiters:[{left:'\\(',right:'\\)',display:false}], throwOnError:false});
+});
+</script>
+</body>
+</html>

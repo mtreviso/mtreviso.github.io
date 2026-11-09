@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>α-entmax • 3D volume explorer (score-space cube)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- ES Modules + three.js -->
+  <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+    } }
+  </script>
+
+  <style>
+    html, body { height: 100%; }
+    canvas { display:block; width:100%; height:100%; }
+    .label-xs { font-size: 0.75rem; line-height: 1rem; color: #475569; }
+    .input  { margin-top:.25rem; width:100%; border:1px solid #cbd5e1; background:#fff; border-radius:.5rem; padding:.45rem .55rem; }
+    .select { margin-top:.25rem; width:100%; border:1px solid #cbd5e1; background:#fff; border-radius:.5rem; padding:.45rem .55rem; }
+    .slider { width:100%; cursor:pointer; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-7xl mx-auto px-5 py-8 space-y-6">
+    <header class="space-y-2">
+      <h1 class="text-3xl font-bold tracking-tight">α-entmax • 3D volume explorer</h1>
+      <p class="text-slate-600 max-w-4xl">
+        Full cube <span class="mono">[-R, R]^3</span> over <span class="mono">(z₁,z₂,z₃)</span>.
+        For each voxel we sample <span class="mono">τ ∈ [τ_lo, τ_hi]</span>, solve, and color by the
+        <b>mean iterations</b> to converge. Colormap range = <b>1 → observed T<sub>max</sub></b>.
+        Voxels that fully diverge (for all τ samples) are <b>white</b>.
+      </p>
+    </header>
+
+    <!-- Controls -->
+    <section class="bg-white rounded-2xl shadow p-4 md:p-5">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <label class="md:col-span-2 label-xs">Method
+          <select id="method" class="select">
+            <option value="newton" selected>Newton</option>
+            <option value="halley">Halley</option>
+            <option value="secant">Secant</option>
+          </select>
+        </label>
+        <label class="label-xs">α
+          <input id="alpha" type="number" step="0.01" value="1.50" class="input" />
+        </label>
+        <label class="label-xs">Max iters (cutoff T)
+          <input id="T" type="number" value="25" min="3" step="1" class="input" />
+        </label>
+
+        <label class="md:col-span-2 label-xs">Color mode
+          <select id="colormode" class="select">
+            <option value="iters" selected>Mean iterations (1 → observed T_max)</option>
+            <option value="divergence">Divergence ratio (0 → 1)</option>
+          </select>
+        </label>
+
+        <label class="label-xs">Samples per voxel (N)
+          <input id="samples" type="number" min="5" step="5" value="30" class="input" />
+        </label>
+
+        <label class="md:col-span-2 label-xs">Grid (nx = ny = nz)
+          <input id="n" type="range" min="10" max="60" step="2" value="28" class="slider" />
+          <div class="text-[11px] text-slate-500"><span id="nVal">28</span>³ voxels</div>
+        </label>
+
+        <label class="label-xs">Range ±R
+          <input id="R" type="range" min="1" max="6" step="0.5" value="3" class="slider" />
+          <div class="text-[11px] text-slate-500 mono">±<span id="RVal">3.0</span></div>
+        </label>
+
+        <label class="label-xs">Dim (n ≥ 3)
+          <input id="ndim" type="number" min="3" max="8" step="1" value="3" class="input" />
+        </label>
+
+        <label class="md:col-span-2 label-xs">Point size (px)
+          <input id="ptsize" type="range" min="0.5" max="6" step="0.5" value="2.5" class="slider" />
+          <div class="text-[11px] text-slate-500"><span id="ptVal">2.5</span> px</div>
+        </label>
+
+        <div class="md:col-span-2 flex justify-end">
+          <button id="render" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow">
+            Render 3D volume
+          </button>
+        </div>
+      </div>
+      <div id="status" class="mt-2 text-xs text-slate-500">Ready.</div>
+    </section>
+
+    <!-- Viewport (reduced height) -->
+    <section class="bg-slate-900 rounded-2xl shadow relative">
+      <div id="view" class="h-[720px] rounded-2xl overflow-hidden">
+        <canvas id="gl"></canvas>
+      </div>
+
+      <div class="pointer-events-none absolute inset-0">
+        <div class="absolute left-5 top-4 text-xs text-slate-300 space-y-1">
+          <div>Cube <span class="mono">[-R, R]^3</span> over <span class="mono">(z₁,z₂,z₃)</span></div>
+          <div>Color = mean iterations (1 → observed T<sub>max</sub>), white = all samples diverged</div>
+        </div>
+        <div class="absolute left-24 right-24 bottom-6">
+          <canvas id="cbar" class="w-full h-3"></canvas>
+          <div id="cbarLabel" class="mt-1 text-xs text-slate-300 text-center">Mean iterations (1 → observed T<sub>max</sub>)</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // UI
+    const $ = id => document.getElementById(id);
+    const ui = {
+      method: $('method'), alpha: $('alpha'), T: $('T'),
+      colormode: $('colormode'), samples: $('samples'),
+      n: $('n'), nVal: $('nVal'), R: $('R'), RVal: $('RVal'),
+      ndim: $('ndim'),
+      ptsize: $('ptsize'), ptVal: $('ptVal'),
+      render: $('render'), status: $('status'),
+      cbar: $('cbar'), cbarLabel: $('cbarLabel')
+    };
+    ui.n.addEventListener('input', ()=> ui.nVal.textContent = ui.n.value);
+    ui.R.addEventListener('input', ()=> ui.RVal.textContent = parseFloat(ui.R.value).toFixed(1));
+    ui.ptsize.addEventListener('input', ()=> ui.ptVal.textContent = parseFloat(ui.ptsize.value).toFixed(1));
+    ui.colormode.addEventListener('change', ()=>{
+      ui.cbarLabel.textContent = (ui.colormode.value === 'iters') ? 'Mean iterations (1 → observed T_max)' : 'Divergence ratio (0 → 1)';
+      drawCbar();
+    });
+
+    // Viridis + colorbar
+    const VIRIDIS=[[68,1,84],[71,44,122],[59,81,139],[44,113,142],[33,144,141],[39,173,129],[92,200,99],[170,220,50],[253,231,37]];
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    function viridis(v){ v=Math.max(0,Math.min(1,v)); const n=VIRIDIS.length-1; const f=v*n, i=Math.min(n-1,Math.floor(f)), tt=f-i, c0=VIRIDIS[i], c1=VIRIDIS[i+1];
+      return [Math.round(lerp(c0[0],c1[0],tt)),Math.round(lerp(c0[1],c1[1],tt)),Math.round(lerp(c0[2],c1[2],tt))]; }
+    function drawCbar(){ const ctx=ui.cbar.getContext('2d'); const W=ui.cbar.clientWidth|0, H=ui.cbar.clientHeight|0; if(!W||!H) return;
+      ui.cbar.width=W; ui.cbar.height=H; const img=ctx.createImageData(W,H);
+      for(let x=0;x<W;x++){ const [r,g,b]=viridis(x/(W-1)); for(let y=0;y<H;y++){ const id=(y*W+x)*4; img.data[id]=r; img.data[id+1]=g; img.data[id+2]=b; img.data[id+3]=255; } }
+      ctx.putImageData(img,0,0); ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.strokeRect(0,0,W,H); }
+    drawCbar();
+
+    // entmax (z-space)
+    function f_entmax(scores, tau, alpha){ const r=1/(alpha-1); let sum=0, factor=(alpha-1);
+      for(let i=0;i<scores.length;i++){ const d=scores[i]*factor - tau; if (d>0) sum += Math.pow(d, r); }
+      return sum - 1; }
+    function f_deriv(scores, tau, alpha, order){
+      const r=1/(alpha-1); let coeff=1; for(let k=0;k<order;k++) coeff*=(r-k);
+      const sign=(order%2===0)?1:-1; let s=0, factor=(alpha-1);
+      for(let i=0;i<scores.length;i++){ const d=scores[i]*factor - tau; if (d>0) s += Math.pow(d, r-order); }
+      return sign*coeff*s; }
+    function tau_bounds(scores, alpha){ const maxScore=Math.max(...scores), maxVal=maxScore*(alpha-1), n=scores.length; return [maxVal-1, maxVal - Math.pow(1/n, alpha-1)]; }
+    function solve_newton(scores, alpha, tau0, T, tol=1e-9){ let tau=tau0; for(let i=0;i<T;i++){ const fv=f_entmax(scores,tau,alpha), fp=f_deriv(scores,tau,alpha,1);
+        if (Math.abs(fv)<tol) return {ok:true,it:i,tau}; if (Math.abs(fp)<1e-14) return {ok:false,it:i,tau}; tau -= fv/fp; } return {ok:false,it:T,tau}; }
+    function solve_halley(scores, alpha, tau0, T, tol=1e-9){ let tau=tau0; for(let i=0;i<T;i++){ const fv=f_entmax(scores,tau,alpha), fp=f_deriv(scores,tau,alpha,1);
+        if (Math.abs(fv)<tol) return {ok:true,it:i,tau}; if (Math.abs(fp)<1e-14) return {ok:false,it:i,tau}; const fpp=f_deriv(scores,tau,alpha,2);
+        const denom = fp - (fv*fpp)/(2*fp); if (!isFinite(denom)||Math.abs(denom)<1e-14) return {ok:false,it:i,tau}; tau -= fv/denom; } return {ok:false,it:T,tau}; }
+    function solve_secant(scores, alpha, tau0, tau1, T, tol=1e-9){ let t0=tau0,t1=tau1, f0=f_entmax(scores,t0,alpha), f1=f_entmax(scores,t1,alpha);
+      if (Math.abs(f0)<tol) return {ok:true,it:0,tau:t0}; if (Math.abs(f1)<tol) return {ok:true,it:1,tau:t1};
+      for(let i=2;i<T;i++){ const d=(f1-f0); if (Math.abs(d)<1e-14) return {ok:false,it:i,tau:t1};
+        const t2=t1 - f1*(t1-t0)/d, f2=f_entmax(scores,t2,alpha); if (Math.abs(f2)<tol) return {ok:true,it:i,tau:t2};
+        t0=t1; f0=f1; t1=t2; f1=f2; } return {ok:false,it:T,tau:t1}; }
+
+    // THREE
+    const canvas=$('gl');
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.setClearColor(0x0b1020,1);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(45,1,0.1,5000);
+    camera.position.set(4,4,6); // gentler default
+    scene.add(new THREE.AmbientLight(0xffffff,1));
+    const controls=new OrbitControls(camera,canvas);
+    controls.enableDamping=true; controls.dampingFactor=0.08;
+    let cloud=null;
+
+    function resize(){
+      const pr=Math.min(2,window.devicePixelRatio||1);
+      const box=$('view'); const w=box.clientWidth, h=box.clientHeight;
+      renderer.setPixelRatio(pr); renderer.setSize(w,h,false);
+      camera.aspect=w/h; camera.updateProjectionMatrix();
+    }
+    addEventListener('resize',resize);
+    function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); }
+    resize(); loop();
+
+    function fitCameraToObject(obj, offset=1.25){
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x,size.y,size.z);
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+      const dist = (maxDim/2) / Math.tan(fov/2);
+      const dir = new THREE.Vector3(1,1,1).normalize();
+      camera.position.copy(center).add(dir.multiplyScalar(dist*offset));
+      camera.near=Math.max(0.01, dist/100); camera.far=dist*100*offset; camera.updateProjectionMatrix();
+      controls.target.copy(center); controls.update();
+    }
+
+    function scoresFromXYZ(x,y,z,n){ const s=new Array(n).fill(0); s[0]=x; if(n>1)s[1]=y; if(n>2)s[2]=z; return s; }
+    function buildColorFromIterMean(meanIter, TmaxObs){ if (TmaxObs<=1) return viridis(0); const v=(meanIter-1)/(TmaxObs-1); return viridis(v); }
+
+    async function renderVolume(){
+      const method=ui.method.value;
+      const alpha=parseFloat(ui.alpha.value);
+      const T=parseInt(ui.T.value);
+      const Nsamples=parseInt(ui.samples.value);
+      const ngrid=parseInt(ui.n.value);
+      const R=parseFloat(ui.R.value);
+      const nd=parseInt(ui.ndim.value);
+      const colormode=ui.colormode.value;
+      const ptpx=parseFloat(ui.ptsize.value);
+
+      const N = ngrid*ngrid*ngrid;
+      ui.status.textContent = `Computing ${ngrid}³ = ${N.toLocaleString()} voxels…`;
+
+      const pos = new Float32Array(N*3);
+      const colorBuf = new Uint8Array(N*3);
+      const meanIterStore = new Float32Array(N);
+      const divergedAll = new Uint8Array(N);
+      let p=0, idx=0, processed=0, TmaxObs=1;
+
+      for(let iz=0; iz<ngrid; iz++){
+        const z = ngrid===1 ? 0 : -R + (2*R)*(iz/(ngrid-1));
+        for(let iy=0; iy<ngrid; iy++){
+          const y = ngrid===1 ? 0 : -R + (2*R)*(iy/(ngrid-1));
+          for(let ix=0; ix<ngrid; ix++){
+            const x = ngrid===1 ? 0 : -R + (2*R)*(ix/(ngrid-1));
+
+            const scores = scoresFromXYZ(x,y,z,nd);
+            const [lo,hi] = tau_bounds(scores, alpha);
+
+            let sumIters=0, convCount=0;
+            for(let s=0;s<Nsamples;s++){
+              const t0 = lo + (hi-lo)*(s+0.5)/Nsamples;
+              let r; if (method==='newton') r=solve_newton(scores,alpha,t0,T);
+              else if (method==='halley') r=solve_halley(scores,alpha,t0,T);
+              else r=solve_secant(scores,alpha,lo,hi,T);
+              if (r.ok){ convCount++; sumIters += r.it; if (r.it > TmaxObs) TmaxObs = r.it; }
+              else { /* keep for ratio if needed */ }
+            }
+
+            const allDiv = (convCount===0);
+            divergedAll[idx] = allDiv ? 1 : 0;
+
+            const meanIter = allDiv ? 1 : (sumIters/convCount);
+            meanIterStore[idx] = meanIter;
+
+            pos[p++]=x; pos[p++]=y; pos[p++]=z;
+            idx++; processed++;
+          }
+        }
+        if ((iz&1)===0) await new Promise(r=>setTimeout(r,0));
+        ui.status.textContent = `Computing… ${Math.round(100*(processed/N))}%`;
+      }
+
+      for(let i=0;i<N;i++){
+        let r,g,b;
+        if (colormode==='divergence'){
+          if (divergedAll[i]===1) { r=255; g=255; b=255; }
+          else { [r,g,b] = viridis(0); } // simple placeholder; store ratio if you want exact mapping
+        } else {
+          if (divergedAll[i]===1) { r=255; g=255; b=255; }
+          else { [r,g,b] = buildColorFromIterMean(meanIterStore[i], TmaxObs); }
+        }
+        const c3=i*3; colorBuf[c3]=r; colorBuf[c3+1]=g; colorBuf[c3+2]=b;
+      }
+
+      if (cloud){ cloud.geometry.dispose(); cloud.material.dispose(); scene.remove(cloud); }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+      g.setAttribute('color', new THREE.BufferAttribute(colorBuf,3,true));
+      const m=new THREE.PointsMaterial({ size: ptpx, sizeAttenuation:true, vertexColors:true });
+      cloud=new THREE.Points(g,m); scene.add(cloud);
+
+      fitCameraToObject(cloud, 1.25); // better initial distance
+      drawCbar();
+      ui.status.textContent = `Done. Observed T_max=${TmaxObs}.`;
+    }
+
+    $('render').addEventListener('click', renderVolume);
+  </script>
+</body>
+</html>
